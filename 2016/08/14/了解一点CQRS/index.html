@@ -3,16 +3,22 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Spring常用注解 | Dahui’s 开发笔记</title>
+  <title>了解一点CQRS | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Annotations related with the configuration12345@Configuration@PropertySources @PropertySource@Bean@Autowired @Qualifier@Resource
-SpringBoot1@SpringBoo">
+  <meta name="description" content="Reference：
+微软网站关于CQRS的描述
+Martin Fowler的论述 文章后面警告我们不要乱用这个设计。
+gregyoung的论述
+在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。
+
+
+&amp;gt;TODO： 我的理解和实践。。。">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Spring常用注解"/>
+  <meta property="og:title" content="了解一点CQRS"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -52,21 +58,26 @@ SpringBoot1@SpringBoo">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
+        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
       
       
   
-    <h1 class="title">Spring常用注解</h1>
+    <h1 class="title">了解一点CQRS</h1>
   
 
     </header>
     <div class="entry">
       
-        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@PropertySources @PropertySource</div><div class="line">@Bean</div><div class="line">@Autowired @Qualifier</div><div class="line">@Resource</div></pre></td></tr></table></figure>
-<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">@SpringBootApplication</div></pre></td></tr></table></figure>
-<p>约等于下面三个注解的合体：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@EnableAutoConfiguration</div><div class="line">@ComponentScan</div></pre></td></tr></table></figure>
-<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
+        <p>Reference：</p>
+<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="external">微软网站关于CQRS的描述</a></p>
+<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="external">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
+<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="external">gregyoung的论述</a></p>
+<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
+<blockquote>
+<blockquote>
+<p>&gt;<br>TODO： 我的理解和实践。。。</p>
+</blockquote>
+</blockquote>
 
       
     </div>
@@ -76,7 +87,7 @@ SpringBoot1@SpringBoo">
         
   
   <div class="tags">
-    <a href="/tags/spring/">spring</a>
+    <a href="/tags/DDD/">DDD</a>, <a href="/tags/design/">design</a>
   </div>
 
         
@@ -119,7 +130,7 @@ SpringBoot1@SpringBoo">
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="http://yoursite.com/2016/08/13/Spring常用注解/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="http://yoursite.com/2016/08/14/了解一点CQRS/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
