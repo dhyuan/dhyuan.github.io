@@ -54,13 +54,22 @@
       
       
   
-    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 git backend</a></h1>
+    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
   
 
     </header>
     <div class="entry">
       
-        <img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" alt="applicationName、profile、label的使用" title="applicationName、profile、label的使用">
+        <p>Reference:<br><a href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html" target="_blank" rel="external">spring-cloud-config</a>详细讲述了实用文件系统、Git做backend时的使用方法，以及更复杂的使用场景。<br><a href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html" target="_blank" rel="external">Spring Profiles</a> 讲述了profile在configuration中的作用及使用。</p>
+<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的数据源。Configuration Client从server端获取数据。  </p>
+<p><em>Server端的配置</em>：</p>
+<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
+server.port=8888
+</code></pre><p><em>Client端的配置</em></p>
+<pre><code>spring.application.name=reservation-service
+spring.profiles.active=profile1,profile3
+spring.cloud.config.uri＝http://localhost:8888
+</code></pre><p>下图仅仅演示了最简单的application name、profile、label的使用。<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" alt="application name、profile、label的使用" title="application name、profile、label的使用"></p>
 
       
     </div>
