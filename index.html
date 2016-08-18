@@ -75,7 +75,7 @@ spring.cloud.config.uri＝http://localhost:8888
 <ul>
 <li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
 </li>
-<li><p>在config client项目中添加Actuator库，（通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口）。其中的POST" target="_blank" rel="external">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口）。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
+<li><p>在config client项目中添加Actuator库，通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST" target="_blank" rel="external">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
 <pre><code>可以同通过 curl -d {} http://localhost:8000/refresh 获取更新。
 </code></pre></li>
 </ul>
