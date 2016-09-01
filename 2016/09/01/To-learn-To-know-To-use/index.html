@@ -3,16 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Spring常用注解 | Dahui’s 开发笔记</title>
+  <title>To learn, To know, To use | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Annotations related with the configuration12345@Configuration@PropertySources @PropertySource@Bean@Autowired @Qualifier@Resource
-SpringBoot1@SpringBoo">
+  <meta name="description" content="Spring Cloud互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”分的实现、应用。Spring Cloud实际上已经成为了常用的分布式工具包。
+针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。
+
+config">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Spring常用注解"/>
+  <meta property="og:title" content="To learn, To know, To use"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -52,21 +54,35 @@ SpringBoot1@SpringBoo">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
+        <time datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
       
       
   
-    <h1 class="title">Spring常用注解</h1>
+    <h1 class="title">To learn, To know, To use</h1>
   
 
     </header>
     <div class="entry">
       
-        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@PropertySources @PropertySource</div><div class="line">@Bean</div><div class="line">@Autowired @Qualifier</div><div class="line">@Resource</div></pre></td></tr></table></figure>
-<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">@SpringBootApplication</div></pre></td></tr></table></figure>
-<p>约等于下面三个注解的合体：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@EnableAutoConfiguration</div><div class="line">@ComponentScan</div></pre></td></tr></table></figure>
-<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
+        <h4 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h4><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”分的实现、应用。Spring Cloud实际上已经成为了常用的分布式工具包。</p>
+<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。</p>
+<ul>
+<li>configuration management, </li>
+<li>service discovery, </li>
+<li>circuit breakers, </li>
+<li>intelligent routing,</li>
+<li>micro-proxy, </li>
+<li>control bus, </li>
+<li>one-time tokens, </li>
+<li>global locks, </li>
+<li>leadership election, </li>
+<li>distributed sessions, </li>
+<li>cluster state</li>
+</ul>
+<h4 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h4><ul>
+<li>RxJava</li>
+<li>Akka</li>
+</ul>
 
       
     </div>
@@ -74,11 +90,6 @@ SpringBoot1@SpringBoo">
       
         
         
-  
-  <div class="tags">
-    <a href="/tags/spring/">spring</a>
-  </div>
-
         
   <div class="addthis addthis_toolbox addthis_default_style">
     
@@ -119,7 +130,7 @@ SpringBoot1@SpringBoo">
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/13/Spring常用注解/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/01/To-learn-To-know-To-use/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
