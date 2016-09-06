@@ -64,8 +64,8 @@
 <p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
 <ul>
 <li>configuration management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">Git Backend</a></li>
-<li>ZooKeeper</li>
+<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git做存储</a></li>
+<li><a href="https://dhyuan.github.io2016/09/06/spring-cloud-zookeeper-config/" target="_blank" rel="external">用ZooKeeper做存储</a></li>
 <li>Consul</li>
 </ul>
 </li>
@@ -88,6 +88,55 @@
 <li>Akka</li>
 </ul>
 
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config" target="_blank" rel="external">使用ZooKeeper作为配置信息的Repository</a></p>
+<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
+<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。<br>例一：<br>    config/testApp,dev<br>    config/testApp<br>    config/application,dev<br>    config/application</p>
+<p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
+<pre><code>spring:
+  cloud:
+    zookeeper:
+      config:
+        enabled: true
+        root: configuration
+        defaultContext: apps
+        profileSeparator: &apos;::&apos;
+</code></pre><p>这样，例一，就应变成下面这样：</p>
+<pre><code>configuration/testApp,dev
+configuration/testApp
+configuration/apps,dev
+configuration/apps
+</code></pre>
       
     </div>
     <footer>
@@ -335,13 +384,17 @@ spring.cloud.config.uri＝http://localhost:8888
   <h3 class="title">标签</h3>
   <ul class="entry">
   
+    <li><a href="/tags/Configuration/">Configuration</a><small>2</small></li>
+  
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
     <li><a href="/tags/Reactive/">Reactive</a><small>1</small></li>
   
     <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
   
-    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>1</small></li>
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>2</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   

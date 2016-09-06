@@ -3,22 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>了解一点CQRS | Dahui’s 开发笔记</title>
+  <title>Spring Cloud Config 之 ZooKeeper | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Reference：
-微软网站关于CQRS的描述
-Martin Fowler的论述 文章后面警告我们不要乱用这个设计。
-gregyoung的论述
-在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。
-
-
-&amp;gt;TODO： 我的理解和实践。。。">
+  <meta name="description" content="Reference:使用ZooKeeper作为配置信息的Repository
+Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="了解一点CQRS"/>
+  <meta property="og:title" content="Spring Cloud Config 之 ZooKeeper"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -58,27 +52,34 @@ gregyoung的论述
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+        <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
       
       
   
-    <h1 class="title">了解一点CQRS</h1>
+    <h1 class="title">Spring Cloud Config 之 ZooKeeper</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>Reference：</p>
-<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="external">微软网站关于CQRS的描述</a></p>
-<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="external">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
-<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="external">gregyoung的论述</a></p>
-<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
-<blockquote>
-<blockquote>
-<p>&gt;<br>TODO： 我的理解和实践。。。</p>
-</blockquote>
-</blockquote>
-
+        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config" target="_blank" rel="external">使用ZooKeeper作为配置信息的Repository</a></p>
+<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
+<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。<br>例一：<br>    config/testApp,dev<br>    config/testApp<br>    config/application,dev<br>    config/application</p>
+<p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
+<pre><code>spring:
+  cloud:
+    zookeeper:
+      config:
+        enabled: true
+        root: configuration
+        defaultContext: apps
+        profileSeparator: &apos;::&apos;
+</code></pre><p>这样，例一，就应变成下面这样：</p>
+<pre><code>configuration/testApp,dev
+configuration/testApp
+configuration/apps,dev
+configuration/apps
+</code></pre>
       
     </div>
     <footer>
@@ -87,7 +88,7 @@ gregyoung的论述
         
   
   <div class="tags">
-    <a href="/tags/DDD/">DDD</a>, <a href="/tags/design/">design</a>
+    <a href="/tags/SpringCloud/">SpringCloud</a>, <a href="/tags/Configuration/">Configuration</a>, <a href="/tags/ZooKeeper/">ZooKeeper</a>
   </div>
 
         
@@ -130,7 +131,7 @@ gregyoung的论述
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/14/了解一点CQRS/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
