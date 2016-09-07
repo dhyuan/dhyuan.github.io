@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>To learn, To know, To use | Dahui’s 开发笔记</title>
+  <title>spring cloud config 之 consul | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Spring Cloud互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。
-针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工">
+  <meta name="description" content="Reference:使用Consul作为配置信息的Repository
+类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="To learn, To know, To use"/>
+  <meta property="og:title" content="spring cloud config 之 consul"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -52,43 +52,44 @@
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
+        <time datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
       
       
   
-    <h1 class="title">To learn, To know, To use</h1>
+    <h1 class="title">spring cloud config 之 consul</h1>
   
 
     </header>
     <div class="entry">
       
-        <h4 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h4><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
-<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
-<ul>
-<li>configuration management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
-</ul>
-</li>
-<li>service discovery</li>
-<li>circuit breakers</li>
-<li>intelligent routing</li>
-<li>micro-proxy</li>
-<li>control bus</li>
-<li>one-time tokens</li>
-<li>global locks</li>
-<li><ul>
-<li>leadership election</li>
-</ul>
-</li>
-<li>distributed sessions</li>
-<li>cluster state</li>
-</ul>
-<h4 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h4><ul>
-<li>RxJava</li>
-<li>Akka</li>
-</ul>
+        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config" target="_blank" rel="external">使用Consul作为配置信息的Repository</a></p>
+<p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p>
+<p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p>
+<pre><code>org.springframework.cloud:spring-cloud-consul-config
+</code></pre><p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        enabled: true
+        prefix: configuration
+        defaultContext: apps
+        profileSeparator: &apos;::&apos;
+</code></pre><p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        format: YAML
+
+
+config/testApp,dev/data
+config/testApp/data
+config/application,dev/data
+config/application/data
+</code></pre><p>可以通过下面的设置，修改健data的值</p>
+<pre><code>spring.cloud.consul.config.data-key
+</code></pre><p>4）git2consul<br>consul社区的开源项目<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="external">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="external">]https://github.com/Cimpress-MCP/git2consul</a>。</p>
 
       
     </div>
@@ -96,6 +97,11 @@
       
         
         
+  
+  <div class="tags">
+    <a href="/tags/SpringCloud/">SpringCloud</a>, <a href="/tags/Consul/">Consul</a>, <a href="/tags/Configuration/">Configuration</a>
+  </div>
+
         
   <div class="addthis addthis_toolbox addthis_default_style">
     
@@ -136,7 +142,7 @@
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/01/To-learn-To-know-To-use/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
