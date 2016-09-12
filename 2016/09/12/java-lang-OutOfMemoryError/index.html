@@ -3,22 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>了解一点CQRS | Dahui’s 开发笔记</title>
+  <title>java.lang.OutOfMemoryError | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Reference：
-微软网站关于CQRS的描述
-Martin Fowler的论述 文章后面警告我们不要乱用这个设计。
-gregyoung的论述
-在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。
+  <meta name="description" content="当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。
 
-
-&amp;gt;TODO： 我的理解和实践。。。">
+java.lang.OutOfMemoryError: Java heap space
+java.lang.OutOfMemoryEr">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="了解一点CQRS"/>
+  <meta property="og:title" content="java.lang.OutOfMemoryError"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -58,26 +54,54 @@ gregyoung的论述
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+        <time datetime="2016-09-12T13:57:54.000Z"><a href="/2016/09/12/java-lang-OutOfMemoryError/">2016-09-12</a></time>
       
       
   
-    <h1 class="title">了解一点CQRS</h1>
+    <h1 class="title">java.lang.OutOfMemoryError</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>Reference：</p>
-<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="external">微软网站关于CQRS的描述</a></p>
-<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="external">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
-<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="external">gregyoung的论述</a></p>
-<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
-<blockquote>
-<blockquote>
-<p>&gt;<br>TODO： 我的理解和实践。。。</p>
-</blockquote>
-</blockquote>
+        <p>当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。</p>
+<ul>
+<li>java.lang.OutOfMemoryError: Java heap space</li>
+<li>java.lang.OutOfMemoryError: PermGen space</li>
+<li>java.lang.OutOfMemoryError: unable to create new native thread</li>
+<li>java.lang.OutOfMemoryError: GC Overhead limit exceeded</li>
+<li>java.lang.OutOfMemoryError: Requested array size exceeds VM limit</li>
+<li>java.lang.OutOfMemoryError: Metaspace</li>
+<li>java.lang.OutOfMemoryError: request size bytes for reason. Out of swap space?</li>
+<li>java.lang.OutOfMemoryError: Compressed class space</li>
+<li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li>
+</ul>
+<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。</p>
+<p><strong>unable to create new native thread</strong></p>
+<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p>
+<pre><code>private static void createInfinitThreads() {
+    long i = 0;
+    while(true){
+        new Thread(new Runnable(){
+            public void run() {
+                try {
+                    Thread.sleep(10000000);
+                } catch(InterruptedException e) { }
+            }
+        }).start();
+
+        i ++;
+        System.out.println(i);
+    }
+}
+</code></pre><p><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="external">http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux</a></p>
+<p><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread</a></p>
+<p><em>Reference：</em></p>
+<ul>
+<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="external">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE</a></li>
+<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread</a></li>
+<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="external">http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads</a></li>
+</ul>
 
       
     </div>
@@ -87,7 +111,7 @@ gregyoung的论述
         
   
   <div class="tags">
-    <a href="/tags/DDD/">DDD</a>, <a href="/tags/design/">design</a>
+    <a href="/tags/Java/">Java</a>, <a href="/tags/Debug/">Debug</a>
   </div>
 
         
@@ -130,7 +154,7 @@ gregyoung的论述
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/14/了解一点CQRS/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/12/java-lang-OutOfMemoryError/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
