@@ -133,9 +133,10 @@
 <li>java.lang.OutOfMemoryError: Compressed class space</li>
 <li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li>
 </ul>
-<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。</p>
+<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。这个问题通过增大参数-Xmx<heap size="">[g|m|k]也许可以解决。当然，更踏实的做法还是要检测程序是不是有内存泄漏的问题。</heap></p>
+<p><strong>PermGen space</strong><br>通过参数-XX:PermSize=<perm gen="" size="">[g|m|k]进行调整。在JDK8之后，Permanent Generation这块heap内存已经放弃，而和Native Memory合并了。</perm></p>
 <p><strong>unable to create new native thread</strong></p>
-<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p>
+<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。<br>这种类型的OOM不能通过-XX:+HeapDumpOnOutOfMemoryError参数dump出文件。</p>
 <pre><code>private static void createInfinitThreads() {
     long i = 0;
     while(true){
@@ -151,13 +152,20 @@
         System.out.println(i);
     }
 }
-</code></pre><p><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="external">http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux</a></p>
-<p><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread</a></p>
+</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="external">Java内存区域与内存溢出异常</a></p>
+<p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg" alt=""></p>
+<p>图二：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif" alt=""></p>
+<p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png" alt=""></p>
 <p><em>Reference：</em></p>
 <ul>
 <li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="external">https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE</a></li>
 <li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread</a></li>
-<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="external">http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads</a></li>
+<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="external">http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads</a><br>*<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="external">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
+<li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="external">http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux</a></li>
+<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread</a></li>
+<li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="external">http://wiki.jikexueyuan.com/project/java-vm/storage.html</a></li>
+<li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="external">通过示例程序演示了不同类型的OOM</a></li>
+<li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="external">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
 </ul>
 
       
