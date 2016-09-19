@@ -3,22 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>了解一点CQRS | Dahui’s 开发笔记</title>
+  <title>在遗留项目中使用 Spring Boot and Cloud | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Reference：
-微软网站关于CQRS的描述
-Martin Fowler的论述 文章后面警告我们不要乱用这个设计。
-gregyoung的论述
-在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。
-
-
-&amp;gt;TODO： 我的理解和实践。。。">
+  <meta name="description" content="几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇官方文档介绍了在已有parent pom的情况下如何使用boot。
+下面两点个学习">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="了解一点CQRS"/>
+  <meta property="og:title" content="在遗留项目中使用 Spring Boot and Cloud"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -58,26 +52,64 @@ gregyoung的论述
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+        <time datetime="2016-09-19T14:34:40.000Z"><a href="/2016/09/19/在遗留项目中使用-Spring-Boot-and-Cloud/">2016-09-19</a></time>
       
       
   
-    <h1 class="title">了解一点CQRS</h1>
+    <h1 class="title">在遗留项目中使用 Spring Boot and Cloud</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>Reference：</p>
-<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="external">微软网站关于CQRS的描述</a></p>
-<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="external">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
-<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="external">gregyoung的论述</a></p>
-<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
-<blockquote>
-<blockquote>
-<p>&gt;<br>TODO： 我的理解和实践。。。</p>
-</blockquote>
-</blockquote>
+        <p>几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇<a href="http://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html" target="_blank" rel="external">官方文档</a>介绍了在已有parent pom的情况下如何使用boot。</p>
+<p>下面两点个学习摘要。</p>
+<p>1）如果遗留项目中没有使用自己parent pom，那么在项目模块中就可以直接设置parent为spring-boot-starter-parent</p>
+<pre><code>&lt;!-- Inherit defaults from Spring Boot --&gt;
+&lt;parent&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+    &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+&lt;/parent&gt;
+</code></pre><p>如果想更改某个子项目版本，通过下面设置属性的方式进行更改。</p>
+<pre><code>&lt;properties&gt;
+    &lt;spring-data-releasetrain.version&gt;Fowler-SR2&lt;/spring-data-releasetrain.version&gt;
+&lt;/properties&gt;
+</code></pre><p>查看有哪些可更改的properties，<a href="https://github.com/spring-projects/spring-boot/blob/v1.3.6.RELEASE/spring-boot-dependencies/pom.xml" target="_blank" rel="external">参考这里</a>。</p>
+<p>2）如果已有的maven项目中已经存在parent pom，那么可以通过 denpendencyManagemengt的方式指定boot的BOM。</p>
+<pre><code>&lt;dependencyManagement&gt;
+     &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;!-- Import dependency management from Spring Boot --&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre><p>这种情况下，如果需要指定某个版本的库，就需要在定义spring-boot-dependencies的前面定义dependence了。就像下面这样，spring-data-releasetrain使用了不同于1.3.6.RELEASE的另一个版本Fowler-SR2。</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;!-- Override Spring Data release train provided by Spring Boot --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-data-releasetrain&lt;/artifactId&gt;
+            &lt;version&gt;Fowler-SR2&lt;/version&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre><p>guanyuMaven中BOM[Bill Of Materials]， 这篇文章不错：<a href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/" target="_blank" rel="external">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a></p>
 
       
     </div>
@@ -87,7 +119,7 @@ gregyoung的论述
         
   
   <div class="tags">
-    <a href="/tags/DDD/">DDD</a>, <a href="/tags/design/">design</a>
+    <a href="/tags/Spring/">Spring</a>, <a href="/tags/Maven/">Maven</a>
   </div>
 
         
@@ -130,7 +162,7 @@ gregyoung的论述
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/14/了解一点CQRS/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/19/在遗留项目中使用-Spring-Boot-and-Cloud/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
