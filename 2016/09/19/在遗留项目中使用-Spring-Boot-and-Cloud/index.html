@@ -109,7 +109,33 @@
         &lt;/dependency&gt;
     &lt;/dependencies&gt;
 &lt;/dependencyManagement&gt;
-</code></pre><p>guanyuMaven中BOM[Bill Of Materials]， 这篇文章不错：<a href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/" target="_blank" rel="external">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a></p>
+</code></pre><p>关于Maven中BOM[Bill Of Materials]的概念， 这篇文章讲得不错：<a href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/" target="_blank" rel="external">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a>。</p>
+<p><em>A BOM dependency keep track of version numbers and ensure that all dependencies (both direct and transitive) are at the same version.</em></p>
+<p>如何添加BOM依赖<br>maven通过dependencyManagement来支持BOM。比如像下面这样加入Spring BOM：</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-framework-bom&lt;/artifactId&gt;
+            &lt;version&gt;4.0.1.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre><p>那么，以后再使用那个这个BOM包含的库时，就不必制定version了。比如：</p>
+<pre><code>&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-context&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-web&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+&lt;dependencies&gt;
+</code></pre><p>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p>
+<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。<br><img src="/2016/09/19/在遗留项目中使用-Spring-Boot-and-Cloud/SpringBootCloud_pomSmaple.png" alt="一个pom的例子" title="一个pom的例子"></p>
 
       
     </div>
