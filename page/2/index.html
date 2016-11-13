@@ -50,6 +50,43 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/13/Spring常用注解/">Spring常用注解</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@PropertySources @PropertySource</div><div class="line">@Bean</div><div class="line">@Autowired @Qualifier</div><div class="line">@Resource</div></pre></td></tr></table></figure>
+<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">@SpringBootApplication</div></pre></td></tr></table></figure>
+<p>约等于下面三个注解的合体：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">@Configuration</div><div class="line">@EnableAutoConfiguration</div><div class="line">@ComponentScan</div></pre></td></tr></table></figure>
+<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2016-08-12T15:52:30.000Z"><a href="/2016/08/12/hello-world/">2016-08-12</a></time>
       
       
@@ -122,9 +159,13 @@
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>1</small></li>
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>2</small></li>
   
     <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>1</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
   
@@ -135,6 +176,8 @@
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/笔记/">笔记</a><small>1</small></li>
   
   </ul>
 </div>
