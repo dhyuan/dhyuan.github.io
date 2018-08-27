@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2018-08-27T14:29:26.143Z</updated>
+  <updated>2018-08-27T14:33:09.331Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,11 +17,11 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>android-emulator-operations</title>
+    <title>修改Android模拟器中的文件</title>
     <link href="https://dhyuan.github.io/2018/08/27/android-emulator-operations/"/>
     <id>https://dhyuan.github.io/2018/08/27/android-emulator-operations/</id>
     <published>2018-08-27T13:59:10.000Z</published>
-    <updated>2018-08-27T14:29:26.143Z</updated>
+    <updated>2018-08-27T14:33:09.331Z</updated>
     
     <content type="html"><![CDATA[<p>本地开发机运行着server向跑在模拟器中的app提供rest api服务。</p><p><strong>1）模拟器中的127.0.0.1是指模拟器自己本机。</strong></p><p><strong>2）模拟器中使用10.0.2.2来访问开发机。</strong></p><p><strong>3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。</strong></p><pre><code>// 列出安装的模拟器emulator -list-avdsemulator -avd Your_Emulator_Name -writable-systemadb rootadb remount// 把模拟器上的文件pull到本地adb pull /etc/hosts newHosts// 添加 &quot;10.0.2.2    your_domain&quot;vi newHosts             adb push newHosts /etc/hosts// 进入模拟器的shelladb shell</code></pre>]]></content>
     
