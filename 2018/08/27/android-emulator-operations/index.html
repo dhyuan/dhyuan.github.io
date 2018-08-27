@@ -3,13 +3,20 @@
 <head>
   <meta charset="utf-8">
   
-  <title>SpringCloud | Dahui’s 开发笔记</title>
+  <title>android-emulator-operations | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
+  
+  <meta name="description" content="本地开发机运行着server向跑在模拟器中的app提供rest api服务。
+1）模拟器中的127.0.0.1是指模拟器自己本机。
+2）模拟器中使用10.0.2.2来访问开发机。
+3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。
+// 列出安装的模拟器
+e">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  
+  <meta property="og:title" content="android-emulator-operations"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -43,49 +50,100 @@
 <div class="clearfix"></div>
 </header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper">
-<h2 class="archive-title tag">SpringCloud</h2>
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-08-27T13:59:10.000Z"><a href="/2018/08/27/android-emulator-operations/">2018-08-27</a></time>
+      
+      
+  
+    <h1 class="title">android-emulator-operations</h1>
+  
 
+    </header>
+    <div class="entry">
+      
+        <p>本地开发机运行着server向跑在模拟器中的app提供rest api服务。</p>
+<p><strong>1）模拟器中的127.0.0.1是指模拟器自己本机。</strong></p>
+<p><strong>2）模拟器中使用10.0.2.2来访问开发机。</strong></p>
+<p><strong>3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。</strong></p>
+<pre><code>// 列出安装的模拟器
+emulator -list-avds
 
-  <div class="archive">
-    
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
-            
-              <h1 class="title"><a href="/2016/09/07/spring-cloud-consul-config/">spring cloud config 之 consul</a></h1>
-            
-          </header>
-        </div>
-      </article>
-    
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
-            
-              <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
-            
-          </header>
-        </div>
-      </article>
-    
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
-            
-              <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
-            
-          </header>
-        </div>
-      </article>
-    
+emulator -avd Your_Emulator_Name -writable-system
+adb root
+adb remount
+
+// 把模拟器上的文件pull到本地
+adb pull /etc/hosts newHosts
+
+// 添加 &quot;10.0.2.2    your_domain&quot;
+vi newHosts             
+
+adb push newHosts /etc/hosts
+
+// 进入模拟器的shell
+adb shell
+</code></pre>
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/android/">android</a>
   </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2018/08/27/android-emulator-operations/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
 </div></div>
     <aside id="sidebar" class="alignright">
   <div class="search">

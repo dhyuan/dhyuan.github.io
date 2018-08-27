@@ -101,21 +101,21 @@ echo 200000 &gt; /proc/sys/kernel/pid_max
         System.out.println(i);
     }
 }
-</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="external">Java内存区域与内存溢出异常</a></p>
+</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">Java内存区域与内存溢出异常</a></p>
 <p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg" alt=""></p>
 <p>图二：下面中的Permanent区域在Java8中已经和method area合并。<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif" alt=""></p>
 <p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png" alt=""></p>
 <p><em>Reference：</em></p>
 <ul>
-<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="external">Oracle关于OOM Exception的官方文档</a></li>
-<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="external">关于unable to create new native thread这种情况的论述</a></li>
-<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="external">Linux上ulimit命令与unable to create new native thread的关系</a></li>
-<li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="external">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li>
-<li><a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="external">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
-<li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="external">一篇关于内存结构和溢出的文章</a></li>
-<li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="external">通过示例程序演示了不同类型的OOM</a></li>
-<li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="external">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
-<li><a href="https://dzone.com/articles/how-analyze-java-thread-dumps" target="_blank" rel="external">这篇文章讲述了如何分析java dump文件</a></li>
+<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="noopener">Oracle关于OOM Exception的官方文档</a></li>
+<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="noopener">关于unable to create new native thread这种情况的论述</a></li>
+<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="noopener">Linux上ulimit命令与unable to create new native thread的关系</a></li>
+<li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="noopener">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li>
+<li><a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
+<li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="noopener">一篇关于内存结构和溢出的文章</a></li>
+<li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="noopener">通过示例程序演示了不同类型的OOM</a></li>
+<li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="noopener">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
+<li><a href="https://dzone.com/articles/how-analyze-java-thread-dumps" target="_blank" rel="noopener">这篇文章讲述了如何分析java dump文件</a></li>
 </ul>
 
       
@@ -216,6 +216,8 @@ echo 200000 &gt; /proc/sys/kernel/pid_max
   
     <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
   
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
@@ -230,7 +232,7 @@ echo 200000 &gt; /proc/sys/kernel/pid_max
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-      &copy; 2016 Dahui
+      &copy; 2018 Dahui
       <!-- 不蒜统计 -->
 	  <br>
 	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>
