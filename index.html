@@ -50,6 +50,61 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2018-09-10T13:24:47.000Z"><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/">2018-09-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/">使用OpenSSL创建CA、Service证书的步骤</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <blockquote><p>OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。</p>
+</blockquote>
+<h3 id="准备目录"><a href="#准备目录" class="headerlink" title="准备目录"></a>准备目录</h3><pre><code>mkdir root-ca
+cd root-ca
+mkdir certs db private
+chmod 700 private
+touch db/index
+openssl rand -hex 16 &gt; db/serial
+echo 1001 &gt; db/crlnumber
+</code></pre><h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-	ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure>
+<h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a>
+<pre><code># 这一步同时生产私钥和csr
+openssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key
+
+# 用root ca签署sub ca
+openssl ca -config root-ca.conf -in sub-ca.csr -out sub-ca.crt -extensions sub_ca_ext    
+</code></pre><h3 id="Service-Certificate"><a href="#Service-Certificate" class="headerlink" title="Service Certificate"></a>Service Certificate</h3><pre><code>openssl genrsa -aes128 -out server.key 2048
+openssl req -new -key server.key -out server.csr
+openssl ca -config sub-ca.conf -in server.csr -out server.crt -extensions server_ext
+</code></pre><p><em>Reference</em>:</p>
+<p><a href="http://www.ituring.com.cn/book/download/338e1e55-fd94-4ac3-9e21-e0bf04984b3f" target="_blank" rel="noopener">《OpenSSL攻略》</a> 这篇文档详细介绍了OpenSSL的使用。</p>
+<p>更多背景知识可参考：<a href="http://www.ituring.com.cn/book/1734" target="_blank" rel="noopener">《HTTPS权威指南》</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2018-08-27T13:59:10.000Z"><a href="/2018/08/27/android-emulator-operations/">2018-08-27</a></time>
       
       
@@ -585,57 +640,6 @@ configuration/apps
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html" target="_blank" rel="noopener">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html" target="_blank" rel="noopener">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p>
-<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p>
-<p><strong>Server端的配置</strong>：</p>
-<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
-server.port=8888
-</code></pre><p><strong>Client端的配置</strong></p>
-<pre><code>spring.application.name=reservation-service
-spring.profiles.active=profile1,profile3
-SpringConfigClient_GitBackend.png
-spring.cloud.config.uri＝http://localhost:8888
-</code></pre><p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" title="application name、profile、label的使用"></p>
-<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" title="多个profile中重复定义"></p>
-<ul>
-<li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
-</li>
-<li><p>在config client项目中添加Actuator库，通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST" target="_blank" rel="noopener">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
-<pre><code>可以同通过 curl -d {} http://localhost:8000/refresh 获取更新。
-</code></pre></li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -691,7 +695,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
-    <li><a href="/tags/笔记/">笔记</a><small>1</small></li>
+    <li><a href="/tags/笔记/">笔记</a><small>2</small></li>
   
   </ul>
 </div>

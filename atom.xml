@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2018-08-27T14:39:03.920Z</updated>
+  <updated>2018-09-10T14:21:28.507Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,11 +17,36 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>使用OpenSSL创建CA、Service证书的步骤</title>
+    <link href="https://dhyuan.github.io/2018/09/10/OpenSSL-create-CA-service-certificates/"/>
+    <id>https://dhyuan.github.io/2018/09/10/OpenSSL-create-CA-service-certificates/</id>
+    <published>2018-09-10T13:24:47.000Z</published>
+    <updated>2018-09-10T14:21:28.507Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote><p>OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。</p></blockquote><h3 id="准备目录"><a href="#准备目录" class="headerlink" title="准备目录"></a>准备目录</h3><pre><code>mkdir root-cacd root-camkdir certs db privatechmod 700 privatetouch db/indexopenssl rand -hex 16 &gt; db/serialecho 1001 &gt; db/crlnumber</code></pre><h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure><h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a><pre><code># 这一步同时生产私钥和csropenssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key# 用root ca签署sub caopenssl ca -config root-ca.conf -in sub-ca.csr -out sub-ca.crt -extensions sub_ca_ext    </code></pre><h3 id="Service-Certificate"><a href="#Service-Certificate" class="headerlink" title="Service Certificate"></a>Service Certificate</h3><pre><code>openssl genrsa -aes128 -out server.key 2048openssl req -new -key server.key -out server.csropenssl ca -config sub-ca.conf -in server.csr -out server.crt -extensions server_ext</code></pre><p><em>Reference</em>:</p><p><a href="http://www.ituring.com.cn/book/download/338e1e55-fd94-4ac3-9e21-e0bf04984b3f" target="_blank" rel="noopener">《OpenSSL攻略》</a> 这篇文档详细介绍了OpenSSL的使用。</p><p>更多背景知识可参考：<a href="http://www.ituring.com.cn/book/1734" target="_blank" rel="noopener">《HTTPS权威指南》</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;blockquote&gt;&lt;p&gt;OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id=&quot;准备目录&quot;&gt;&lt;a href=&quot;#准备目录&quot; class=&quot;headerlink&quot; titl
+      
+    
+    </summary>
+    
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+  </entry>
+  
+  <entry>
     <title>修改Android模拟器中的文件</title>
     <link href="https://dhyuan.github.io/2018/08/27/android-emulator-operations/"/>
     <id>https://dhyuan.github.io/2018/08/27/android-emulator-operations/</id>
     <published>2018-08-27T13:59:10.000Z</published>
-    <updated>2018-08-27T14:39:03.920Z</updated>
+    <updated>2018-08-27T14:39:18.741Z</updated>
     
     <content type="html"><![CDATA[<p>本地开发机运行着server向跑在模拟器中的app提供rest api服务。</p><p><strong>1）模拟器中的127.0.0.1是指模拟器自己本机。</strong></p><p><strong>2）模拟器中使用10.0.2.2来访问开发机。</strong></p><p><strong>3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。</strong></p><pre><code>// 列出安装的模拟器emulator -list-avds// 以可写模式启动模拟器emulator -avd Your_Emulator_Name -writable-systemadb rootadb remount// 把模拟器上的文件pull到本地adb pull /etc/hosts newHosts// 添加 &quot;10.0.2.2    your_domain&quot;vi newHosts             adb push newHosts /etc/hosts// 进入模拟器的shelladb shell</code></pre>]]></content>
     
@@ -60,9 +85,9 @@
     </summary>
     
     
-      <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
     
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
