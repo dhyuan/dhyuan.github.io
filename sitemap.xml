@@ -2,6 +2,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://dhyuan.github.io/2018/09/12/Monoid/</loc>
+    
+    <lastmod>2018-09-12T13:13:49.691Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>https://dhyuan.github.io/2018/09/12/Semigroup/</loc>
+    
+    <lastmod>2018-09-12T13:13:33.641Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://dhyuan.github.io/2018/09/10/OpenSSL-create-CA-service-certificates/</loc>
     
     <lastmod>2018-09-10T14:21:28.507Z</lastmod>

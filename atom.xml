@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2018-09-10T14:21:28.507Z</updated>
+  <updated>2018-09-12T13:13:49.691Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,58 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Monoid</title>
+    <link href="https://dhyuan.github.io/2018/09/12/Monoid/"/>
+    <id>https://dhyuan.github.io/2018/09/12/Monoid/</id>
+    <published>2018-09-12T12:43:08.000Z</published>
+    <updated>2018-09-12T13:13:49.691Z</updated>
+    
+    <content type="html"><![CDATA[<p>###Monoid</p><p>####Type signature</p><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {    T Empty}class (Semigroup a) &lt;= Monoid a where    empty :: a</code></pre><p>####Monoid Laws:</p><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.a &lt;&gt; empty == aempty &lt;&gt; a == a</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;###Monoid&lt;/p&gt;
+&lt;p&gt;####Type signature&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;public interface Monoid&amp;lt;T&amp;gt; : SemiGroup&amp;lt;T&amp;gt; {
+    T Empty
+}
+
+class (Semigrou
+      
+    
+    </summary>
+    
+    
+      <category term="FP" scheme="https://dhyuan.github.io/tags/FP/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Semigroup</title>
+    <link href="https://dhyuan.github.io/2018/09/12/Semigroup/"/>
+    <id>https://dhyuan.github.io/2018/09/12/Semigroup/</id>
+    <published>2018-09-12T12:43:02.000Z</published>
+    <updated>2018-09-12T13:13:33.641Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：public interface SemiGroup&lt;T&gt; {    T Append(T thingToAppend);}// 用Haskell定义：class SemiGroup a where    append :: a-&gt; a -&gt; a// Haskell实现的String with append：instance Semigroup String where    append a b = a ++ b</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p><h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p><pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p><p><strong>2）Incremental</strong></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h3 id=&quot;SemiGroup-幺半群&quot;&gt;&lt;a href=&quot;#SemiGroup-幺半群&quot; class=&quot;headerlink&quot; title=&quot;SemiGroup 幺半群&quot;&gt;&lt;/a&gt;SemiGroup 幺半群&lt;/h3&gt;&lt;h4 id=&quot;Type-signature&quot;&gt;&lt;a hr
+      
+    
+    </summary>
+    
+    
+      <category term="Category" scheme="https://dhyuan.github.io/tags/Category/"/>
+    
+  </entry>
   
   <entry>
     <title>使用OpenSSL创建CA、Service证书的步骤</title>
