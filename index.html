@@ -60,16 +60,13 @@
     </header>
     <div class="entry">
       
-        <p>###Monoid</p>
-<p>####Type signature</p>
-<pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {
+        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {
     T Empty
 }
 
 class (Semigroup a) &lt;= Monoid a where
     empty :: a
-</code></pre><p>####Monoid Laws:</p>
-<pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.
+</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.
 a &lt;&gt; empty == a
 empty &lt;&gt; a == a
 </code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
@@ -659,8 +656,6 @@ configuration/apps
 <div class="widget tag">
   <h3 class="title">标签</h3>
   <ul class="entry">
-  
-    <li><a href="/tags/Category/">Category</a><small>0</small></li>
   
     <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
   

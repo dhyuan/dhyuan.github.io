@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2018-09-12T13:13:49.691Z</updated>
+  <updated>2018-09-12T13:27:11.379Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -21,21 +21,15 @@
     <link href="https://dhyuan.github.io/2018/09/12/Monoid/"/>
     <id>https://dhyuan.github.io/2018/09/12/Monoid/</id>
     <published>2018-09-12T12:43:08.000Z</published>
-    <updated>2018-09-12T13:13:49.691Z</updated>
+    <updated>2018-09-12T13:27:11.379Z</updated>
     
-    <content type="html"><![CDATA[<p>###Monoid</p><p>####Type signature</p><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {    T Empty}class (Semigroup a) &lt;= Monoid a where    empty :: a</code></pre><p>####Monoid Laws:</p><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.a &lt;&gt; empty == aempty &lt;&gt; a == a</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>]]></content>
+    <content type="html"><![CDATA[<h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {    T Empty}class (Semigroup a) &lt;= Monoid a where    empty :: a</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.a &lt;&gt; empty == aempty &lt;&gt; a == a</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>]]></content>
     
     <summary type="html">
     
       
       
-        &lt;p&gt;###Monoid&lt;/p&gt;
-&lt;p&gt;####Type signature&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;public interface Monoid&amp;lt;T&amp;gt; : SemiGroup&amp;lt;T&amp;gt; {
-    T Empty
-}
-
-class (Semigrou
+        &lt;h3 id=&quot;Monoid&quot;&gt;&lt;a href=&quot;#Monoid&quot; class=&quot;headerlink&quot; title=&quot;Monoid&quot;&gt;&lt;/a&gt;Monoid&lt;/h3&gt;&lt;h4 id=&quot;Type-signature&quot;&gt;&lt;a href=&quot;#Type-signature&quot; class=&quot;
       
     
     </summary>
