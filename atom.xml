@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2018-09-12T13:27:11.379Z</updated>
+  <updated>2020-02-17T04:07:03.339Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,33 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>JMM</title>
+    <link href="https://dhyuan.github.io/2020/02/17/JMM/"/>
+    <id>https://dhyuan.github.io/2020/02/17/JMM/</id>
+    <published>2020-02-17T03:47:11.000Z</published>
+    <updated>2020-02-17T04:07:03.339Z</updated>
+    
+    <content type="html"><![CDATA[<p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p><img src="/2020/02/17/JMM/JMM.png">]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。&lt;/p&gt;
+&lt;img src=&quot;/2020/02/17/JMM/JMM.png&quot;&gt;
+
+      
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+  </entry>
   
   <entry>
     <title>Monoid</title>
@@ -131,9 +158,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
@@ -176,9 +203,9 @@
     </summary>
     
     
-      <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
-    
       <category term="Spring" scheme="https://dhyuan.github.io/tags/Spring/"/>
+    
+      <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
     
   </entry>
   
