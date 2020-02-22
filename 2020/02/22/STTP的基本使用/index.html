@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Spring常用注解 | Dahui’s 开发笔记</title>
+  <title>STTP的基本使用（1）--Request、Response | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Annotations related with the configuration12345@Configuration@PropertySources @PropertySource@Bean@Autowired @Qualifier@Resource
-SpringBoot1@SpringBoo">
+  <meta name="description" content="Reference：https://sttp.readthedocs.io/en/latest/index.html
+这篇文字主要描述一下 STTP 的基本概念及使用。
+1）定义 request。请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientReq">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Spring常用注解"/>
+  <meta property="og:title" content="STTP的基本使用（1）--Request、Response"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -52,21 +53,23 @@ SpringBoot1@SpringBoo">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
+        <time datetime="2020-02-22T14:11:32.000Z"><a href="/2020/02/22/STTP的基本使用/">2020-02-22</a></time>
       
       
   
-    <h1 class="title">Spring常用注解</h1>
+    <h1 class="title">STTP的基本使用（1）--Request、Response</h1>
   
 
     </header>
     <div class="entry">
       
-        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@PropertySources @PropertySource</span><br><span class="line">@Bean</span><br><span class="line">@Autowired @Qualifier</span><br><span class="line">@Resource</span><br></pre></td></tr></table></figure>
-<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">@SpringBootApplication</span><br></pre></td></tr></table></figure>
-<p>约等于下面三个注解的合体：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@EnableAutoConfiguration</span><br><span class="line">@ComponentScan</span><br></pre></td></tr></table></figure>
-<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
+        <p>Reference：<br><a href="https://sttp.readthedocs.io/en/latest/index.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/index.html</a></p>
+<p>这篇文字主要描述一下 STTP 的基本概念及使用。</p>
+<p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p>
+<p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理这连接池、处理 response 的线程池，根据配置还支持还部分的支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 返回值是 Task[Resonse[T]]。</p>
+<p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a href="https://sttp.readthedocs.io/en/latest/requests/basics.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
+<p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a href="https://sttp.readthedocs.io/en/latest/requests/streaming.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
+<p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
 
       
     </div>
@@ -76,7 +79,7 @@ SpringBoot1@SpringBoo">
         
   
   <div class="tags">
-    <a href="/tags/spring/">spring</a>
+    <a href="/tags/笔记/">笔记</a>, <a href="/tags/Scala/">Scala</a>
   </div>
 
         
@@ -119,7 +122,7 @@ SpringBoot1@SpringBoo">
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/13/Spring常用注解/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/02/22/STTP的基本使用/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
