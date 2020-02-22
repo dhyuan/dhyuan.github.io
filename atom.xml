@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-02-22T15:00:45.156Z</updated>
+  <updated>2020-02-22T15:38:19.901Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,19 +17,20 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>STTP的基本使用（1）--Request、Response</title>
+    <title>STTP的基本使用(1)：Request、Response</title>
     <link href="https://dhyuan.github.io/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/"/>
     <id>https://dhyuan.github.io/2020/02/22/STTP的基本使用/</id>
     <published>2020-02-22T14:11:32.000Z</published>
-    <updated>2020-02-22T15:00:45.156Z</updated>
+    <updated>2020-02-22T15:38:19.901Z</updated>
     
-    <content type="html"><![CDATA[<p>Reference：<br><a href="https://sttp.readthedocs.io/en/latest/index.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/index.html</a></p><p>这篇文字主要描述一下 STTP 的基本概念及使用。</p><p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p><p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理这连接池、处理 response 的线程池，根据配置还支持还部分的支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 返回值是 Task[Resonse[T]]。</p><p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a href="https://sttp.readthedocs.io/en/latest/requests/basics.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p><p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a href="https://sttp.readthedocs.io/en/latest/requests/streaming.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p><p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>]]></content>
+    <content type="html"><![CDATA[<p>试试看 get 一下新技能：STTP with AKKA。</p><p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p><p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理着连接池、处理 response 的线程池，根据 backend 的情况还支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 的返回值则是 Task[Resonse[T]]。</p><p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a href="https://sttp.readthedocs.io/en/latest/requests/basics.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p><p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a href="https://sttp.readthedocs.io/en/latest/requests/streaming.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p><p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p><img src="/2020/02/22/STTP的基本使用/STTP_Basic_1.png"><p>Reference：<br><a href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>]]></content>
     
     <summary type="html">
     
       
       
-        &lt;p&gt;Reference：&lt;br&gt;&lt;a href=&quot;https://sttp.readthedocs.io/en/latest/index.html&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;https://sttp.readthedocs.io/en/la
+        &lt;p&gt;试试看 get 一下新技能：STTP with AKKA。&lt;/p&gt;
+&lt;p&gt;1）定义 request。&lt;br&gt;请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, b
       
     
     </summary>
