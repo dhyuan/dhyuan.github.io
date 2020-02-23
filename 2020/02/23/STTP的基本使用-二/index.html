@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   
-  <title>STTP的基本使用 二 | Dahui’s 开发笔记</title>
+  <title>STTP的基本使用(2)：Json | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
   <meta name="description" content="1）对 Json 的支持对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。目前，">
@@ -11,7 +11,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="STTP的基本使用 二"/>
+  <meta property="og:title" content="STTP的基本使用(2)：Json"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -55,19 +55,15 @@
       
       
   
-    <h1 class="title">STTP的基本使用 二</h1>
+    <h1 class="title">STTP的基本使用(2)：Json</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>1）对 Json 的支持<br>对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。<br>目前，从项目活跃度、维护程度上讲 Circe 应该是不错的选择。（<a href="https://scala.libhunt.com/compare-circe-vs-spray-json）" target="_blank" rel="noopener">https://scala.libhunt.com/compare-circe-vs-spray-json）</a></p>
-<ol start="2">
-<li><p>Circe<br>Circe 竟然是基于挑战智商的 CAT 实现的！官网: <a href="https://circe.github.io/circe/。" target="_blank" rel="noopener">https://circe.github.io/circe/。</a><br>Circe 使用 Encoder、Decoder 编解码 josn。Encoder[A]把 A 转为 Json，Decoder[A]则把 Josn 转为 A 或者 Exception(如果失败话)。Circe 对 Scala 库中常见类型就提供了默认的隐式实例。<br>对于简单结构的 case class，使用 Circe 提供的自动、半自动的编解码就好。Circe 当然也支持自定义转换或对 ADT 类型数据转换。<br>使用 circe-optics 模块还可以对 Json 数据进行遍历、修改。看文档<a href="https://circe.github.io/circe/optics.html，是不是太方便了？！" target="_blank" rel="noopener">https://circe.github.io/circe/optics.html，是不是太方便了？！</a></p>
-<p>比如，下面从 order 中获取用户的电话号码。</p>
-<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> phoneNum = root.order.customer.contactDetails.phone.string</span><br></pre></td></tr></table></figure>
-</li>
-</ol>
+        <h4 id="1）对-Json-的支持"><a href="#1）对-Json-的支持" class="headerlink" title="1）对 Json 的支持"></a>1）对 Json 的支持</h4><p>对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。<br>目前，从项目活跃度、维护程度上讲 Circe 应该是不错的选择。（<a href="https://scala.libhunt.com/compare-circe-vs-spray-json）" target="_blank" rel="noopener">https://scala.libhunt.com/compare-circe-vs-spray-json）</a></p>
+<h4 id="2）Circe"><a href="#2）Circe" class="headerlink" title="2）Circe"></a>2）Circe</h4><p>Circe 竟然是基于挑战智商的 CAT 实现的！官网: <a href="https://circe.github.io/circe/。" target="_blank" rel="noopener">https://circe.github.io/circe/。</a><br>Circe 使用 Encoder、Decoder 编解码 josn。Encoder[A]把 A 转为 Json，Decoder[A]则把 Josn 转为 A 或者 Exception(如果失败话)。Circe 对 Scala 库中常见类型就提供了默认的隐式实例。<br>对于简单结构的 case class，使用 Circe 提供的自动、半自动的编解码就好。Circe 当然也支持自定义转换或对 ADT 类型数据转换。智商够用可以去看<a href="https://github.com/milessabin/shapeless。" target="_blank" rel="noopener">https://github.com/milessabin/shapeless。</a><br>使用 circe-optics 模块还可以对 Json 数据进行遍历、修改。<br>比如，下面从 order 中获取用户的电话号码。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> phoneNum = root.order.customer.contactDetails.phone.string</span><br></pre></td></tr></table></figure><br>是不是太方便了？！</p>
+<p>调用 NASA 某 Api 并解析代码示例：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> io.circe.generic.auto._</span><br><span class="line"><span class="keyword">import</span> sttp.client._</span><br><span class="line"><span class="keyword">import</span> sttp.client.circe.\_</span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">Links</span>(<span class="params">self: <span class="type">String</span>, next: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">Page</span>(<span class="params">number: <span class="type">Int</span>, size: <span class="type">Int</span>, total_elements: <span class="type">Int</span>, total_pages: <span class="type">Int</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NearEarthObject</span>(<span class="params">absolute_magnitude_h: <span class="type">Double</span>, designation: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NasaData</span>(<span class="params">links: <span class="type">Links</span>, page: <span class="type">Page</span>, near_earth_objects: <span class="type">List</span>[<span class="type">NearEarthObject</span>]</span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">implicit</span> <span class="title">val</span> <span class="title">backend</span> </span>= <span class="type">HttpURLConnectionBackend</span>()</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">val</span> resp = basicRequest</span><br><span class="line">.get(<span class="string">uri"https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>"</span>)</span><br><span class="line">.response(asJson[<span class="type">NasaData</span>])</span><br><span class="line">.send()</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">val</span> value: <span class="type">NasaData</span> = resp.body.right.get</span><br><span class="line">println(value)</span><br></pre></td></tr></table></figure></p>
 
       
     </div>
