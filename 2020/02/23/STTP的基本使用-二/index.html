@@ -3,16 +3,15 @@
 <head>
   <meta charset="utf-8">
   
-  <title>To learn, To know, To use | Dahui’s 开发笔记</title>
+  <title>STTP的基本使用 二 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Spring Cloud互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。
-针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工">
+  <meta name="description" content="1）对 Json 的支持对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。目前，">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="To learn, To know, To use"/>
+  <meta property="og:title" content="STTP的基本使用 二"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -52,45 +51,23 @@
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
+        <time datetime="2020-02-23T03:03:35.000Z"><a href="/2020/02/23/STTP的基本使用-二/">2020-02-23</a></time>
       
       
   
-    <h1 class="title">To learn, To know, To use</h1>
+    <h1 class="title">STTP的基本使用 二</h1>
   
 
     </header>
     <div class="entry">
       
-        <h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
-<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
-<ul>
-<li>Configuration Management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
-<li>配置服务的设计与实践。</li>
-</ul>
+        <p>1）对 Json 的支持<br>对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。<br>目前，从项目活跃度、维护程度上讲 Circe 应该是不错的选择。（<a href="https://scala.libhunt.com/compare-circe-vs-spray-json）" target="_blank" rel="noopener">https://scala.libhunt.com/compare-circe-vs-spray-json）</a></p>
+<ol start="2">
+<li><p>Circe<br>Circe 竟然是基于挑战智商的 CAT 实现的！官网: <a href="https://circe.github.io/circe/。" target="_blank" rel="noopener">https://circe.github.io/circe/。</a><br>Circe 使用 Encoder、Decoder 编解码 josn。Encoder[A]把 A 转为 Json，Decoder[A]则把 Josn 转为 A 或者 Exception(如果失败话)。Circe 对 Scala 库中常见类型就提供了默认的隐式实例。<br>对于简单结构的 case class，使用 Circe 提供的自动、半自动的编解码就好。Circe 当然也支持自定义转换或对 ADT 类型数据转换。<br>使用 circe-optics 模块还可以对 Json 数据进行遍历、修改。看文档<a href="https://circe.github.io/circe/optics.html，是不是太方便了？！" target="_blank" rel="noopener">https://circe.github.io/circe/optics.html，是不是太方便了？！</a></p>
+<p>比如，下面从 order 中获取用户的电话号码。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> phoneNum = root.order.customer.contactDetails.phone.string</span><br></pre></td></tr></table></figure>
 </li>
-<li>service discovery</li>
-<li>circuit breakers</li>
-<li>intelligent routing</li>
-<li>micro-proxy</li>
-<li>control bus</li>
-<li>one-time tokens</li>
-<li>global locks</li>
-<li>Leadership election<ul>
-<li>利用ZooKeeper、Curator实现leader选举</li>
-<li>利用leadership election实现“单例服务”</li>
-</ul>
-</li>
-<li>distributed sessions</li>
-<li>cluster state</li>
-</ul>
-<h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul>
-<li>RxJava</li>
-<li>Akka</li>
-</ul>
+</ol>
 
       
     </div>
@@ -98,6 +75,11 @@
       
         
         
+  
+  <div class="tags">
+    <a href="/tags/笔记/">笔记</a>, <a href="/tags/Scala/">Scala</a>
+  </div>
+
         
   <div class="addthis addthis_toolbox addthis_default_style">
     
@@ -138,7 +120,7 @@
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/01/To-learn-To-know-To-use/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/02/23/STTP的基本使用-二/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>

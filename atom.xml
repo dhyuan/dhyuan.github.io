@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-02-22T15:38:19.901Z</updated>
+  <updated>2020-02-23T03:51:16.576Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,11 +17,36 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>STTP的基本使用 二</title>
+    <link href="https://dhyuan.github.io/2020/02/23/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8-%E4%BA%8C/"/>
+    <id>https://dhyuan.github.io/2020/02/23/STTP的基本使用-二/</id>
+    <published>2020-02-23T03:03:35.000Z</published>
+    <updated>2020-02-23T03:51:16.576Z</updated>
+    
+    <content type="html"><![CDATA[<p>1）对 Json 的支持<br>对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。<br>目前，从项目活跃度、维护程度上讲 Circe 应该是不错的选择。（<a href="https://scala.libhunt.com/compare-circe-vs-spray-json）" target="_blank" rel="noopener">https://scala.libhunt.com/compare-circe-vs-spray-json）</a></p><ol start="2"><li><p>Circe<br>Circe 竟然是基于挑战智商的 CAT 实现的！官网: <a href="https://circe.github.io/circe/。" target="_blank" rel="noopener">https://circe.github.io/circe/。</a><br>Circe 使用 Encoder、Decoder 编解码 josn。Encoder[A]把 A 转为 Json，Decoder[A]则把 Josn 转为 A 或者 Exception(如果失败话)。Circe 对 Scala 库中常见类型就提供了默认的隐式实例。<br>对于简单结构的 case class，使用 Circe 提供的自动、半自动的编解码就好。Circe 当然也支持自定义转换或对 ADT 类型数据转换。<br>使用 circe-optics 模块还可以对 Json 数据进行遍历、修改。看文档<a href="https://circe.github.io/circe/optics.html，是不是太方便了？！" target="_blank" rel="noopener">https://circe.github.io/circe/optics.html，是不是太方便了？！</a></p><p>比如，下面从 order 中获取用户的电话号码。</p><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> phoneNum = root.order.customer.contactDetails.phone.string</span><br></pre></td></tr></table></figure></li></ol>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;1）对 Json 的支持&lt;br&gt;对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s
+      
+    
+    </summary>
+    
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+  </entry>
+  
+  <entry>
     <title>STTP的基本使用(1)：Request、Response</title>
     <link href="https://dhyuan.github.io/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/"/>
     <id>https://dhyuan.github.io/2020/02/22/STTP的基本使用/</id>
     <published>2020-02-22T14:11:32.000Z</published>
-    <updated>2020-02-22T15:38:19.901Z</updated>
+    <updated>2020-02-23T03:02:55.896Z</updated>
     
     <content type="html"><![CDATA[<p>试试看 get 一下新技能：STTP with AKKA。</p><p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p><p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理着连接池、处理 response 的线程池，根据 backend 的情况还支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 的返回值则是 Task[Resonse[T]]。</p><p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a href="https://sttp.readthedocs.io/en/latest/requests/basics.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p><p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a href="https://sttp.readthedocs.io/en/latest/requests/streaming.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p><p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p><img src="/2020/02/22/STTP的基本使用/STTP_Basic_1.png"><p>Reference：<br><a href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>]]></content>
     
@@ -429,7 +454,7 @@
     <published>2016-08-13T15:42:21.000Z</published>
     <updated>2016-08-14T06:57:21.000Z</updated>
     
-    <content type="html"><![CDATA[<h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@PropertySources @PropertySource</span><br><span class="line">@Bean</span><br><span class="line">@Autowired @Qualifier</span><br><span class="line">@Resource</span><br></pre></td></tr></table></figure><h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">@SpringBootApplication</span><br></pre></td></tr></table></figure><p>约等于下面三个注解的合体：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@EnableAutoConfiguration</span><br><span class="line">@ComponentScan</span><br></pre></td></tr></table></figure><p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>]]></content>
+    <content type="html"><![CDATA[<h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@PropertySources</span> <span class="variable">@PropertySource</span></span><br><span class="line"><span class="variable">@Bean</span></span><br><span class="line"><span class="variable">@Autowired</span> <span class="variable">@Qualifier</span></span><br><span class="line"><span class="variable">@Resource</span></span><br></pre></td></tr></table></figure><h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight aspectj"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SpringBootApplication</span></span><br></pre></td></tr></table></figure><p>约等于下面三个注解的合体：</p><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@EnableAutoConfiguration</span></span><br><span class="line"><span class="variable">@ComponentScan</span></span><br></pre></td></tr></table></figure><p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>]]></content>
     
     <summary type="html">
     
