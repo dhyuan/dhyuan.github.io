@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-02-27T15:29:04.983Z</updated>
+  <updated>2020-03-02T14:17:47.908Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,32 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Try Future sequence</title>
+    <link href="https://dhyuan.github.io/2020/03/02/Future-sequence/"/>
+    <id>https://dhyuan.github.io/2020/03/02/Future-sequence/</id>
+    <published>2020-03-02T13:21:09.000Z</published>
+    <updated>2020-03-02T14:17:47.908Z</updated>
+    
+    <content type="html"><![CDATA[<p>这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。</p><h3 id="1）关于Option-T-Either-E-R-和-Try-T-的使用场景。"><a href="#1）关于Option-T-Either-E-R-和-Try-T-的使用场景。" class="headerlink" title="1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。"></a>1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。</h3><p>这三种type很容易让人想到处理Exception的场景。这些types如果只是针对Exception就略显狭隘了。现在我的感觉是：<br>1）Option适于处理业务逻辑上需要空值的地方，这里不一定是因为Exception导致。往往是业务上需要表达这种“空”/“没值”。<br>2）Either的左值不一定是Exception，表示一个计算可能有两种结果比较好，右值按照惯例表示正确/正常路径下的结果。左值是另个分支的结果。当然，也可以放Exception，Error什么的。STTP的Response body部分就是一个Either[Error, T]。<br>3）Try，其实才是最适合表示一个计算可能出现Exception的type。Try的apply()接受的就是一个代码块并运行，对异常封装到子类Failure。<br>最后的感觉是Option，Either更像标量，是结果的一个静态表示。而Try是动态的，包含了代码的执行。看Try的定义体会下：<br><figure class="highlight scala"><figcaption><span>&#125;<br> object Try &#123;<br> def apply<a href="r:" =&gt;="" t="" target="_blank" rel="noopener">T</a>: Try[T] =<br> try Success(r) catch &#123;<br> case NonFatal(e) =&gt; Failure(e)<br> &#125;<br> &#125;<br>&#123;% endcodeblock&#125;</span></figcaption></figure></p> <h3 id="2）Future’s-sequence-的实现。"><a href="#2）Future’s-sequence-的实现。" class="headerlink" title="2）Future’s" sequence()的实现。=""></a>2）Future’s sequence()的实现。</h3><p>1）这是Erik喜欢的递归方式的实现。<br>&#123;% codeblock lang:scala<table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).flatMap(ts =&gt; <span class="type">Future</span>(t::ts)))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></p><p>2）通过类型推导，我发现把flatMap()换成了map()也符合类型检查，似乎也也没有大的问题。但在逻辑上，这个实现就是要要等着所有的future依次从尾部开始都complete了才能执行。而上面的实现整个过程都是异步的，更符合Future的原意。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).map(ts =&gt; t::ts))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>3）Erik通过async，await实现的sequence。<br>这种方式似乎更容易理解，但风格太不FP了。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scala.async.<span class="type">Async</span>.&#123;async, await&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fs: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = async &#123;</span><br><span class="line">  <span class="keyword">var</span> _fs = fs</span><br><span class="line">  <span class="keyword">val</span> result = <span class="type">ListBuffer</span>[<span class="type">T</span>]()</span><br><span class="line">  <span class="keyword">while</span> (_fs != <span class="type">Nil</span>) &#123;</span><br><span class="line">    result += await &#123; _fs.head &#125;</span><br><span class="line">    _fs = _fs.tail</span><br><span class="line">  &#125;</span><br><span class="line">  result.toList</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>4）还可以通过Promise来实现。<br>等磕完promise再说吧。。。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。&lt;/p&gt;
+&lt;h3 id=&quot;1）关于Option-T-Either-E-R-和-Try-T-的使用场景。&quot;&gt;&lt;a href=&quot;#1）关于Option-T-Either-
+      
+    
+    </summary>
+    
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+  </entry>
   
   <entry>
     <title>STTP的基本使用(3)：把List[Future[Either[Error, T]]]转为Future[(List[Throwable], List[T])]</title>
@@ -36,9 +62,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -61,9 +87,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -87,9 +113,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -114,11 +140,11 @@
     </summary>
     
     
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -237,9 +263,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
       <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
     
@@ -493,27 +519,6 @@
     
     
       <category term="spring" scheme="https://dhyuan.github.io/tags/spring/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Hello Hexo</title>
-    <link href="https://dhyuan.github.io/2016/08/12/hello-world/"/>
-    <id>https://dhyuan.github.io/2016/08/12/hello-world/</id>
-    <published>2016-08-12T15:52:30.000Z</published>
-    <updated>2017-01-07T13:56:11.000Z</updated>
-    
-    <content type="html"><![CDATA[<p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p><h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p><h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p><h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p><h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure><p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="noopener">Deployment</a></p><h3 id="一些如何使用hexo的文章链接"><a href="#一些如何使用hexo的文章链接" class="headerlink" title="一些如何使用hexo的文章链接"></a>一些如何使用hexo的文章链接</h3><p><a href="http://ijiaober.github.io/categories/hexo/" target="_blank" rel="noopener">hexo使用攻略</a></p><p><a href="http://bblove.me/2015/05/30/hexo-setting-with-comments-and-visitors/" target="_blank" rel="noopener">不蒜子统计、多说评论</a></p><p><a href="http://dev.duoshuo.com/threads/541d3b2b40b5abcd2e4df0e9" target="_blank" rel="noopener">多说评论</a></p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;Welcome to &lt;a href=&quot;https://hexo.io/&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;Hexo&lt;/a&gt;! This is your very first post. Check &lt;a href=&quot;https://hexo.
-      
-    
-    </summary>
-    
     
   </entry>
   
