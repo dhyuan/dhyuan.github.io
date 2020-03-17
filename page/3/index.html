@@ -50,6 +50,87 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/14/了解一点CQRS/">了解一点CQRS</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>Reference：</p>
+<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="noopener">微软网站关于CQRS的描述</a></p>
+<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
+<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="noopener">gregyoung的论述</a></p>
+<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
+<blockquote>
+<blockquote>
+<blockquote>
+</blockquote>
+<p>TODO： 我的理解和实践。。。</p>
+</blockquote>
+</blockquote>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/13/Spring常用注解/">Spring常用注解</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@PropertySources</span> <span class="variable">@PropertySource</span></span><br><span class="line"><span class="variable">@Bean</span></span><br><span class="line"><span class="variable">@Autowired</span> <span class="variable">@Qualifier</span></span><br><span class="line"><span class="variable">@Resource</span></span><br></pre></td></tr></table></figure>
+<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight aspectj"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SpringBootApplication</span></span><br></pre></td></tr></table></figure>
+<p>约等于下面三个注解的合体：</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@EnableAutoConfiguration</span></span><br><span class="line"><span class="variable">@ComponentScan</span></span><br></pre></td></tr></table></figure>
+<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2016-08-12T15:52:30.000Z"><a href="/2016/08/12/hello-world/">2016-08-12</a></time>
       
       
@@ -133,7 +214,7 @@
   
     <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
   
-    <li><a href="/tags/Scala/">Scala</a><small>5</small></li>
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
   
@@ -147,7 +228,7 @@
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
-    <li><a href="/tags/笔记/">笔记</a><small>7</small></li>
+    <li><a href="/tags/笔记/">笔记</a><small>9</small></li>
   
   </ul>
 </div>

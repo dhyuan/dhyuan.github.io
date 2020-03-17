@@ -1,0 +1,228 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>未来的邮箱：Promise | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。
+def successful[T](result: T): Promise[T]
+def failed[T](exception: ">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="未来的邮箱：Promise"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Dahui’s 开发笔记" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-03-05T15:46:39.000Z"><a href="/2020/03/05/Future-s-mail-box-Promise/">2020-03-05</a></time>
+      
+      
+  
+    <h1 class="title">未来的邮箱：Promise</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。<br>可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。</p>
+<pre><code>def successful[T](result: T): Promise[T]
+def failed[T](exception: Throwable): Promise[T]
+</code></pre><p>放了值之后，可以调用Promise的future() 得到一个已经完成了的Future。<br>Promise最核心的就是这个逻辑：你可以通过Promise.future()得到一个Future对象，而future里的计算结果是在什么其它地方(当然一般情况是在其它线程里、回调代码里)计算好放进去的。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line"><span class="keyword">val</span> f = p.future</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">produce</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  <span class="type">Thread</span>.sleep(<span class="number">500</span>)</span><br><span class="line">  p.success(<span class="number">1</span>)</span><br><span class="line">  println(<span class="string">"Produce done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">consume</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  f.foreach(r =&gt; println(<span class="string">s"Get <span class="subst">$r</span>"</span>))</span><br><span class="line">  println(<span class="string">s"Consume done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">produce()</span><br><span class="line">consume()</span><br><span class="line"><span class="type">StdIn</span>.readLine(<span class="string">"End?\n"</span>)</span><br></pre></td></tr></table></figure>
+<p>这段代码的打印如下内容，可以看到consume()方法已经执行完了才打印出“Get 1”。</p>
+<pre><code>Consume done
+End?
+Produce done
+Get 1
+</code></pre><p>这个也好理解，foreach只是针对future Success的情况提供了callback机制。需要注意的是Future可以通过onComplete, foreach注册多个callback，但是这些callback运行先后以及运行所在线程是没有保证的。这点区别于map、flatMap。</p>
+<p>本来想试着用Promise实现 List[Future[T]] 到 Future[List[T]]的转换，找到foldLeft这种方式。如下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts.foldLeft(<span class="type">Future</span>&#123; <span class="type">List</span>.empty[<span class="type">T</span>]&#125;)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>画蛇添足地再体验下promise：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequenceByPromise</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">List</span>[<span class="type">T</span>]]()</span><br><span class="line">  <span class="keyword">val</span> result = p.success(<span class="type">List</span>.empty[<span class="type">T</span>]).future</span><br><span class="line"></span><br><span class="line">  fts.foldLeft(result)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">  result</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>下面代码演示了如何把callback风格代码转为Future风格。在Akka actor框架里，如果需要异步的执行代码并且后面的代码需要这个异步执行的结果，我们就可以通过Promise把结果封装到Future里。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">CallbackBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(continuation: <span class="type">Try</span>[<span class="type">Int</span>] =&gt; <span class="type">Unit</span>): <span class="type">Unit</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">FutureBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(): <span class="type">Future</span>[<span class="type">Int</span>]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">futurize</span></span>(callbackBasedApi: <span class="type">CallbackBasedApi</span>): <span class="type">FutureBasedApi</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 体会下把“Try=&gt;Unit”当做complete的参数。</span></span><br><span class="line">  callbackBasedApi.computeIntAsync( t =&gt; p.complete(t))</span><br><span class="line"></span><br><span class="line">  <span class="keyword">new</span> <span class="type">FutureBasedApi</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>() = p.future</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Reference：<br><a href="https://docs.scala-lang.org/overviews/core/futures.html" target="_blank" rel="noopener">https://docs.scala-lang.org/overviews/core/futures.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/笔记/">笔记</a>, <a href="/tags/Scala/">Scala</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/03/05/Future-s-mail-box-Promise/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:dhyuan.github.io">
+  </form>
+</div>
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>1</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>2</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>2</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/笔记/">笔记</a><small>9</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+      &copy; 2020 Dahui
+      <!-- 不蒜统计 -->
+	  <br>
+	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>
+	  <span style="display: inline;" id="busuanzi_container_site_pv">本站总访问量 <span id="busuanzi_value_site_pv" font="微软雅黑" style="color:black"></span> 次</span>
+
+  
+</div>
+<div class="clearfix"></div>
+<script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+</footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

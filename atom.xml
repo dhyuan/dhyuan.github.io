@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-03-02T14:17:47.908Z</updated>
+  <updated>2020-03-11T05:48:56.631Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,13 +17,66 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>Ordered and Ordering</title>
+    <link href="https://dhyuan.github.io/2020/03/10/Ordered-and-Ordering/"/>
+    <id>https://dhyuan.github.io/2020/03/10/Ordered-and-Ordering/</id>
+    <published>2020-03-10T02:01:29.000Z</published>
+    <updated>2020-03-11T05:48:56.631Z</updated>
+    
+    <content type="html"><![CDATA[<p>Java关于比较有两个基础接口：Comparable，Comparator。<br>其中Comparatable接口只定义了一个方法</p><pre><code>public int compareTo(T o);</code></pre><p>而Comparator相对复杂:</p><pre><code>int compare(T o1, T o2);thenComparing() ... </code></pre><p>Scala与之对应的比较是Ordered，Ordering。<br>Ordered类似Comparable，并多出</p><p><a href="https://www.scala-lang.org/api/current/scala/math/Ordering.html" target="_blank" rel="noopener">https://www.scala-lang.org/api/current/scala/math/Ordering.html</a></p><p>This trait and scala.math.Ordered both provide this same functionality, but in different ways. A type T can be given a single way to order itself by extending Ordered. Using Ordering, this same type may be sorted in many other ways. Ordered and Ordering both provide implicits allowing them to be used interchangeably.</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;Java关于比较有两个基础接口：Comparable，Comparator。&lt;br&gt;其中Comparatable接口只定义了一个方法&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;public int compareTo(T o);
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;而Comparator相
+      
+    
+    </summary>
+    
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>未来的邮箱：Promise</title>
+    <link href="https://dhyuan.github.io/2020/03/05/Future-s-mail-box-Promise/"/>
+    <id>https://dhyuan.github.io/2020/03/05/Future-s-mail-box-Promise/</id>
+    <published>2020-03-05T15:46:39.000Z</published>
+    <updated>2020-03-06T12:06:33.185Z</updated>
+    
+    <content type="html"><![CDATA[<p>按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。<br>可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。</p><pre><code>def successful[T](result: T): Promise[T]def failed[T](exception: Throwable): Promise[T]</code></pre><p>放了值之后，可以调用Promise的future() 得到一个已经完成了的Future。<br>Promise最核心的就是这个逻辑：你可以通过Promise.future()得到一个Future对象，而future里的计算结果是在什么其它地方(当然一般情况是在其它线程里、回调代码里)计算好放进去的。</p><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line"><span class="keyword">val</span> f = p.future</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">produce</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  <span class="type">Thread</span>.sleep(<span class="number">500</span>)</span><br><span class="line">  p.success(<span class="number">1</span>)</span><br><span class="line">  println(<span class="string">"Produce done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">consume</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  f.foreach(r =&gt; println(<span class="string">s"Get <span class="subst">$r</span>"</span>))</span><br><span class="line">  println(<span class="string">s"Consume done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">produce()</span><br><span class="line">consume()</span><br><span class="line"><span class="type">StdIn</span>.readLine(<span class="string">"End?\n"</span>)</span><br></pre></td></tr></table></figure><p>这段代码的打印如下内容，可以看到consume()方法已经执行完了才打印出“Get 1”。</p><pre><code>Consume doneEnd?Produce doneGet 1</code></pre><p>这个也好理解，foreach只是针对future Success的情况提供了callback机制。需要注意的是Future可以通过onComplete, foreach注册多个callback，但是这些callback运行先后以及运行所在线程是没有保证的。这点区别于map、flatMap。</p><p>本来想试着用Promise实现 List[Future[T]] 到 Future[List[T]]的转换，找到foldLeft这种方式。如下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts.foldLeft(<span class="type">Future</span>&#123; <span class="type">List</span>.empty[<span class="type">T</span>]&#125;)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>画蛇添足地再体验下promise：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequenceByPromise</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">List</span>[<span class="type">T</span>]]()</span><br><span class="line">  <span class="keyword">val</span> result = p.success(<span class="type">List</span>.empty[<span class="type">T</span>]).future</span><br><span class="line"></span><br><span class="line">  fts.foldLeft(result)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">  result</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>下面代码演示了如何把callback风格代码转为Future风格。在Akka actor框架里，如果需要异步的执行代码并且后面的代码需要这个异步执行的结果，我们就可以通过Promise把结果封装到Future里。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">CallbackBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(continuation: <span class="type">Try</span>[<span class="type">Int</span>] =&gt; <span class="type">Unit</span>): <span class="type">Unit</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">FutureBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(): <span class="type">Future</span>[<span class="type">Int</span>]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">futurize</span></span>(callbackBasedApi: <span class="type">CallbackBasedApi</span>): <span class="type">FutureBasedApi</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 体会下把“Try=&gt;Unit”当做complete的参数。</span></span><br><span class="line">  callbackBasedApi.computeIntAsync( t =&gt; p.complete(t))</span><br><span class="line"></span><br><span class="line">  <span class="keyword">new</span> <span class="type">FutureBasedApi</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>() = p.future</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>Reference：<br><a href="https://docs.scala-lang.org/overviews/core/futures.html" target="_blank" rel="noopener">https://docs.scala-lang.org/overviews/core/futures.html</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。&lt;br&gt;可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;def successful[T](result: T): Prom
+      
+    
+    </summary>
+    
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+  </entry>
+  
+  <entry>
     <title>Try Future sequence</title>
     <link href="https://dhyuan.github.io/2020/03/02/Future-sequence/"/>
     <id>https://dhyuan.github.io/2020/03/02/Future-sequence/</id>
     <published>2020-03-02T13:21:09.000Z</published>
-    <updated>2020-03-02T14:17:47.908Z</updated>
+    <updated>2020-03-06T12:06:38.148Z</updated>
     
-    <content type="html"><![CDATA[<p>这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。</p><h3 id="1）关于Option-T-Either-E-R-和-Try-T-的使用场景。"><a href="#1）关于Option-T-Either-E-R-和-Try-T-的使用场景。" class="headerlink" title="1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。"></a>1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。</h3><p>这三种type很容易让人想到处理Exception的场景。这些types如果只是针对Exception就略显狭隘了。现在我的感觉是：<br>1）Option适于处理业务逻辑上需要空值的地方，这里不一定是因为Exception导致。往往是业务上需要表达这种“空”/“没值”。<br>2）Either的左值不一定是Exception，表示一个计算可能有两种结果比较好，右值按照惯例表示正确/正常路径下的结果。左值是另个分支的结果。当然，也可以放Exception，Error什么的。STTP的Response body部分就是一个Either[Error, T]。<br>3）Try，其实才是最适合表示一个计算可能出现Exception的type。Try的apply()接受的就是一个代码块并运行，对异常封装到子类Failure。<br>最后的感觉是Option，Either更像标量，是结果的一个静态表示。而Try是动态的，包含了代码的执行。看Try的定义体会下：<br><figure class="highlight scala"><figcaption><span>&#125;<br> object Try &#123;<br> def apply<a href="r:" =&gt;="" t="" target="_blank" rel="noopener">T</a>: Try[T] =<br> try Success(r) catch &#123;<br> case NonFatal(e) =&gt; Failure(e)<br> &#125;<br> &#125;<br>&#123;% endcodeblock&#125;</span></figcaption></figure></p> <h3 id="2）Future’s-sequence-的实现。"><a href="#2）Future’s-sequence-的实现。" class="headerlink" title="2）Future’s" sequence()的实现。=""></a>2）Future’s sequence()的实现。</h3><p>1）这是Erik喜欢的递归方式的实现。<br>&#123;% codeblock lang:scala<table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).flatMap(ts =&gt; <span class="type">Future</span>(t::ts)))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></p><p>2）通过类型推导，我发现把flatMap()换成了map()也符合类型检查，似乎也也没有大的问题。但在逻辑上，这个实现就是要要等着所有的future依次从尾部开始都complete了才能执行。而上面的实现整个过程都是异步的，更符合Future的原意。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).map(ts =&gt; t::ts))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>3）Erik通过async，await实现的sequence。<br>这种方式似乎更容易理解，但风格太不FP了。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scala.async.<span class="type">Async</span>.&#123;async, await&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fs: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = async &#123;</span><br><span class="line">  <span class="keyword">var</span> _fs = fs</span><br><span class="line">  <span class="keyword">val</span> result = <span class="type">ListBuffer</span>[<span class="type">T</span>]()</span><br><span class="line">  <span class="keyword">while</span> (_fs != <span class="type">Nil</span>) &#123;</span><br><span class="line">    result += await &#123; _fs.head &#125;</span><br><span class="line">    _fs = _fs.tail</span><br><span class="line">  &#125;</span><br><span class="line">  result.toList</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>4）还可以通过Promise来实现。<br>等磕完promise再说吧。。。</p>]]></content>
+    <content type="html"><![CDATA[<p>这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。</p><h3 id="1）关于Option-T-Either-E-R-和-Try-T-的使用场景。"><a href="#1）关于Option-T-Either-E-R-和-Try-T-的使用场景。" class="headerlink" title="1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。"></a>1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。</h3><p>这三种type很容易让人想到处理Exception的场景。这些types如果只是针对Exception就略显狭隘了。现在我的感觉是：<br>1）Option适于处理业务逻辑上需要空值的地方，这里不一定是因为Exception导致。往往是业务上需要表达这种“空”/“没值”。<br>2）Either的左值不一定是Exception，表示一个计算可能有两种结果比较好，右值按照惯例表示正确/正常路径下的结果。左值是另个分支的结果。当然，也可以放Exception，Error什么的。STTP的Response body部分就是一个Either[Error, T]。<br>3）Try，其实才是最适合表示一个计算可能出现Exception的type。Try的apply()接受的就是一个代码块并运行，对异常封装到子类Failure。<br>最后的感觉是Option，Either更像标量，是结果的一个静态表示。而Try是动态的，包含了代码的执行及对结果的封装。看Try的定义体会下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">Try</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>[<span class="type">T</span>](r: =&gt; <span class="type">T</span>): <span class="type">Try</span>[<span class="type">T</span>] =</span><br><span class="line">    <span class="keyword">try</span> <span class="type">Success</span>(r) <span class="keyword">catch</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">NonFatal</span>(e) =&gt; <span class="type">Failure</span>(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><h3 id="2）Future’s-sequence-的实现。"><a href="#2）Future’s-sequence-的实现。" class="headerlink" title="2）Future’s sequence()的实现。"></a>2）Future’s sequence()的实现。</h3><p>1）这是Erik喜欢的递归方式的实现。<br>其中两个flatMap都是Future上的flatMap。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).flatMap(ts =&gt; <span class="type">Future</span>(t::ts)))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>2）通过类型推导，我发现把flatMap()换成了map()也符合类型检查，似乎也也没有大的问题。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).map(ts =&gt; t::ts))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>3）Erik通过async，await实现的sequence。<br>这种方式似乎更容易理解，但风格太不FP了。Erik警告说，如果是基于Future编程，那么不要wait。但是在async块里除外，因为async本身是异步的所以不会阻塞。另外，async/await在模块scala-async里，需要加到sbt的依赖里。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scala.async.<span class="type">Async</span>.&#123;async, await&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fs: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = async &#123;</span><br><span class="line">  <span class="keyword">var</span> _fs = fs</span><br><span class="line">  <span class="keyword">val</span> result = <span class="type">ListBuffer</span>[<span class="type">T</span>]()</span><br><span class="line">  <span class="keyword">while</span> (_fs != <span class="type">Nil</span>) &#123;</span><br><span class="line">    result += await &#123; _fs.head &#125;</span><br><span class="line">    _fs = _fs.tail</span><br><span class="line">  &#125;</span><br><span class="line">  result.toList</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>4）还可以通过Promise来实现。<br>等磕完promise再说吧。。。</p>]]></content>
     
     <summary type="html">
     
@@ -36,9 +89,9 @@
     </summary>
     
     
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
   </entry>
   
@@ -62,9 +115,9 @@
     </summary>
     
     
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
   </entry>
   
@@ -87,9 +140,9 @@
     </summary>
     
     
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
   </entry>
   
@@ -113,9 +166,9 @@
     </summary>
     
     
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
   </entry>
   
@@ -140,11 +193,11 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -263,9 +316,9 @@
     </summary>
     
     
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
     
       <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
     
@@ -469,56 +522,6 @@
       <category term="SpringCloud" scheme="https://dhyuan.github.io/tags/SpringCloud/"/>
     
       <category term="Configuration" scheme="https://dhyuan.github.io/tags/Configuration/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>了解一点CQRS</title>
-    <link href="https://dhyuan.github.io/2016/08/14/%E4%BA%86%E8%A7%A3%E4%B8%80%E7%82%B9CQRS/"/>
-    <id>https://dhyuan.github.io/2016/08/14/了解一点CQRS/</id>
-    <published>2016-08-14T06:59:35.000Z</published>
-    <updated>2016-08-14T07:08:38.000Z</updated>
-    
-    <content type="html"><![CDATA[<p>Reference：</p><p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="noopener">微软网站关于CQRS的描述</a></p><p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p><p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="noopener">gregyoung的论述</a></p><p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p><blockquote><blockquote><blockquote></blockquote><p>TODO： 我的理解和实践。。。</p></blockquote></blockquote>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;Reference：&lt;/p&gt;
-&lt;p&gt;&lt;a href=&quot;https://msdn.microsoft.com/en-us/library/jj554200.aspx&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;微软网站关于CQRS的描述&lt;/a&gt;&lt;/p&gt;
-&lt;
-      
-    
-    </summary>
-    
-    
-      <category term="DDD" scheme="https://dhyuan.github.io/tags/DDD/"/>
-    
-      <category term="design" scheme="https://dhyuan.github.io/tags/design/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Spring常用注解</title>
-    <link href="https://dhyuan.github.io/2016/08/13/Spring%E5%B8%B8%E7%94%A8%E6%B3%A8%E8%A7%A3/"/>
-    <id>https://dhyuan.github.io/2016/08/13/Spring常用注解/</id>
-    <published>2016-08-13T15:42:21.000Z</published>
-    <updated>2016-08-14T06:57:21.000Z</updated>
-    
-    <content type="html"><![CDATA[<h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@PropertySources</span> <span class="variable">@PropertySource</span></span><br><span class="line"><span class="variable">@Bean</span></span><br><span class="line"><span class="variable">@Autowired</span> <span class="variable">@Qualifier</span></span><br><span class="line"><span class="variable">@Resource</span></span><br></pre></td></tr></table></figure><h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight aspectj"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SpringBootApplication</span></span><br></pre></td></tr></table></figure><p>约等于下面三个注解的合体：</p><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">@Configuration</span></span><br><span class="line"><span class="variable">@EnableAutoConfiguration</span></span><br><span class="line"><span class="variable">@ComponentScan</span></span><br></pre></td></tr></table></figure><p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h4 id=&quot;Annotations-related-with-the-configuration&quot;&gt;&lt;a href=&quot;#Annotations-related-with-the-configuration&quot; class=&quot;headerlink&quot; title=&quot;Annotati
-      
-    
-    </summary>
-    
-    
-      <category term="spring" scheme="https://dhyuan.github.io/tags/spring/"/>
     
   </entry>
   
