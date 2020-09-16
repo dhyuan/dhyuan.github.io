@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-03-11T05:48:56.631Z</updated>
+  <updated>2020-09-16T14:03:45.904Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,155 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>网站环境设置（1）</title>
+    <link href="https://dhyuan.github.io/2020/09/16/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/"/>
+    <id>https://dhyuan.github.io/2020/09/16/网站环境设置（1）/</id>
+    <published>2020-09-16T13:53:29.000Z</published>
+    <updated>2020-09-16T14:03:45.904Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.sshssh-keygen -t rsa</code></pre><h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip</code></pre><h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IPHostName Server_NameIdentityFile YOUR_PRIVATE_KEY_FILE_PATH</code></pre><h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p><h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p><h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p><h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p><pre><code>root /home/devop/linkedall/web;index index.html index.htm;server_name www.linkedall.netlinkedall.net *.linkedall.net;location / {  try_files $uri $uri/ =404;}location ~* \.(html)$ {  access_log off;  add_header  Cache-Control  max-age=no-cache;}location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {  access_log off;  add_header    Cache-Control  max-age=360000;}</code></pre><p>… …</p><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {  listen 80 default_server;  listen [::]:80 default_server ipv6only=on;  root /usr/share/nginx/html;  index index.html index.htm;  # Make site accessible from http://localhost/  server_name www.telbox.cn;  location / {          proxy_pass http://localhost:8080;          # First attempt to serve request as file, then          # as directory, then fall back to displaying a 404.  # try_files $uri $uri/ =404;          # Uncomment to enable naxsi on this location          # include /etc/nginx/naxsi.rules  }</code></pre><p>Reference:<br><a href="https://juejin.im/post/6844903604034240525" target="_blank" rel="noopener">https://juejin.im/post/6844903604034240525</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h3 id=&quot;1-免密登录服务区。&quot;&gt;&lt;a href=&quot;#1-免密登录服务区。&quot; class=&quot;headerlink&quot; title=&quot;1) 免密登录服务区。&quot;&gt;&lt;/a&gt;1) 免密登录服务区。&lt;/h3&gt;&lt;h4 id=&quot;制作密钥。在本地生成私钥、公钥-比如-server-name-
+      
+    
+    </summary>
+    
+    
+      <category term="DevOps" scheme="https://dhyuan.github.io/tags/DevOps/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>read text file in reactive way</title>
+    <link href="https://dhyuan.github.io/2020/05/21/read-text-file-in-reactive-way/"/>
+    <id>https://dhyuan.github.io/2020/05/21/read-text-file-in-reactive-way/</id>
+    <published>2020-05-21T07:29:16.000Z</published>
+    <updated>2020-05-22T04:56:49.860Z</updated>
+    
+    <content type="html"><![CDATA[<p>在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。<br>Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。<br>stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.fromStream 提供了方便的接口，直接把 stream 转为 flux。考虑到对文件这种资源使用之后都要有 close 这种操作，那么直接使用 Flux.using 就再合适不过了，免去了手动释放资源这种模版式的代码。</p><p>private static Flux<string> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</string></p><p>Reference：<br><a href="https://simonbasle.github.io/2017/10/file-reading-in-reactor/" target="_blank" rel="noopener">https://simonbasle.github.io/2017/10/file-reading-in-reactor/</a><br>这篇文章里有关于的 window 各种用法的解释：<a href="https://blog.51cto.com/liukang/2094073。" target="_blank" rel="noopener">https://blog.51cto.com/liukang/2094073。</a><br>通过 Jackson 流式解析 Json：<a href="https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/" target="_blank" rel="noopener">https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/</a></p><p>Flux 的 create 和 generate 的区别。</p><p>Mokito <a href="https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit" target="_blank" rel="noopener">https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。&lt;br&gt;Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。&lt;br&gt;stream 风格之后，现在我们可以更进一步，以 re
+      
+    
+    </summary>
+    
+    
+  </entry>
+  
+  <entry>
+    <title>用CountDownLatch做并发练习题</title>
+    <link href="https://dhyuan.github.io/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/"/>
+    <id>https://dhyuan.github.io/2020/04/11/用CountDownLatch做并发练习题/</id>
+    <published>2020-04-11T07:55:38.000Z</published>
+    <updated>2020-05-06T12:35:17.102Z</updated>
+    
+    <content type="html"><![CDATA[<p>拿CountDownLatch对比着Semaphore来学习会简单很多。<br>CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说</p><h5 id="1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"><a href="#1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。" class="headerlink" title="1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"></a>1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。</h5><h5 id="2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。"><a href="#2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。" class="headerlink" title="2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。"></a>2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。</h5><p>所以，对于LeetCode多线程练习题，只有1114题可以用CountDownLatch来完成。 <a href="https://leetcode-cn.com/problemset/concurrency/" target="_blank" rel="noopener">https://leetcode-cn.com/problemset/concurrency/</a> </p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;拿CountDownLatch对比着Semaphore来学习会简单很多。&lt;br&gt;CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说&lt;/p&gt;
+&lt;h5 id=&quot;1-CountDownLatch初始化之后设置的计数
+      
+    
+    </summary>
+    
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>用Semaphore解决LeetCode并发练习题</title>
+    <link href="https://dhyuan.github.io/2020/04/10/Concurrency-in-LeetCode/"/>
+    <id>https://dhyuan.github.io/2020/04/10/Concurrency-in-LeetCode/</id>
+    <published>2020-04-10T10:03:53.000Z</published>
+    <updated>2020-04-11T07:54:36.144Z</updated>
+    
+    <content type="html"><![CDATA[<h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p><p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p><p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p><p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p><p>利用下面的知识点应该就足够团灭这几道题了。</p><p>1) 线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p><p>2) 调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p><p>3) 因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p><p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p><p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p><p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p><p>LeetCode 1114, 多线程按序打印1，2，3。</p><pre><code>public class FooBySemaphore {    public FooBySemaphore() {}    // 先打印 one， 所以这个初始化为放行。    private Semaphore firstPermission = new Semaphore(1);    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’    private Semaphore secondPermission = new Semaphore(0);    private Semaphore thirdPermission = new Semaphore(0);    public void first(Runnable printFirst) throws InterruptedException {        firstPermission.acquire();        printFirst.run();        secondPermission.release(); // 放行第二个线程    }    public void second(Runnable printSecond) throws InterruptedException {        secondPermission.acquire();        printSecond.run();        thirdPermission.release(); // 放行第三个线程    }    public void third(Runnable printThird) throws InterruptedException {        thirdPermission.acquire();        printThird.run();        firstPermission.release(); // 放行第一个线程    }}</code></pre><p>LeetCode 1117,  多线程生成水分子。</p><pre><code>public class H2OBySemaphore {    /**     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。     *     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。     * 生产出2个氢原子后oSemaphore的信号数量就是2。     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。     *     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。     */    public H2OBySemaphore() {    }    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException {        hPermission.acquire();        releaseHydrogen.run();        oPermission.release();    }    public void oxygen(Runnable releaseOxygen) throws InterruptedException {        oPermission.acquire(2);        releaseOxygen.run();        hPermission.release(2);    }}</code></pre><p>LeetCode 1226, 哲学家就餐问题。</p><pre><code>public class DiningPhilosophers {    private Semaphore[] forksPermission = new Semaphore[5];    public DiningPhilosophers() {        for (int i = 0; i &lt; 5; i ++) {            forksPermission[i] = new Semaphore(1);        }    }    // call the run() method of any runnable to execute its code    public void wantsToEat(int philosopher,                           Runnable pickLeftFork,                           Runnable pickRightFork,                           Runnable eat,                           Runnable putLeftFork,                           Runnable putRightFork) throws InterruptedException {        int leftFork = philosopher;        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5        int rightFork = (philosopher + 4) % 5;        while (true) {            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。            if (forksPermission[leftFork].tryAcquire()) {                 // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。                // 拿到左叉，尝试拿右叉。                if (forksPermission[rightFork].tryAcquire()) {                    // 左叉，右叉都拿到了。开吃！                     pickLeftFork.run();                    pickRightFork.run();                    eat.run();                    putLeftFork.run();                    forksPermission[leftFork].release();                    putRightFork.run();                    forksPermission[rightFork].release();                    break; // 吃完退出(线程)                } else {                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。                    forksPermission[leftFork].release();                    Thread.sleep(1); //_ 为什么必须sleep？                }            } else {                // 没抢到左叉，歇歇继续试。                Thread.sleep(1);  //_ 为什么必须sleep？            }        }    }}</code></pre>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h4 id=&quot;Semaphore&quot;&gt;&lt;a href=&quot;#Semaphore&quot; class=&quot;headerlink&quot; title=&quot;Semaphore&quot;&gt;&lt;/a&gt;Semaphore&lt;/h4&gt;&lt;p&gt;Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。
+      
+    
+    </summary>
+    
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>锁这个词太有意思了，有几个意思？</title>
+    <link href="https://dhyuan.github.io/2020/04/02/Nonblocking-comes-from-CAS/"/>
+    <id>https://dhyuan.github.io/2020/04/02/Nonblocking-comes-from-CAS/</id>
+    <published>2020-04-02T07:39:09.000Z</published>
+    <updated>2020-04-29T15:56:11.134Z</updated>
+    
+    <content type="html"><![CDATA[<p>读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？</p><p>并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。<br>从更一般的、更笼统的意义上讲锁跟synchronizer其实一个意思，都可以看作是协调线程、控制线程的对象。这里所谓的更一般是说，我们可以把CountDownLatch、Semphore这些不带Locak字眼的Synchronizer也化分到锁这个概念里。</p><p>这样把概念统一到锁上之后，我们就可以把锁/Synchronizer分成耳熟能详的两类了：悲观锁、乐观锁。<br>对于乐观锁正如数据库事务解决方案里提到的乐观锁的概念，核心就是与观察旧值是否有变化而决定是否成功修改。<br>所以乐观锁想成基于“compare and set”的算法更好。更进一步把锁想成算法就好，具体的门锁那种感觉有点二狭隘了。<br>从最根本的提供“锁“算法实现的CPU指令上讲：对于乐观锁是CAS(LL, SC)提供了最核心的支持，对于悲观锁(对应到OS的互斥量，java的thread都一一映射到OS的thread)是lock指令前缀。除了这些CPU指令还有混存一致性协议这样的技术一起向上层提供了实现各种Syncrhonizer(悲观锁/乐观锁)的最基础支持。更详细内容可以参考文末的引用链接。</p><p>基于CAS实现的乐观锁其实不牵扯到什么类似mutex这样<strong>具体的锁</strong>，把它当作一种synchronizer就好(怎么有点儿金刚经的感觉)。我们可以利用CAS指令实现了非阻塞的多线程协调工作的各种算法。比如，列用CAS实现非阻塞计数器、非阻塞栈、非阻塞队列。JDK中的ConcurrentLinkedQueue就是利用原子化域更新器实现的支持并发(多线程)操作的非阻塞数据结构。</p><p>基于CAS cpu指令的有ABA问题。而load-linked/store-condition这样的cpu指令可以避免ABA问题。<br>从API的角度，可以用AtomicMarkableReference, AtomicStampedReference避免CAS下的ABA。<br><a href="https://en.wikipedia.org/wiki/ABA_problem。" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/ABA_problem。</a></p><p>References:<br>《Java并发编程实践》<br><a href="https://www.ibm.com/developerworks/cn/java/j-jtp04186/" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/java/j-jtp04186/</a></p><p>0、<a href="https://blog.csdn.net/Saintyyu/article/details/94493694" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/94493694</a><br>1、<a href="https://blog.csdn.net/zacklin/article/details/7445442" target="_blank" rel="noopener">https://blog.csdn.net/zacklin/article/details/7445442</a> 原子操作与 x86 上的 lock 指令前缀<br>2、<a href="https://www.cnblogs.com/xrq730/p/7048693.html" target="_blank" rel="noopener">https://www.cnblogs.com/xrq730/p/7048693.html</a> 就是要你懂Java中volatile关键字实现原理<br>3、<a href="https://blog.csdn.net/u011244446/article/details/52574369" target="_blank" rel="noopener">https://blog.csdn.net/u011244446/article/details/52574369</a> Linux 互斥锁、原子操作实现原理<br>4、<a href="https://www.jianshu.com/p/6745203ae1fe" target="_blank" rel="noopener">https://www.jianshu.com/p/6745203ae1fe</a> 关于volatile、MESI、内存屏障、#Lock<br>5、<a href="https://www.jianshu.com/p/61490effab35" target="_blank" rel="noopener">https://www.jianshu.com/p/61490effab35</a> 操作系统中锁的原理<br>6、<a href="https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html" target="_blank" rel="noopener">https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html</a> Linux中同步互斥机制研究之原子操作<br>7、<a href="https://blog.csdn.net/Saintyyu/article/details/100838503" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/100838503</a> cas vs mutex</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？&lt;/p&gt;
+&lt;p&gt;并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。&lt;br&gt;从更一般的、更笼统的意义上讲锁跟synchroniz
+      
+    
+    </summary>
+    
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>About Lock and Synchronizer</title>
+    <link href="https://dhyuan.github.io/2020/03/30/About-Lock-and-Synchronizer/"/>
+    <id>https://dhyuan.github.io/2020/03/30/About-Lock-and-Synchronizer/</id>
+    <published>2020-03-30T12:48:33.000Z</published>
+    <updated>2020-03-31T01:36:00.168Z</updated>
+    
+    <content type="html"><![CDATA[<p>引子：说AbstractQueuedSynchronizer（AQS）是构建锁和Synchronizer的框架。锁，好像大家都知道，至少自以为都知道 ：）。那什么是synchronizer呢？ Lock和Synchronize是什么关系？</p><p>Synchronizer，它是一个根据自身状态调节线程执行的对象。就是用来协调(多)线程执行的对象。从这个角度讲Java的内置锁就是一种synchronizer，它以互斥的可重入的方式协调/控制线程的执行。<br>Java的阻塞队列也是一种synchronizser。<br>再比如：信号量Semaphore、闭锁Latch、关卡Barrier都是不同类型的synchronizer。</p><h4 id="信号量"><a href="#信号量" class="headerlink" title="信号量"></a>信号量</h4><p><strong>Semaphore</strong>可以用来控制<strong>同时</strong>访问某资源的线程数量。把对这些资源的获取操作包装起来，获取资源前先调用信号量的acquire()申请许可，资源使用使用完毕后通过release()释放许可。对池化资源的管理一般可用信号量完成。</p><h4 id="闭锁"><a href="#闭锁" class="headerlink" title="闭锁"></a>闭锁</h4><p>英文<strong>Latch</strong>有门闩的意思，门闩就是用来把门关紧不让出入。在并发编程里也是这个意思，我们用latch这个对象禁止线程的执行，什么时候允许线程通过这个门闩呢？对于CountDownLatch来说，就是计数变为0的时候。对于FutureTask来说就是可以拿到计算结果的时候(当然也可能是计算异常了)。一个应用场景：可以把闭锁当作一个发令枪，它可以让线程等到信号后一起运行。</p><h4 id="关卡"><a href="#关卡" class="headerlink" title="关卡"></a>关卡</h4><p><strong>Barrier</strong>中文就是“障碍物、栅栏”的意思，文绉绉的翻译就是“关卡”。它其实像极了闭锁，与闭锁不同的是：闭锁等待的是事件，而关卡等待的是线程。从API调用的感觉感觉上讲，Barrier是在工作线程正儿八经的工作都执行完毕后(取决于业务场景)，调用barrier.await()使工作线程阻塞住，直到所有其它工作线程也都完成个各自的任务并都调用了barrier.await()，这个时候关卡就被冲破。这里等待的条件是有线程调用barrier.await()。而Latch是在工作线程中调用latch.await()，等待闭锁被开启来执行。闭锁是怎样被开启的？它是依靠latch.countDown()到0后被开启的，谁countdown跟哪个线程没什么直接关系。而barrier.await()是需要实实在在的线程阻塞，这就是为什么说barrier等待的是线程，latch等的是信号。<br>经常使用关卡到场景是，一个任务分成n个子任务后，等待这n个子任务<strong>都</strong>完成后再做下一步工作。<br>CyclicBarrier的构造函数接受一个线程数以及一个关卡被突破后要执行的动作。<br>Exchanger是另一种关卡，用来为两个线程交换数据，当然是以线程安全的方式交换。</p><p>Reference:<br><a href="https://web.mit.edu/6.005/www/fa15/classes/23-locks/" target="_blank" rel="noopener">https://web.mit.edu/6.005/www/fa15/classes/23-locks/</a><br>《Java并发编程实践》<br><a href="https://en.wikipedia.org/wiki/Synchronization_(computer_science)" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/Synchronization_(computer_science)</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;引子：说AbstractQueuedSynchronizer（AQS）是构建锁和Synchronizer的框架。锁，好像大家都知道，至少自以为都知道 ：）。那什么是synchronizer呢？ Lock和Synchronize是什么关系？&lt;/p&gt;
+&lt;p&gt;Synchroniz
+      
+    
+    </summary>
+    
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+  </entry>
   
   <entry>
     <title>Ordered and Ordering</title>
@@ -364,164 +513,6 @@
       <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
     
       <category term="Spring" scheme="https://dhyuan.github.io/tags/Spring/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>java.lang.OutOfMemoryError</title>
-    <link href="https://dhyuan.github.io/2016/09/12/java-lang-OutOfMemoryError/"/>
-    <id>https://dhyuan.github.io/2016/09/12/java-lang-OutOfMemoryError/</id>
-    <published>2016-09-12T13:57:54.000Z</published>
-    <updated>2016-09-19T14:24:18.000Z</updated>
-    
-    <content type="html"><![CDATA[<p>当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。</p><ul><li>java.lang.OutOfMemoryError: Java heap space</li><li>java.lang.OutOfMemoryError: PermGen space</li><li>java.lang.OutOfMemoryError: unable to create new native thread</li><li>java.lang.OutOfMemoryError: GC Overhead limit exceeded</li><li>java.lang.OutOfMemoryError: Requested array size exceeds VM limit</li><li>java.lang.OutOfMemoryError: Metaspace</li><li>java.lang.OutOfMemoryError: request size bytes for reason. Out of swap space?</li><li>java.lang.OutOfMemoryError: Compressed class space</li><li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li></ul><p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。这个问题通过增大参数-Xmx<heap size="">[g|m|k]也许可以解决。当然，更踏实的做法还是要检测程序是不是有内存泄漏的问题。</heap></p><p><strong>PermGen space</strong><br>通过参数-XX:PermSize=<perm gen="" size="">[g|m|k]进行调整。在JDK8之后，Permanent Generation这块heap内存已经放弃，而和Native Memory合并了。</perm></p><p><strong>unable to create new native thread</strong></p><p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p><pre><code>ulimit -s  256ulimit -i  120000echo 120000 &gt; /proc/sys/kernel/threads-maxecho 600000 &gt; /proc/sys/vm/max_map_countecho 200000 &gt; /proc/sys/kernel/pid_max </code></pre><p>这种类型的OOM不能通过-XX:+HeapDumpOnOutOfMemoryError参数dump出文件。</p><pre><code>private static void createInfinitThreads() {    long i = 0;    while(true){        new Thread(new Runnable(){            public void run() {                try {                    Thread.sleep(10000000);                } catch(InterruptedException e) { }            }        }).start();        i ++;        System.out.println(i);    }}</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">Java内存区域与内存溢出异常</a></p><p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg" alt=""></p><p>图二：下面中的Permanent区域在Java8中已经和method area合并。<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif" alt=""></p><p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png" alt=""></p><p><em>Reference：</em></p><ul><li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="noopener">Oracle关于OOM Exception的官方文档</a></li><li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="noopener">关于unable to create new native thread这种情况的论述</a></li><li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="noopener">Linux上ulimit命令与unable to create new native thread的关系</a></li><li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="noopener">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li><li><a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li><li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="noopener">一篇关于内存结构和溢出的文章</a></li><li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="noopener">通过示例程序演示了不同类型的OOM</a></li><li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="noopener">这篇博客讲了常用的用于生产环境的JVM参数</a></li><li><a href="https://dzone.com/articles/how-analyze-java-thread-dumps" target="_blank" rel="noopener">这篇文章讲述了如何分析java dump文件</a></li></ul>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;java.lang.OutOfMemoryError: Java heap spac
-      
-    
-    </summary>
-    
-    
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
-      <category term="Debug" scheme="https://dhyuan.github.io/tags/Debug/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>spring cloud config 之 consul</title>
-    <link href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/"/>
-    <id>https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/</id>
-    <published>2016-09-07T15:10:29.000Z</published>
-    <updated>2016-09-07T15:39:54.000Z</updated>
-    
-    <content type="html"><![CDATA[<p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config" target="_blank" rel="noopener">使用Consul作为配置信息的Repository</a></p><p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p><p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p><pre><code>org.springframework.cloud:spring-cloud-consul-config</code></pre><p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p><pre><code>spring:  cloud:    consul:      config:        enabled: true        prefix: configuration        defaultContext: apps        profileSeparator: &apos;::&apos;</code></pre><p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p><pre><code>spring:  cloud:    consul:      config:        format: YAMLconfig/testApp,dev/dataconfig/testApp/dataconfig/application,dev/dataconfig/application/data</code></pre><p>可以通过下面的设置，修改健data的值</p><pre><code>spring.cloud.consul.config.data-key</code></pre><p>4）git2consul<br>consul社区的开源项目<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">]https://github.com/Cimpress-MCP/git2consul</a>。</p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;&lt;em&gt;Reference&lt;/em&gt;:&lt;br&gt;&lt;a href=&quot;http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config&quot; target=&quot;_
-      
-    
-    </summary>
-    
-    
-      <category term="SpringCloud" scheme="https://dhyuan.github.io/tags/SpringCloud/"/>
-    
-      <category term="Configuration" scheme="https://dhyuan.github.io/tags/Configuration/"/>
-    
-      <category term="Consul" scheme="https://dhyuan.github.io/tags/Consul/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Spring Cloud Config 之 ZooKeeper</title>
-    <link href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/"/>
-    <id>https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/</id>
-    <published>2016-09-06T14:36:21.000Z</published>
-    <updated>2016-09-06T15:18:05.000Z</updated>
-    
-    <content type="html"><![CDATA[<p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config" target="_blank" rel="noopener">使用ZooKeeper作为配置信息的Repository</a></p><p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p><p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。</p><p>例一：</p><pre><code>config/testApp,devconfig/testAppconfig/application,devconfig/application</code></pre><p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p><pre><code>spring:  cloud:    zookeeper:      config:        enabled: true        root: configuration        defaultContext: apps        profileSeparator: &apos;::&apos;</code></pre><p>这样，例一，就应变成下面这样：</p><pre><code>configuration/testApp,devconfiguration/testAppconfiguration/apps,devconfiguration/apps</code></pre><blockquote><p>依赖:</p><p>org.springframework.cloud:spring-cloud-starter-zookeeper-config</p></blockquote>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;&lt;em&gt;Reference&lt;/em&gt;:&lt;br&gt;&lt;a href=&quot;http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config&quot; 
-      
-    
-    </summary>
-    
-    
-      <category term="SpringCloud" scheme="https://dhyuan.github.io/tags/SpringCloud/"/>
-    
-      <category term="Configuration" scheme="https://dhyuan.github.io/tags/Configuration/"/>
-    
-      <category term="ZooKeeper" scheme="https://dhyuan.github.io/tags/ZooKeeper/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Reactive Programming notes</title>
-    <link href="https://dhyuan.github.io/2016/09/01/Reactive-Programming-notes/"/>
-    <id>https://dhyuan.github.io/2016/09/01/Reactive-Programming-notes/</id>
-    <published>2016-09-01T14:00:21.000Z</published>
-    <updated>2016-09-01T14:02:11.000Z</updated>
-    
-    <content type="html"><![CDATA[<ul><li>Collection</li><li>Stream</li><li>Reactive Stream</li><li>ReactiveX规范</li></ul>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;ul&gt;
-&lt;li&gt;Collection&lt;/li&gt;
-&lt;li&gt;Stream&lt;/li&gt;
-&lt;li&gt;Reactive Stream&lt;/li&gt;
-&lt;li&gt;ReactiveX规范&lt;/li&gt;
-&lt;/ul&gt;
-
-      
-    
-    </summary>
-    
-    
-      <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
-    
-      <category term="RxJava" scheme="https://dhyuan.github.io/tags/RxJava/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>To learn, To know, To use</title>
-    <link href="https://dhyuan.github.io/2016/09/01/To-learn-To-know-To-use/"/>
-    <id>https://dhyuan.github.io/2016/09/01/To-learn-To-know-To-use/</id>
-    <published>2016-09-01T13:50:26.000Z</published>
-    <updated>2016-09-07T15:49:17.000Z</updated>
-    
-    <content type="html"><![CDATA[<h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p><p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p><ul><li>Configuration Management<ul><li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li><li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li><li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li><li>配置服务的设计与实践。</li></ul></li><li>service discovery</li><li>circuit breakers</li><li>intelligent routing</li><li>micro-proxy</li><li>control bus</li><li>one-time tokens</li><li>global locks</li><li>Leadership election<ul><li>利用ZooKeeper、Curator实现leader选举</li><li>利用leadership election实现“单例服务”</li></ul></li><li>distributed sessions</li><li>cluster state</li></ul><h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul><li>RxJava</li><li>Akka</li></ul>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h3 id=&quot;Spring-Cloud&quot;&gt;&lt;a href=&quot;#Spring-Cloud&quot; class=&quot;headerlink&quot; title=&quot;Spring Cloud&quot;&gt;&lt;/a&gt;Spring Cloud&lt;/h3&gt;&lt;p&gt;互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的
-      
-    
-    </summary>
-    
-    
-  </entry>
-  
-  <entry>
-    <title>Spring Cloud Config 之 Git Backend</title>
-    <link href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/"/>
-    <id>https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/</id>
-    <published>2016-08-17T14:29:16.000Z</published>
-    <updated>2016-09-06T14:39:06.000Z</updated>
-    
-    <content type="html"><![CDATA[<p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html" target="_blank" rel="noopener">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html" target="_blank" rel="noopener">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p><p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p><p><strong>Server端的配置</strong>：</p><pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-reposerver.port=8888</code></pre><p><strong>Client端的配置</strong></p><pre><code>spring.application.name=reservation-servicespring.profiles.active=profile1,profile3SpringConfigClient_GitBackend.pngspring.cloud.config.uri＝http://localhost:8888</code></pre><p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" title="application name、profile、label的使用"></p><p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" title="多个profile中重复定义"></p><ul><li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p></li><li><p>在config client项目中添加Actuator库，通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST" target="_blank" rel="noopener">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p><pre><code>可以同通过 curl -d {} http://localhost:8000/refresh 获取更新。</code></pre></li></ul>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;&lt;em&gt;Reference&lt;/em&gt;:&lt;br&gt;&lt;a href=&quot;http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;sprin
-      
-    
-    </summary>
-    
-    
-      <category term="SpringCloud" scheme="https://dhyuan.github.io/tags/SpringCloud/"/>
-    
-      <category term="Configuration" scheme="https://dhyuan.github.io/tags/Configuration/"/>
     
   </entry>
   

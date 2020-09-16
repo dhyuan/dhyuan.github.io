@@ -1,0 +1,213 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>read text file in reactive way | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.f">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="read text file in reactive way"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Dahui’s 开发笔记" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-05-21T07:29:16.000Z"><a href="/2020/05/21/read-text-file-in-reactive-way/">2020-05-21</a></time>
+      
+      
+  
+    <h1 class="title">read text file in reactive way</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。<br>Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。<br>stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.fromStream 提供了方便的接口，直接把 stream 转为 flux。考虑到对文件这种资源使用之后都要有 close 这种操作，那么直接使用 Flux.using 就再合适不过了，免去了手动释放资源这种模版式的代码。</p>
+<p>private static Flux<string> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</string></p>
+<p>Reference：<br><a href="https://simonbasle.github.io/2017/10/file-reading-in-reactor/" target="_blank" rel="noopener">https://simonbasle.github.io/2017/10/file-reading-in-reactor/</a><br>这篇文章里有关于的 window 各种用法的解释：<a href="https://blog.51cto.com/liukang/2094073。" target="_blank" rel="noopener">https://blog.51cto.com/liukang/2094073。</a><br>通过 Jackson 流式解析 Json：<a href="https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/" target="_blank" rel="noopener">https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/</a></p>
+<p>Flux 的 create 和 generate 的区别。</p>
+<p>Mokito <a href="https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit" target="_blank" rel="noopener">https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/05/21/read-text-file-in-reactive-way/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:dhyuan.github.io">
+  </form>
+</div>
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>2</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/笔记/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+      &copy; 2020 Dahui
+      <!-- 不蒜统计 -->
+	  <br>
+	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>
+	  <span style="display: inline;" id="busuanzi_container_site_pv">本站总访问量 <span id="busuanzi_value_site_pv" font="微软雅黑" style="color:black"></span> 次</span>
+
+  
+</div>
+<div class="clearfix"></div>
+<script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+</footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

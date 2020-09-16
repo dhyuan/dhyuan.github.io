@@ -50,6 +50,264 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-02-23T03:03:35.000Z"><a href="/2020/02/23/STTP的基本使用-二/">2020-02-23</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/23/STTP的基本使用-二/">STTP的基本使用(2)：Json</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h4 id="1）对-Json-的支持"><a href="#1）对-Json-的支持" class="headerlink" title="1）对 Json 的支持"></a>1）对 Json 的支持</h4><p>对 request，response 消息体中 JSON 的支持一般就是要做两件事：一是定义 josn 的格式规范，另外就是根据格式规范进行序列化、反序列化。STTP 提供开箱即用的对第三方 JOSN 库的支持：包括 Circe、Json4s、spray-json 等。<br>目前，从项目活跃度、维护程度上讲 Circe 应该是不错的选择。（<a href="https://scala.libhunt.com/compare-circe-vs-spray-json）" target="_blank" rel="noopener">https://scala.libhunt.com/compare-circe-vs-spray-json）</a></p>
+<h4 id="2）Circe"><a href="#2）Circe" class="headerlink" title="2）Circe"></a>2）Circe</h4><p>Circe 竟然是基于挑战智商的 CAT 实现的！官网: <a href="https://circe.github.io/circe/。" target="_blank" rel="noopener">https://circe.github.io/circe/。</a><br>Circe 使用 Encoder、Decoder 编解码 josn。Encoder[A]把 A 转为 Json，Decoder[A]则把 Josn 转为 A 或者 Exception(如果失败话)。Circe 对 Scala 库中常见类型就提供了默认的隐式实例。<br>对于简单结构的 case class，使用 Circe 提供的自动、半自动的编解码就好。Circe 当然也支持自定义转换或对 ADT 类型数据转换。智商够用可以去看<a href="https://github.com/milessabin/shapeless。" target="_blank" rel="noopener">https://github.com/milessabin/shapeless。</a><br>使用 circe-optics 模块还可以对 Json 数据进行遍历、修改。<br>比如，下面从 order 中获取用户的电话号码。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> phoneNum = root.order.customer.contactDetails.phone.string</span><br></pre></td></tr></table></figure></p>
+<p>如下是调用 NASA 某 Api 并解析代码示例, 是不是太方便了？！<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> io.circe.generic.auto._</span><br><span class="line"><span class="keyword">import</span> sttp.client._</span><br><span class="line"><span class="keyword">import</span> sttp.client.circe._</span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">Links</span>(<span class="params">self: <span class="type">String</span>, next: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">Page</span>(<span class="params">number: <span class="type">Int</span>, size: <span class="type">Int</span>, total_elements: <span class="type">Int</span>, total_pages: <span class="type">Int</span></span>)</span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NearEarthObject</span>(<span class="params">absolute_magnitude_h: <span class="type">Double</span>, designation: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NasaData</span>(<span class="params">links: <span class="type">Links</span>, page: <span class="type">Page</span>, near_earth_objects: <span class="type">List</span>[<span class="type">NearEarthObject</span>]</span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">implicit</span> <span class="title">val</span> <span class="title">backend</span> </span>= <span class="type">HttpURLConnectionBackend</span>()</span><br><span class="line"><span class="keyword">val</span> resp = basicRequest</span><br><span class="line">  .get(<span class="string">uri"https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>"</span>)</span><br><span class="line">  .response(asJson[<span class="type">NasaData</span>])</span><br><span class="line">  .send()</span><br><span class="line"></span><br><span class="line">resp.body <span class="keyword">match</span> &#123;</span><br><span class="line">  <span class="keyword">case</span> <span class="type">Left</span>(failure) =&gt; println(failure)</span><br><span class="line">  <span class="keyword">case</span> <span class="type">Right</span>(data) =&gt; &#123;</span><br><span class="line">        println(<span class="string">"Get response from NAS Api:"</span>)</span><br><span class="line">        println(data)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h4 id="3）Resilience-弹性"><a href="#3）Resilience-弹性" class="headerlink" title="3）Resilience 弹性"></a>3）Resilience 弹性</h4><p>STTP本身不提供Resilience方面的支持，可以借助上层的第三方库（Future、Monix、Akka、Resilientce4J）实现诸如：重试、断路、限流这样的功能。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-02-22T14:11:32.000Z"><a href="/2020/02/22/STTP的基本使用/">2020-02-22</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/22/STTP的基本使用/">STTP的基本使用(1)：Request、Response</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>试试看 get 一下新技能：STTP with AKKA。</p>
+<p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p>
+<p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理着连接池、处理 response 的线程池，根据 backend 的情况还支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 的返回值则是 Task[Resonse[T]]。</p>
+<p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a href="https://sttp.readthedocs.io/en/latest/requests/basics.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
+<p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a href="https://sttp.readthedocs.io/en/latest/requests/streaming.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
+<p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
+<img src="/2020/02/22/STTP的基本使用/STTP_Basic_1.png">
+<p>Reference：<br><a href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html" target="_blank" rel="noopener">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-02-17T03:47:11.000Z"><a href="/2020/02/17/JMM/">2020-02-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/17/JMM/">JMM</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p>
+<img src="/2020/02/17/JMM/JMM.png">
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-09-12T12:43:08.000Z"><a href="/2018/09/12/Monoid/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Monoid/">Monoid</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {
+    T Empty
+}
+
+class (Semigroup a) &lt;= Monoid a where
+    empty :: a
+</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.
+a &lt;&gt; empty == a
+empty &lt;&gt; a == a
+</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Semigroup/">Semigroup</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
+public interface SemiGroup&lt;T&gt; {
+    T Append(T thingToAppend);
+}
+
+// 用Haskell定义：
+class SemiGroup a where
+    append :: a-&gt; a -&gt; a
+
+// Haskell实现的String with append：
+instance Semigroup String where
+    append a b = a ++ b
+</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
+<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
+<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
+
+(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
+</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
+<p><strong>2）Incremental</strong></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-09-10T13:24:47.000Z"><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/">2018-09-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/">使用OpenSSL创建CA、Service证书的步骤</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <blockquote><p>OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。</p>
+</blockquote>
+<h3 id="准备目录"><a href="#准备目录" class="headerlink" title="准备目录"></a>准备目录</h3><pre><code>mkdir root-ca
+cd root-ca
+mkdir certs db private
+chmod 700 private
+touch db/index
+openssl rand -hex 16 &gt; db/serial
+echo 1001 &gt; db/crlnumber
+</code></pre><h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-	ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure>
+<h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a>
+<pre><code># 这一步同时生产私钥和csr
+openssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key
+
+# 用root ca签署sub ca
+openssl ca -config root-ca.conf -in sub-ca.csr -out sub-ca.crt -extensions sub_ca_ext    
+</code></pre><h3 id="Service-Certificate"><a href="#Service-Certificate" class="headerlink" title="Service Certificate"></a>Service Certificate</h3><pre><code>openssl genrsa -aes128 -out server.key 2048
+openssl req -new -key server.key -out server.csr
+openssl ca -config sub-ca.conf -in server.csr -out server.crt -extensions server_ext
+</code></pre><p><em>Reference</em>:</p>
+<p><a href="http://www.ituring.com.cn/book/download/338e1e55-fd94-4ac3-9e21-e0bf04984b3f" target="_blank" rel="noopener">《OpenSSL攻略》</a> 这篇文档详细介绍了OpenSSL的使用。</p>
+<p>更多背景知识可参考：<a href="http://www.ituring.com.cn/book/1734" target="_blank" rel="noopener">《HTTPS权威指南》</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2018-08-27T13:59:10.000Z"><a href="/2018/08/27/android-emulator-operations/">2018-08-27</a></time>
       
       
@@ -283,359 +541,6 @@ val connection4 = driver1.connection(List(&quot;localhost&quot;), options = conO
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-12T13:57:54.000Z"><a href="/2016/09/12/java-lang-OutOfMemoryError/">2016-09-12</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/12/java-lang-OutOfMemoryError/">java.lang.OutOfMemoryError</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。</p>
-<ul>
-<li>java.lang.OutOfMemoryError: Java heap space</li>
-<li>java.lang.OutOfMemoryError: PermGen space</li>
-<li>java.lang.OutOfMemoryError: unable to create new native thread</li>
-<li>java.lang.OutOfMemoryError: GC Overhead limit exceeded</li>
-<li>java.lang.OutOfMemoryError: Requested array size exceeds VM limit</li>
-<li>java.lang.OutOfMemoryError: Metaspace</li>
-<li>java.lang.OutOfMemoryError: request size bytes for reason. Out of swap space?</li>
-<li>java.lang.OutOfMemoryError: Compressed class space</li>
-<li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li>
-</ul>
-<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。这个问题通过增大参数-Xmx<heap size="">[g|m|k]也许可以解决。当然，更踏实的做法还是要检测程序是不是有内存泄漏的问题。</heap></p>
-<p><strong>PermGen space</strong><br>通过参数-XX:PermSize=<perm gen="" size="">[g|m|k]进行调整。在JDK8之后，Permanent Generation这块heap内存已经放弃，而和Native Memory合并了。</perm></p>
-<p><strong>unable to create new native thread</strong></p>
-<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p>
-<pre><code>ulimit -s  256
-ulimit -i  120000
-echo 120000 &gt; /proc/sys/kernel/threads-max
-echo 600000 &gt; /proc/sys/vm/max_map_count
-echo 200000 &gt; /proc/sys/kernel/pid_max 
-</code></pre><p>这种类型的OOM不能通过-XX:+HeapDumpOnOutOfMemoryError参数dump出文件。</p>
-<pre><code>private static void createInfinitThreads() {
-    long i = 0;
-    while(true){
-        new Thread(new Runnable(){
-            public void run() {
-                try {
-                    Thread.sleep(10000000);
-                } catch(InterruptedException e) { }
-            }
-        }).start();
-
-        i ++;
-        System.out.println(i);
-    }
-}
-</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">Java内存区域与内存溢出异常</a></p>
-<p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg" alt=""></p>
-<p>图二：下面中的Permanent区域在Java8中已经和method area合并。<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif" alt=""></p>
-<p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png" alt=""></p>
-<p><em>Reference：</em></p>
-<ul>
-<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="noopener">Oracle关于OOM Exception的官方文档</a></li>
-<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="noopener">关于unable to create new native thread这种情况的论述</a></li>
-<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="noopener">Linux上ulimit命令与unable to create new native thread的关系</a></li>
-<li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="noopener">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li>
-<li><a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
-<li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="noopener">一篇关于内存结构和溢出的文章</a></li>
-<li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="noopener">通过示例程序演示了不同类型的OOM</a></li>
-<li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="noopener">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
-<li><a href="https://dzone.com/articles/how-analyze-java-thread-dumps" target="_blank" rel="noopener">这篇文章讲述了如何分析java dump文件</a></li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/07/spring-cloud-consul-config/">spring cloud config 之 consul</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config" target="_blank" rel="noopener">使用Consul作为配置信息的Repository</a></p>
-<p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p>
-<p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p>
-<pre><code>org.springframework.cloud:spring-cloud-consul-config
-</code></pre><p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p>
-<pre><code>spring:
-  cloud:
-    consul:
-      config:
-        enabled: true
-        prefix: configuration
-        defaultContext: apps
-        profileSeparator: &apos;::&apos;
-</code></pre><p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p>
-<pre><code>spring:
-  cloud:
-    consul:
-      config:
-        format: YAML
-
-
-config/testApp,dev/data
-config/testApp/data
-config/application,dev/data
-config/application/data
-</code></pre><p>可以通过下面的设置，修改健data的值</p>
-<pre><code>spring.cloud.consul.config.data-key
-</code></pre><p>4）git2consul<br>consul社区的开源项目<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">]https://github.com/Cimpress-MCP/git2consul</a>。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config" target="_blank" rel="noopener">使用ZooKeeper作为配置信息的Repository</a></p>
-<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
-<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。</p>
-<p>例一：</p>
-<pre><code>config/testApp,dev
-config/testApp
-config/application,dev
-config/application
-</code></pre><p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
-<pre><code>spring:
-  cloud:
-    zookeeper:
-      config:
-        enabled: true
-        root: configuration
-        defaultContext: apps
-        profileSeparator: &apos;::&apos;
-</code></pre><p>这样，例一，就应变成下面这样：</p>
-<pre><code>configuration/testApp,dev
-configuration/testApp
-configuration/apps,dev
-configuration/apps
-</code></pre><blockquote>
-<p>依赖:</p>
-<p>org.springframework.cloud:spring-cloud-starter-zookeeper-config</p>
-</blockquote>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-01T14:00:21.000Z"><a href="/2016/09/01/Reactive-Programming-notes/">2016-09-01</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/01/Reactive-Programming-notes/">Reactive Programming notes</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <ul>
-<li>Collection</li>
-<li>Stream</li>
-<li>Reactive Stream</li>
-<li>ReactiveX规范</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/01/To-learn-To-know-To-use/">To learn, To know, To use</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
-<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
-<ul>
-<li>Configuration Management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
-<li>配置服务的设计与实践。</li>
-</ul>
-</li>
-<li>service discovery</li>
-<li>circuit breakers</li>
-<li>intelligent routing</li>
-<li>micro-proxy</li>
-<li>control bus</li>
-<li>one-time tokens</li>
-<li>global locks</li>
-<li>Leadership election<ul>
-<li>利用ZooKeeper、Curator实现leader选举</li>
-<li>利用leadership election实现“单例服务”</li>
-</ul>
-</li>
-<li>distributed sessions</li>
-<li>cluster state</li>
-</ul>
-<h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul>
-<li>RxJava</li>
-<li>Akka</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html" target="_blank" rel="noopener">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html" target="_blank" rel="noopener">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p>
-<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p>
-<p><strong>Server端的配置</strong>：</p>
-<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
-server.port=8888
-</code></pre><p><strong>Client端的配置</strong></p>
-<pre><code>spring.application.name=reservation-service
-spring.profiles.active=profile1,profile3
-SpringConfigClient_GitBackend.png
-spring.cloud.config.uri＝http://localhost:8888
-</code></pre><p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" title="application name、profile、label的使用"></p>
-<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" title="多个profile中重复定义"></p>
-<ul>
-<li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
-</li>
-<li><p>在config client项目中添加Actuator库，通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST" target="_blank" rel="noopener">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
-<pre><code>可以同通过 curl -d {} http://localhost:8000/refresh 获取更新。
-</code></pre></li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -661,7 +566,7 @@ spring.cloud.config.uri＝http://localhost:8888
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/Concurrency/">Concurrency</a><small>1</small></li>
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
   
     <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
   
@@ -671,9 +576,11 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
   
+    <li><a href="/tags/DevOps/">DevOps</a><small>1</small></li>
+  
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>2</small></li>
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
@@ -697,7 +604,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
-    <li><a href="/tags/笔记/">笔记</a><small>9</small></li>
+    <li><a href="/tags/笔记/">笔记</a><small>11</small></li>
   
   </ul>
 </div>
