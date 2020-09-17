@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-09-16T14:03:45.904Z</updated>
+  <updated>2020-09-17T09:13:47.683Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,13 +17,36 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>ansible basic concepts</title>
+    <link href="https://dhyuan.github.io/2020/09/17/devops/ansible_basic/"/>
+    <id>https://dhyuan.github.io/2020/09/17/devops/ansible_basic/</id>
+    <published>2020-09-17T07:25:36.000Z</published>
+    <updated>2020-09-17T09:13:47.683Z</updated>
+    
+    <content type="html"><![CDATA[<h3 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h3><p>Ansible 从 2.5 版开始就已经支持 python3。如果你在使用 conda 管理你的 python 环境，那么切换到你的环境，通过使用 pip 直接安装就好。</p><pre><code>pip3 install ansible或者pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple ansbile</code></pre><h3 id="第一原理"><a href="#第一原理" class="headerlink" title="第一原理"></a>第一原理</h3><p>ansbile 的基本工作原理就是通过(controll node) ssh 连接到远程主机(managed node)，使用类似 K8S 里“控制器模式”的思想以一种状态声明的方式让你需要管理的主机到达你期望的状态：比如，拥有哪些软件、主机上服务运行在什么状态等。幂等性对我来说是最有吸引力的特性之一。</p><h3 id="基础配置"><a href="#基础配置" class="headerlink" title="基础配置"></a>基础配置</h3><p>正如每个软件总需要根据不同参数运行一样，ansible 的基础配置信息放在 ansible.cfg 文件中。而此文件的位置依次根据\$ANSIBLE_CONFIG, 当前目录、Home 目录, /etc/ansible/ansible.cfg 的顺序查询。其内容大致如下：</p><pre><code>[defaults]hostfile = hostsremote_uesr = devopprivate_key_file = ./rsa/dell430/private_key_rsahost_key_checking = False</code></pre><p>hostfile 定义的文件保存了当你运行 ansbile playbook 时需要操作的主机的连接信息。这个文件就是 inventory 文件，如果没有 ansible.cfg 的配置存在其内容大致如下：</p><pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22 ansible_ssh_user=devop ansbile_ssh_private_key_file=./rsa/dellT430.rsa</code></pre><p>有了 ansible.cfg 的配置，其中 ssh 连接使用的用户名、私钥这些信息就可以从 inventory 文件中去掉，仅定义主机别名、ip、port 就可以了。</p><pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22</code></pre><h3 id="小试-ansible："><a href="#小试-ansible：" class="headerlink" title="小试 ansible："></a>小试 ansible：</h3><p>managed node 是一台安装了 CentOS7.8 的 Dell T430，ip 地址 192.168.1.10，用户名 devop。<br>本地 Mac 做为 controll node，当前目录下有 ansible.cfg 及 inventory 文件 hosts。<br>当然，在这之前你要参考上一篇记录的方法，先要用 ssh-keygen 制作私钥及证书，并用 ssh-copy-id 把证书 copy 到 managed node 实现免密 ssh 登录。</p><p><strong>ansible.cfg</strong>:</p><pre><code>(base) ➜  kvm git:(master) ✗ cat ansible.cfg[defaults]hostfile = hostsremote_uesr = devopprivate_key_file = /Users/dahui/.ssh/homeDellT430_rsahost_key_checking = False</code></pre><p><strong>Inventory file</strong>:</p><pre><code>(base) ➜  kvm git:(master) ✗ cat hostskvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22</code></pre><p><strong>尝试两个简单命令</strong>：</p><pre><code>(base) ➜  kvm git:(master) ✗ ansible kvmhost -m pingkvmhost | success &gt;&gt; {    &quot;changed&quot;: false,    &quot;ping&quot;: &quot;pong&quot;}(base) ➜  kvm git:(master) ✗ ansible kvmhost -m command -a uptimekvmhost | success | rc=0 &gt;&gt;00:48:22 up 20 min,  1 user,  load average: 0.05, 0.03, 0.05(base) ➜  kvm git:(master) ✗</code></pre><p>Reference:<br><a href="https://docs.ansible.com/" target="_blank" rel="noopener">https://docs.ansible.com/</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h3 id=&quot;安装&quot;&gt;&lt;a href=&quot;#安装&quot; class=&quot;headerlink&quot; title=&quot;安装&quot;&gt;&lt;/a&gt;安装&lt;/h3&gt;&lt;p&gt;Ansible 从 2.5 版开始就已经支持 python3。如果你在使用 conda 管理你的 python 环境，那么切换到你的环境，通
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+  </entry>
+  
+  <entry>
     <title>网站环境设置（1）</title>
     <link href="https://dhyuan.github.io/2020/09/16/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/"/>
     <id>https://dhyuan.github.io/2020/09/16/网站环境设置（1）/</id>
     <published>2020-09-16T13:53:29.000Z</published>
-    <updated>2020-09-16T14:03:45.904Z</updated>
+    <updated>2020-09-16T14:54:11.457Z</updated>
     
-    <content type="html"><![CDATA[<h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.sshssh-keygen -t rsa</code></pre><h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip</code></pre><h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IPHostName Server_NameIdentityFile YOUR_PRIVATE_KEY_FILE_PATH</code></pre><h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p><h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p><h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p><h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p><pre><code>root /home/devop/linkedall/web;index index.html index.htm;server_name www.linkedall.netlinkedall.net *.linkedall.net;location / {  try_files $uri $uri/ =404;}location ~* \.(html)$ {  access_log off;  add_header  Cache-Control  max-age=no-cache;}location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {  access_log off;  add_header    Cache-Control  max-age=360000;}</code></pre><p>… …</p><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {  listen 80 default_server;  listen [::]:80 default_server ipv6only=on;  root /usr/share/nginx/html;  index index.html index.htm;  # Make site accessible from http://localhost/  server_name www.telbox.cn;  location / {          proxy_pass http://localhost:8080;          # First attempt to serve request as file, then          # as directory, then fall back to displaying a 404.  # try_files $uri $uri/ =404;          # Uncomment to enable naxsi on this location          # include /etc/nginx/naxsi.rules  }</code></pre><p>Reference:<br><a href="https://juejin.im/post/6844903604034240525" target="_blank" rel="noopener">https://juejin.im/post/6844903604034240525</a></p>]]></content>
+    <content type="html"><![CDATA[<h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.sshssh-keygen -t rsa</code></pre><h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip</code></pre><h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IPHostName Server_NameIdentityFile YOUR_PRIVATE_KEY_FILE_PATH</code></pre><h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p><h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p><h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p><h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p><pre><code>root /home/devop/linkedall/web;index index.html index.htm;server_name www.linkedall.netlinkedall.net *.linkedall.net;location / {  try_files $uri $uri/ =404;}location ~* \.(html)$ {  access_log off;  add_header  Cache-Control  max-age=no-cache;}location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {  access_log off;  add_header    Cache-Control  max-age=360000;}... ...</code></pre><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {  listen 80 default_server;  listen [::]:80 default_server ipv6only=on;  root /usr/share/nginx/html;  index index.html index.htm;  # Make site accessible from http://localhost/  server_name www.telbox.cn;  location / {          proxy_pass http://localhost:8080;          # First attempt to serve request as file, then          # as directory, then fall back to displaying a 404.  # try_files $uri $uri/ =404;          # Uncomment to enable naxsi on this location          # include /etc/nginx/naxsi.rules  }</code></pre><p>Reference:<br><a href="https://juejin.im/post/6844903604034240525" target="_blank" rel="noopener">https://juejin.im/post/6844903604034240525</a></p>]]></content>
     
     <summary type="html">
     
@@ -80,9 +103,9 @@
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
   </entry>
   
@@ -105,9 +128,9 @@
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
   </entry>
   
@@ -157,9 +180,9 @@
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
@@ -186,9 +209,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -212,9 +235,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -238,9 +261,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -264,9 +287,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -289,9 +312,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -315,9 +338,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -342,9 +365,9 @@
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
@@ -465,9 +488,9 @@
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
       <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
     
@@ -488,31 +511,6 @@
     
     
       <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>在遗留项目中使用 Spring Boot and Cloud</title>
-    <link href="https://dhyuan.github.io/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/"/>
-    <id>https://dhyuan.github.io/2016/09/19/在遗留项目中使用-Spring-Boot-and-Cloud/</id>
-    <published>2016-09-19T14:34:40.000Z</published>
-    <updated>2016-09-28T16:20:23.000Z</updated>
-    
-    <content type="html"><![CDATA[<p>几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇<a href="http://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html" target="_blank" rel="noopener">官方文档</a>介绍了在已有parent pom的情况下如何使用boot。</p><p>下面算是几个学习摘要。</p><p><strong>1) 如果遗留项目中没有使用自己parent pom，那么在项目模块中就可以直接设置parent为spring-boot-starter-parent</strong></p><pre><code>&lt;!-- Inherit defaults from Spring Boot --&gt;&lt;parent&gt;    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;    &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;&lt;/parent&gt;</code></pre><p>如果想更改某个子项目版本，通过下面设置属性的方式进行更改。</p><pre><code>&lt;properties&gt;    &lt;spring-data-releasetrain.version&gt;Fowler-SR2&lt;/spring-data-releasetrain.version&gt;&lt;/properties&gt;</code></pre><p>查看有哪些可更改的properties，<a href="https://github.com/spring-projects/spring-boot/blob/v1.3.6.RELEASE/spring-boot-dependencies/pom.xml" target="_blank" rel="noopener">参考这里</a>。</p><p><strong>2）如果已有的maven项目中已经存在parent pom，那么可以通过 denpendencyManagemengt的方式指定boot的BOM。</strong></p><pre><code>&lt;dependencyManagement&gt;     &lt;dependencies&gt;        &lt;dependency&gt;            &lt;!-- Import dependency management from Spring Boot --&gt;            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;            &lt;type&gt;pom&lt;/type&gt;            &lt;scope&gt;import&lt;/scope&gt;        &lt;/dependency&gt;    &lt;/dependencies&gt;&lt;/dependencyManagement&gt;</code></pre><p>这种情况下，如果需要指定某个版本的库，就需要在定义spring-boot-dependencies的前面定义dependence了。就像下面这样，spring-data-releasetrain使用了不同于1.3.6.RELEASE的另一个版本Fowler-SR2。</p><pre><code>&lt;dependencyManagement&gt;    &lt;dependencies&gt;        &lt;!-- Override Spring Data release train provided by Spring Boot --&gt;        &lt;dependency&gt;            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;            &lt;artifactId&gt;spring-data-releasetrain&lt;/artifactId&gt;            &lt;version&gt;Fowler-SR2&lt;/version&gt;            &lt;scope&gt;import&lt;/scope&gt;            &lt;type&gt;pom&lt;/type&gt;        &lt;/dependency&gt;        &lt;dependency&gt;            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;            &lt;type&gt;pom&lt;/type&gt;            &lt;scope&gt;import&lt;/scope&gt;        &lt;/dependency&gt;    &lt;/dependencies&gt;&lt;/dependencyManagement&gt;</code></pre><p><strong>3）关于Maven中BOM[Bill Of Materials]的概念。</strong><br>这篇文章讲得不错：<a href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/" target="_blank" rel="noopener">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a>。</p><blockquote><p>A BOM dependency keep track of version numbers and ensure that all dependencies (both direct and transitive) are at the same version.</p></blockquote><p><strong>4) 如何添加BOM依赖?</strong></p><p>maven通过dependencyManagement来支持BOM。比如像下面这样加入Spring BOM。</p><pre><code>&lt;dependencyManagement&gt;    &lt;dependencies&gt;        &lt;dependency&gt;            &lt;groupId&gt;org.springframework&lt;/groupId&gt;            &lt;artifactId&gt;spring-framework-bom&lt;/artifactId&gt;            &lt;version&gt;4.0.1.RELEASE&lt;/version&gt;            &lt;type&gt;pom&lt;/type&gt;            &lt;scope&gt;import&lt;/scope&gt;        &lt;/dependency&gt;    &lt;/dependencies&gt;&lt;/dependencyManagement&gt;</code></pre><p>那么，以后再使用那个这个BOM包含的库时，就不必制定version了。比如：</p><pre><code>&lt;dependencies&gt;    &lt;dependency&gt;        &lt;groupId&gt;org.springframework&lt;/groupId&gt;        &lt;artifactId&gt;spring-context&lt;/artifactId&gt;    &lt;/dependency&gt;    &lt;dependency&gt;        &lt;groupId&gt;org.springframework&lt;/groupId&gt;        &lt;artifactId&gt;spring-web&lt;/artifactId&gt;    &lt;/dependency&gt;&lt;dependencies&gt;</code></pre><p>在<strong>dependencyManagement下的声明不会引入实际的依赖</strong>，它仅仅<strong>用来约束dependencies</strong>下面的依赖使用。<br>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p><p><strong>5) 图例</strong></p><p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。<br><img src="/2016/09/19/在遗留项目中使用-Spring-Boot-and-Cloud/SpringBootCloud_pomSmaple.png" title="一个pom的例子"></p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇&lt;a href=&quot;http://docs.spring.
-      
-    
-    </summary>
-    
-    
-      <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
-    
-      <category term="Spring" scheme="https://dhyuan.github.io/tags/Spring/"/>
     
   </entry>
   

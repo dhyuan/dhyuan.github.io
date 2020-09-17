@@ -50,6 +50,77 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-09-17T07:25:36.000Z"><a href="/2020/09/17/devops/ansible_basic/">2020-09-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/17/devops/ansible_basic/">ansible basic concepts</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h3><p>Ansible 从 2.5 版开始就已经支持 python3。如果你在使用 conda 管理你的 python 环境，那么切换到你的环境，通过使用 pip 直接安装就好。</p>
+<pre><code>pip3 install ansible
+或者
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple ansbile
+</code></pre><h3 id="第一原理"><a href="#第一原理" class="headerlink" title="第一原理"></a>第一原理</h3><p>ansbile 的基本工作原理就是通过(controll node) ssh 连接到远程主机(managed node)，使用类似 K8S 里“控制器模式”的思想以一种状态声明的方式让你需要管理的主机到达你期望的状态：比如，拥有哪些软件、主机上服务运行在什么状态等。幂等性对我来说是最有吸引力的特性之一。</p>
+<h3 id="基础配置"><a href="#基础配置" class="headerlink" title="基础配置"></a>基础配置</h3><p>正如每个软件总需要根据不同参数运行一样，ansible 的基础配置信息放在 ansible.cfg 文件中。而此文件的位置依次根据\$ANSIBLE_CONFIG, 当前目录、Home 目录, /etc/ansible/ansible.cfg 的顺序查询。其内容大致如下：</p>
+<pre><code>[defaults]
+hostfile = hosts
+remote_uesr = devop
+private_key_file = ./rsa/dell430/private_key_rsa
+host_key_checking = False
+</code></pre><p>hostfile 定义的文件保存了当你运行 ansbile playbook 时需要操作的主机的连接信息。这个文件就是 inventory 文件，如果没有 ansible.cfg 的配置存在其内容大致如下：</p>
+<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22 ansible_ssh_user=devop ansbile_ssh_private_key_file=./rsa/dellT430.rsa
+</code></pre><p>有了 ansible.cfg 的配置，其中 ssh 连接使用的用户名、私钥这些信息就可以从 inventory 文件中去掉，仅定义主机别名、ip、port 就可以了。</p>
+<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
+</code></pre><h3 id="小试-ansible："><a href="#小试-ansible：" class="headerlink" title="小试 ansible："></a>小试 ansible：</h3><p>managed node 是一台安装了 CentOS7.8 的 Dell T430，ip 地址 192.168.1.10，用户名 devop。<br>本地 Mac 做为 controll node，当前目录下有 ansible.cfg 及 inventory 文件 hosts。<br>当然，在这之前你要参考上一篇记录的方法，先要用 ssh-keygen 制作私钥及证书，并用 ssh-copy-id 把证书 copy 到 managed node 实现免密 ssh 登录。</p>
+<p><strong>ansible.cfg</strong>:</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ cat ansible.cfg
+[defaults]
+hostfile = hosts
+remote_uesr = devop
+private_key_file = /Users/dahui/.ssh/homeDellT430_rsa
+host_key_checking = False
+</code></pre><p><strong>Inventory file</strong>:</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ cat hosts
+kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
+</code></pre><p><strong>尝试两个简单命令</strong>：</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ ansible kvmhost -m ping
+kvmhost | success &gt;&gt; {
+    &quot;changed&quot;: false,
+    &quot;ping&quot;: &quot;pong&quot;
+}
+
+(base) ➜  kvm git:(master) ✗ ansible kvmhost -m command -a uptime
+kvmhost | success | rc=0 &gt;&gt;
+00:48:22 up 20 min,  1 user,  load average: 0.05, 0.03, 0.05
+
+(base) ➜  kvm git:(master) ✗
+</code></pre><p>Reference:<br><a href="https://docs.ansible.com/" target="_blank" rel="noopener">https://docs.ansible.com/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2020-09-16T13:53:29.000Z"><a href="/2020/09/16/网站环境设置（1）/">2020-09-16</a></time>
       
       
@@ -87,8 +158,8 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
   access_log off;
   add_header    Cache-Control  max-age=360000;
 }
-</code></pre><p>… …</p>
-<h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {
+... ...
+</code></pre><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {
   listen 80 default_server;
   listen [::]:80 default_server ipv6only=on;
   root /usr/share/nginx/html;
@@ -548,46 +619,6 @@ Get 1
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-02-27T09:30:59.000Z"><a href="/2020/02/27/List-of-Future-of-Either/">2020-02-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/02/27/List-of-Future-of-Either/">STTP的基本使用(3)：把List[Future[Either[Error, T]]]转为Future[(List[Throwable], List[T])]</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>如果使用 AkkaHttp 作为 STTP 的 backend 来并发地处理 list of url，就会得到类似 List[Future[Response[Either[ResponseError[io.circe.Error], T]]]]，这样的结果。</p>
-<p>一般地，我们更期望给上层调用者返回 Future[(List[Exception], List[T])]这样的类型。</p>
-<p>下面代码演示了如何把：<br>List[Future[Response[Either[ResponseError[io.circe.Error], NasaData]]]]<br>准换为<br>Future[(List[Throwable], List[NasaData])]。<br>其中 tuple 的第一部分表示 response 中所有的 exception，第二部分表示所有正常数据。</p>
-<p>几个技术关键点是：<br>1）Future.sequence 用于把 List[Future] 转为 Future[List]。<br>2）忽略 STTP Response 里除去 body 数据的其它部分，并把 response 转为 Either[Throwable, NasaData]。<br>3）经过步骤 1，2，数据类型已经是 Future[List[Either[Throwable, NasaData]]]。<br>4）List[Either[Throwable, NasaData]] 转为 (List[Throwable], List[NasaData])的思路是:<br>a) 构造一个空的 Tuple (List[Throwable(), List<a href="">NasaData</a>)作为一个累计器。<br>b) 使用 List.folderLeft()遍历元素，根据是 left 还是 right 累加到累计器的_1 或_2。</p>
-<p>下面链接的文章演示了两种转换方式，一种是 Scala 原生手写，一种是使用 CAT。 <a href="https://pbassiner.github.io/blog/composing_future,_list_and_either.html。" target="_blank" rel="noopener">https://pbassiner.github.io/blog/composing_future,_list_and_either.html。</a><br>但是，其中语句 case Left(err) =&gt; acc.left.map(_ =&gt; err) 的逻辑似乎与期望不符。如果 list of either 中有 Left，并不能工作。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> erA: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">1</span>)</span><br><span class="line"><span class="keyword">val</span> erB: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">2</span>)</span><br><span class="line"><span class="keyword">val</span> erC: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">3</span>)</span><br><span class="line"><span class="keyword">val</span> elA: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Left</span>(<span class="string">"error1"</span>)</span><br><span class="line"><span class="keyword">val</span> elB: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Left</span>(<span class="string">"error2"</span>)</span><br><span class="line"><span class="keyword">val</span> listOfEither = <span class="type">List</span>(erA, elA, erB, erC, elB)</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">val</span> eitherOfList: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]] = listOfEither.foldLeft(<span class="type">Right</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]](<span class="type">List</span>()).asInstanceOf[<span class="type">Either</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]]])((acc, elem) =&gt; &#123;</span><br><span class="line">  elem <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Right</span>(v) =&gt; acc.map(l =&gt; l :+ v)</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Left</span>(e) =&gt; acc.left.map(_ + e)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line">println(<span class="string">s"eitherOfList: <span class="subst">$eitherOfList</span>"</span>)</span><br></pre></td></tr></table></figure></p>
-<pre><code>输出为：eitherOfList: Right(List(1, 2, 3))
-</code></pre><p>下面的代码演示了并发发出100个RestAPi请求获取数据的处理代码，结果保存在Tuple里，分别是所有失败和成功的数据。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> io.circe.generic.auto._</span><br><span class="line"><span class="keyword">import</span> sttp.client._</span><br><span class="line"><span class="keyword">import</span> sttp.client.akkahttp.<span class="type">AkkaHttpBackend</span></span><br><span class="line"><span class="keyword">import</span> sttp.client.circe._</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">Future</span></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.duration._</span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">Await</span></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">ExecutionContext</span>.<span class="type">Implicits</span>.global</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> <span class="type">NASA_API_KEY</span> = <span class="string">"XXXXXXXXXXXXXXX"</span></span><br><span class="line"><span class="keyword">val</span> baseUrl = <span class="string">s"https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>"</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> pageSize = <span class="number">10</span></span><br><span class="line"><span class="keyword">var</span> pageNumb = <span class="number">100</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">Links</span>(<span class="params">self: <span class="type">String</span>, next: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">Page</span>(<span class="params">number: <span class="type">Int</span>, size: <span class="type">Int</span>, total_elements: <span class="type">Int</span>, total_pages: <span class="type">Int</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NearEarthObject</span>(<span class="params">absolute_magnitude_h: <span class="type">Double</span>, designation: <span class="type">String</span></span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">case</span> <span class="title">class</span> <span class="title">NasaData</span>(<span class="params">links: <span class="type">Links</span>, page: <span class="type">Page</span>, near_earth_objects: <span class="type">List</span>[<span class="type">NearEarthObject</span>]</span>)</span></span><br><span class="line"><span class="class"></span></span><br><span class="line"><span class="class"><span class="title">implicit</span> <span class="title">val</span> <span class="title">sttpBackend</span> </span>= <span class="type">AkkaHttpBackend</span>()</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: List[Future[Response[Either[ResponseError[io.circe.Error], NasaData]]]] ---&gt; Future[Either[String, List[NasaData]]]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> listOfFutureResult: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]]]] =</span><br><span class="line">  (<span class="number">0</span> until pageNumb).toList.map(pageIndex =&gt; &#123;</span><br><span class="line">    <span class="keyword">val</span> pageUrl = <span class="string">s"http://www.neowsapp.com/rest/v1/neo/browse?page=<span class="subst">$pageIndex</span>&amp;size=<span class="subst">$pageSize</span>&amp;api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>"</span></span><br><span class="line">    basicRequest.get(<span class="string">uri"<span class="subst">$pageUrl</span>"</span>)</span><br><span class="line">      .response(asJson[<span class="type">NasaData</span>])</span><br><span class="line">      .send()</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: Future[List] --&gt; List[Future]</span></span><br><span class="line"><span class="keyword">val</span> futureOfList: <span class="type">Future</span>[<span class="type">List</span>[<span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]]]] = <span class="type">Future</span>.sequence(listOfFutureResult)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: 把Response[Either[ResponseError[io.circe.Error], NasaData]] 转为了 Either[Throwable, NasaData]</span></span><br><span class="line"><span class="keyword">val</span> respOfEither2Either: <span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]] =&gt; <span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>] = resp =&gt; &#123;</span><br><span class="line">  println(<span class="string">s"resp==&gt;  code:<span class="subst">$&#123;resp.code.code&#125;</span>  <span class="subst">$&#123;resp.statusText&#125;</span>"</span>)</span><br><span class="line">  <span class="keyword">val</span> newEither: <span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>] = resp.body <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Left</span>(respErr) =&gt; <span class="type">Left</span>(respErr.getCause)</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Right</span>(nasaData) =&gt; <span class="type">Right</span>(nasaData)</span><br><span class="line">  &#125;</span><br><span class="line">  newEither</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> futureOfListOfEither: <span class="type">Future</span>[<span class="type">List</span>[<span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>]]] = futureOfList.map(listOfResp =&gt; &#123;</span><br><span class="line">  listOfResp.map(respOfEither2Either)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> listOfEither2TupleOfList: <span class="type">List</span>[<span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>]] =&gt; (<span class="type">List</span>[<span class="type">Throwable</span>], <span class="type">List</span>[<span class="type">NasaData</span>]) = listE =&gt; &#123;</span><br><span class="line">  listE.foldLeft(<span class="type">List</span>[<span class="type">Throwable</span>](), <span class="type">List</span>[<span class="type">NasaData</span>]())((acc, eData) =&gt; &#123;</span><br><span class="line">    eData <span class="keyword">match</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">Right</span>(nasaData) =&gt; (acc._1, acc._2 :+ nasaData)</span><br><span class="line">      <span class="keyword">case</span> <span class="type">Left</span>(t) =&gt; (acc._1 :+ t, acc._2)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> futureOfEitherOfList = futureOfListOfEither map listOfEither2TupleOfList</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> result = <span class="type">Await</span>.result(futureOfEitherOfList, <span class="number">1.</span>minute)</span><br><span class="line">println(<span class="string">s"Exceptions in Response: <span class="subst">$result</span>._1"</span>)</span><br><span class="line">println(<span class="string">s"Data in Response: <span class="subst">$result</span>._2"</span>)</span><br><span class="line"> </span><br></pre></td></tr></table></figure></p>
-<p>另，Akka HTTP默认主机连接持是32个，所以需要修改applicaiton.confg配置以支持更多连接数。<br>    akka.http.host-connection-pool.max-open-requests = 128</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -646,6 +677,8 @@ Get 1
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/devops/">devops</a><small>1</small></li>
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   

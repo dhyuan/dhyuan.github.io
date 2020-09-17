@@ -90,8 +90,8 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
   access_log off;
   add_header    Cache-Control  max-age=360000;
 }
-</code></pre><p>… …</p>
-<h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {
+... ...
+</code></pre><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {
   listen 80 default_server;
   listen [::]:80 default_server ipv6only=on;
   root /usr/share/nginx/html;
@@ -217,6 +217,8 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/devops/">devops</a><small>1</small></li>
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
