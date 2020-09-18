@@ -3,19 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Ordered and Ordering | Dahui’s 开发笔记</title>
+  <title>虚拟化的分类 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Java关于比较有两个基础接口：Comparable，Comparator。其中Comparatable接口只定义了一个方法
-public int compareTo(T o);
-而Comparator相对复杂:
-int compare(T o1, T o2);
-thenComparing() ..">
+  <meta name="description" content="虚拟化是云计算的底层支撑技术。以前一台主机的各种硬件设备只能被操作系统管理、使用。有了虚拟化技术（VMM/Hypervisor 虚拟机监控器、QEMU、Intel-VT…），一台主机的各种硬件设备可以“分割成”几个部分分别被运行在主机上的不同的(Guest)操作系统使用。
+从不同的视角，虚拟化技术有">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Ordered and Ordering"/>
+  <meta property="og:title" content="虚拟化的分类"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -55,24 +52,25 @@ thenComparing() ..">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2020-03-10T02:01:29.000Z"><a href="/2020/03/10/Ordered-and-Ordering/">2020-03-10</a></time>
+        <time datetime="2020-09-18T15:09:43.000Z"><a href="/2020/09/18/devops/hypervisor_types/">2020-09-18</a></time>
       
       
   
-    <h1 class="title">Ordered and Ordering</h1>
+    <h1 class="title">虚拟化的分类</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>Java关于比较有两个基础接口：Comparable，Comparator。<br>其中Comparatable接口只定义了一个方法</p>
-<pre><code>public int compareTo(T o);
-</code></pre><p>而Comparator相对复杂:</p>
-<pre><code>int compare(T o1, T o2);
-thenComparing() ... 
-</code></pre><p>Scala与之对应的比较是Ordered，Ordering。<br>Ordered类似Comparable，并多出</p>
-<p><a href="https://www.scala-lang.org/api/current/scala/math/Ordering.html" target="_blank" rel="noopener">https://www.scala-lang.org/api/current/scala/math/Ordering.html</a></p>
-<p>This trait and scala.math.Ordered both provide this same functionality, but in different ways. A type T can be given a single way to order itself by extending Ordered. Using Ordering, this same type may be sorted in many other ways. Ordered and Ordering both provide implicits allowing them to be used interchangeably.</p>
+        <p>虚拟化是云计算的底层支撑技术。以前一台主机的各种硬件设备只能被操作系统管理、使用。有了虚拟化技术（VMM/Hypervisor 虚拟机监控器、QEMU、Intel-VT…），一台主机的各种硬件设备可以“分割成”几个部分分别被运行在主机上的不同的(Guest)操作系统使用。</p>
+<p>从不同的视角，虚拟化技术有不同的分类。</p>
+<h2 id="软硬件实现的角度"><a href="#软硬件实现的角度" class="headerlink" title="软硬件实现的角度"></a>软硬件实现的角度</h2><h3 id="软件虚拟化"><a href="#软件虚拟化" class="headerlink" title="软件虚拟化"></a>软件虚拟化</h3><p>QEMU，完全由软件模拟 VMM 层。它实际是通过软件<strong>仿真</strong>出目标平台。目标平台指令–&gt;QEMU 翻译–&gt;宿主机平台指令。</p>
+<h3 id="硬件虚拟化"><a href="#硬件虚拟化" class="headerlink" title="硬件虚拟化"></a>硬件虚拟化</h3><p>计算机硬件自身就提供让 guest os 使用能力，而无需(特殊情况需要)VMM 截获处理。 2005，Intel VT。</p>
+<h2 id="Guest-是否与-VMM-协作"><a href="#Guest-是否与-VMM-协作" class="headerlink" title="Guest 是否与 VMM 协作"></a>Guest 是否与 VMM 协作</h2><h3 id="全虚拟化"><a href="#全虚拟化" class="headerlink" title="全虚拟化"></a>全虚拟化</h3><p>Guest 环境里无需针对虚拟化安装任何程序/驱动，虚拟化的工作完全由 VMM/Hypervisor 截获并处理。Guest 完全不知道自己运行在虚拟硬件之上。</p>
+<h3 id="半虚拟化"><a href="#半虚拟化" class="headerlink" title="半虚拟化"></a>半虚拟化</h3><p>需要在 Guest 环境里安装驱动与 VMM 协同工作来完成虚拟化，就是半虚拟化。因为你需要在 Guest 里运行特殊的用于虚拟化的程序，所以对 guest 来说是有侵入的。这不是很理想，但是好处是可以减轻 VMM 的复杂度。代表技术：virtio。</p>
+<h2 id="是否依赖操作系统"><a href="#是否依赖操作系统" class="headerlink" title="是否依赖操作系统"></a>是否依赖操作系统</h2><h3 id="Type1"><a href="#Type1" class="headerlink" title="Type1"></a>Type1</h3><p>VMM/Hypervisor 直接运行在硬件之上，不依赖其它操作系统。代表产品 VMware ESXi、Xen。（其实 ESXi 就是一个精简的 linux…）</p>
+<h3 id="Type2"><a href="#Type2" class="headerlink" title="Type2"></a>Type2</h3><p>VMM/Hypervisor 运行在操作系统之上。比如 VMware Workstation。</p>
+<p>有的文章把 KVM 算作 Type2。实际上它是以内核模块的方式实现了 VMM 的功能，同时硬件的管理也是依靠宿主操作系统的内核模块管理。从这个角度看其实 ESXi 只是定制得更狠些的 KVM 。。。</p>
 
       
     </div>
@@ -82,7 +80,7 @@ thenComparing() ...
         
   
   <div class="tags">
-    <a href="/tags/Scala/">Scala</a>, <a href="/tags/笔记/">笔记</a>
+    <a href="/tags/devops/">devops</a>
   </div>
 
         
@@ -125,7 +123,7 @@ thenComparing() ...
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2020/03/10/Ordered-and-Ordering/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/09/18/devops/hypervisor_types/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>

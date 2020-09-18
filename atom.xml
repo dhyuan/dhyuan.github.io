@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-09-17T09:13:47.683Z</updated>
+  <updated>2020-09-18T15:49:20.332Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,29 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>虚拟化的分类</title>
+    <link href="https://dhyuan.github.io/2020/09/18/devops/hypervisor_types/"/>
+    <id>https://dhyuan.github.io/2020/09/18/devops/hypervisor_types/</id>
+    <published>2020-09-18T15:09:43.000Z</published>
+    <updated>2020-09-18T15:49:20.332Z</updated>
+    
+    <content type="html"><![CDATA[<p>虚拟化是云计算的底层支撑技术。以前一台主机的各种硬件设备只能被操作系统管理、使用。有了虚拟化技术（VMM/Hypervisor 虚拟机监控器、QEMU、Intel-VT…），一台主机的各种硬件设备可以“分割成”几个部分分别被运行在主机上的不同的(Guest)操作系统使用。</p><p>从不同的视角，虚拟化技术有不同的分类。</p><h2 id="软硬件实现的角度"><a href="#软硬件实现的角度" class="headerlink" title="软硬件实现的角度"></a>软硬件实现的角度</h2><h3 id="软件虚拟化"><a href="#软件虚拟化" class="headerlink" title="软件虚拟化"></a>软件虚拟化</h3><p>QEMU，完全由软件模拟 VMM 层。它实际是通过软件<strong>仿真</strong>出目标平台。目标平台指令–&gt;QEMU 翻译–&gt;宿主机平台指令。</p><h3 id="硬件虚拟化"><a href="#硬件虚拟化" class="headerlink" title="硬件虚拟化"></a>硬件虚拟化</h3><p>计算机硬件自身就提供让 guest os 使用能力，而无需(特殊情况需要)VMM 截获处理。 2005，Intel VT。</p><h2 id="Guest-是否与-VMM-协作"><a href="#Guest-是否与-VMM-协作" class="headerlink" title="Guest 是否与 VMM 协作"></a>Guest 是否与 VMM 协作</h2><h3 id="全虚拟化"><a href="#全虚拟化" class="headerlink" title="全虚拟化"></a>全虚拟化</h3><p>Guest 环境里无需针对虚拟化安装任何程序/驱动，虚拟化的工作完全由 VMM/Hypervisor 截获并处理。Guest 完全不知道自己运行在虚拟硬件之上。</p><h3 id="半虚拟化"><a href="#半虚拟化" class="headerlink" title="半虚拟化"></a>半虚拟化</h3><p>需要在 Guest 环境里安装驱动与 VMM 协同工作来完成虚拟化，就是半虚拟化。因为你需要在 Guest 里运行特殊的用于虚拟化的程序，所以对 guest 来说是有侵入的。这不是很理想，但是好处是可以减轻 VMM 的复杂度。代表技术：virtio。</p><h2 id="是否依赖操作系统"><a href="#是否依赖操作系统" class="headerlink" title="是否依赖操作系统"></a>是否依赖操作系统</h2><h3 id="Type1"><a href="#Type1" class="headerlink" title="Type1"></a>Type1</h3><p>VMM/Hypervisor 直接运行在硬件之上，不依赖其它操作系统。代表产品 VMware ESXi、Xen。（其实 ESXi 就是一个精简的 linux…）</p><h3 id="Type2"><a href="#Type2" class="headerlink" title="Type2"></a>Type2</h3><p>VMM/Hypervisor 运行在操作系统之上。比如 VMware Workstation。</p><p>有的文章把 KVM 算作 Type2。实际上它是以内核模块的方式实现了 VMM 的功能，同时硬件的管理也是依靠宿主操作系统的内核模块管理。从这个角度看其实 ESXi 只是定制得更狠些的 KVM 。。。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;虚拟化是云计算的底层支撑技术。以前一台主机的各种硬件设备只能被操作系统管理、使用。有了虚拟化技术（VMM/Hypervisor 虚拟机监控器、QEMU、Intel-VT…），一台主机的各种硬件设备可以“分割成”几个部分分别被运行在主机上的不同的(Guest)操作系统使用。&lt;
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+  </entry>
   
   <entry>
     <title>ansible basic concepts</title>
@@ -495,22 +518,6 @@
       <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
     
       <category term="MongoDB" scheme="https://dhyuan.github.io/tags/MongoDB/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>使用Maven pom的聚和、继承来组织项目</title>
-    <link href="https://dhyuan.github.io/2016/09/29/%E4%BD%BF%E7%94%A8Maven-pom%E7%9A%84%E8%81%9A%E4%BC%9A%E3%80%81%E7%BB%A7%E6%89%BF%E6%9D%A5%E7%BB%84%E7%BB%87%E9%A1%B9%E7%9B%AE/"/>
-    <id>https://dhyuan.github.io/2016/09/29/使用Maven-pom的聚会、继承来组织项目/</id>
-    <published>2016-09-28T16:05:26.000Z</published>
-    <updated>2018-09-12T13:30:26.002Z</updated>
-    
-    <summary type="html">
-    
-    </summary>
-    
-    
-      <category term="Maven" scheme="https://dhyuan.github.io/tags/Maven/"/>
     
   </entry>
   

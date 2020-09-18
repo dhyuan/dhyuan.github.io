@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://dhyuan.github.io/2020/09/18/devops/hypervisor_types/</loc>
+    
+    <lastmod>2020-09-18T15:49:20.332Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://dhyuan.github.io/2020/09/17/devops/ansible_basic/</loc>
     
     <lastmod>2020-09-17T09:13:47.683Z</lastmod>
