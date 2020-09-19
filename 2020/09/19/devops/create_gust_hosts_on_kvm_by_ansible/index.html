@@ -3,13 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Reactive | Dahui’s 开发笔记</title>
+  <title>用Ansible在KVM上创建虚拟机 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
+  
+  <meta name="description" content="这是一篇拿来主义的实践。https://github.com/csmart/virt-infra-ansible
+我们的目标是用 Ansible 快速搭建出一个 miniCloud 环境，以方便以后部署基于 K8S 的各种生产力工具。虽然 VMware vSphere 很好用，但因为 lisence">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  
+  <meta property="og:title" content="用Ansible在KVM上创建虚拟机"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -43,37 +46,118 @@
 <div class="clearfix"></div>
 </header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper">
-<h2 class="archive-title tag">Reactive</h2>
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-09-18T16:21:02.000Z"><a href="/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">2020-09-19</a></time>
+      
+      
+  
+    <h1 class="title">用Ansible在KVM上创建虚拟机</h1>
+  
 
+    </header>
+    <div class="entry">
+      
+        <p>这是一篇拿来主义的实践。<a href="https://github.com/csmart/virt-infra-ansible" target="_blank" rel="noopener">https://github.com/csmart/virt-infra-ansible</a></p>
+<p>我们的目标是用 Ansible 快速搭建出一个 miniCloud 环境，以方便以后部署基于 K8S 的各种生产力工具。<br>虽然 VMware vSphere 很好用，但因为 lisence 及价格的因素，KVM 是最适合拿来使用的 Hypervisor。</p>
+<p>在宿主机上需要以下软件：</p>
+<ul>
+<li>Ansible</li>
+<li>KVM</li>
+<li>KVM 用户空间工具</li>
+<li>SSH keys</li>
+<li>Guest Image</li>
+</ul>
+<p>可运行以下命令准备环境：</p>
+<pre><code># Create SSH key if you don&apos;t have one
+ssh-keygen
 
-  <div class="archive">
-    
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-11-13T07:22:50.000Z"><a href="/2016/11/13/Reactive-Scala-Driver-for-MongoDB/">2016-11-13</a></time>
-            
-              <h1 class="title"><a href="/2016/11/13/Reactive-Scala-Driver-for-MongoDB/">Reactive Scala Driver for MongoDB</a></h1>
-            
-          </header>
-        </div>
-      </article>
-    
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-09-01T14:00:21.000Z"><a href="/2016/09/01/Reactive-Programming-notes/">2016-09-01</a></time>
-            
-              <h1 class="title"><a href="/2016/09/01/Reactive-Programming-notes/">Reactive Programming notes</a></h1>
-            
-          </header>
-        </div>
-      </article>
-    
+# libvirtd
+sudo yum groupinstall -y &quot;Virtualization Host&quot;
+sudo systemctl enable --now libvirtd
+
+# Ansible
+sudo yum install -y epel-release
+sudo yum install -y python36
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple --user ansible
+
+# Other deps
+sudo yum install -y \
+git \
+genisoimage \
+libguestfs-tools-c \
+libosinfo \
+python36-libvirt \
+python36-lxml \
+libselinux-python3 \
+qemu-img qemu \
+virt-install
+</code></pre><p>国内用户为了使用 yum 时有更快的下载速度，可以设置 yum 国内镜像源。</p>
+<pre><code>mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+</code></pre><p>pip 使用 -i <a href="https://pypi.tuna.tsinghua.edu.cn/simple" target="_blank" rel="noopener">https://pypi.tuna.tsinghua.edu.cn/simple</a> 参数使用国内源。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/devops/">devops</a>
   </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
 </div></div>
     <aside id="sidebar" class="alignright">
   <div class="search">

@@ -3,24 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>了解一点CQRS | Dahui’s 开发笔记</title>
+  <title>ping veth不通的原因 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Reference：
-微软网站关于CQRS的描述
-Martin Fowler的论述 文章后面警告我们不要乱用这个设计。
-gregyoung的论述
-在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。
-
-
-
-
-TODO： 我的理解和实践。。。">
+  <meta name="description" content="今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。原因都在 ip route show table local 输出里。 直接上步骤：
+[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination ">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="了解一点CQRS"/>
+  <meta property="og:title" content="ping veth不通的原因"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -60,28 +54,83 @@ TODO： 我的理解和实践。。。">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+        <time datetime="2020-09-19T17:07:42.000Z"><a href="/2020/09/20/devops/route_local_table/">2020-09-20</a></time>
       
       
   
-    <h1 class="title">了解一点CQRS</h1>
+    <h1 class="title">ping veth不通的原因</h1>
   
 
     </header>
     <div class="entry">
       
-        <p>Reference：</p>
-<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="noopener">微软网站关于CQRS的描述</a></p>
-<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
-<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="noopener">gregyoung的论述</a></p>
-<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
-<blockquote>
-<blockquote>
-<blockquote>
-</blockquote>
-<p>TODO： 我的理解和实践。。。</p>
-</blockquote>
-</blockquote>
+        <p>今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。<br>原因都在 ip route show table local 输出里。 直接上步骤：</p>
+<pre><code>[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+[dahui@192 ~]$
+
+# 创建veth对。
+sudo ip link add veth0 type veth peer name veth1
+
+# 给veth设置IP地址
+sudo ip addr add 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.20/24 dev veth1
+
+# 激活接口
+sudo ip link set veth0 up
+sudo ip link set veth1 up
+
+
+# 直连路由被自动添加了路由表
+[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth0
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth1
+[dahui@192 ~]$
+
+
+# 创建一个linux网桥 br0
+sudo ip link add name br0 type bridge
+sudo ip link set br0 up
+
+# 把veth0接到br0，veth0有ip的情况下虽然能接收来自协议栈的数据但是reponse只能走br0了。
+sudo ip link set dev veth0 master br0
+
+# veth0 拥有IP已经没有意义，把这个IP给br0
+sudo ip addr del 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.10/24 dev br0
+
+# 期待通过 br0接口ping  veth2能成功。 但是失败了。
+[dahui@192 ~]$  ping -c 1 -I br0 192.168.2.20
+PING 192.168.2.20 (192.168.2.20) from 192.168.2.10 br0: 56(84) bytes of data.
+
+--- 192.168.2.20 ping statistics ---
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+[dahui@192 ~]$
+</code></pre><p>下面是由系统维护的 local 路由表：</p>
+<pre><code>[dahui@192 ~]$ ip route show table local
+broadcast 127.0.0.0 dev lo proto kernel scope link src 127.0.0.1
+local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1
+local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1
+broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1
+broadcast 192.168.1.0 dev em1 proto kernel scope link src 192.168.1.10
+local 192.168.1.10 dev em1 proto kernel scope host src 192.168.1.10
+broadcast 192.168.1.255 dev em1 proto kernel scope link src 192.168.1.10
+broadcast 192.168.2.0 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.0 dev br0 proto kernel scope link src 192.168.2.10
+local 192.168.2.10 dev br0 proto kernel scope host src 192.168.2.10
+local 192.168.2.20 dev veth1 proto kernel scope host src 192.168.2.20
+broadcast 192.168.2.255 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
+[dahui@192 ~]$
+</code></pre><p>Reference：<br><a href="https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat" target="_blank" rel="noopener">https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat</a></p>
 
       
     </div>
@@ -91,7 +140,7 @@ TODO： 我的理解和实践。。。">
         
   
   <div class="tags">
-    <a href="/tags/DDD/">DDD</a>, <a href="/tags/design/">design</a>
+    <a href="/tags/devops/">devops</a>
   </div>
 
         
@@ -134,7 +183,7 @@ TODO： 我的理解和实践。。。">
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2016/08/14/了解一点CQRS/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/09/20/devops/route_local_table/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>

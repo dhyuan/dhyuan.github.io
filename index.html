@@ -50,6 +50,176 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-09-19T17:07:42.000Z"><a href="/2020/09/20/devops/route_local_table/">2020-09-20</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/20/devops/route_local_table/">ping veth不通的原因</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。<br>原因都在 ip route show table local 输出里。 直接上步骤：</p>
+<pre><code>[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+[dahui@192 ~]$
+
+# 创建veth对。
+sudo ip link add veth0 type veth peer name veth1
+
+# 给veth设置IP地址
+sudo ip addr add 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.20/24 dev veth1
+
+# 激活接口
+sudo ip link set veth0 up
+sudo ip link set veth1 up
+
+
+# 直连路由被自动添加了路由表
+[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth0
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth1
+[dahui@192 ~]$
+
+
+# 创建一个linux网桥 br0
+sudo ip link add name br0 type bridge
+sudo ip link set br0 up
+
+# 把veth0接到br0，veth0有ip的情况下虽然能接收来自协议栈的数据但是reponse只能走br0了。
+sudo ip link set dev veth0 master br0
+
+# veth0 拥有IP已经没有意义，把这个IP给br0
+sudo ip addr del 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.10/24 dev br0
+
+# 期待通过 br0接口ping  veth2能成功。 但是失败了。
+[dahui@192 ~]$  ping -c 1 -I br0 192.168.2.20
+PING 192.168.2.20 (192.168.2.20) from 192.168.2.10 br0: 56(84) bytes of data.
+
+--- 192.168.2.20 ping statistics ---
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+[dahui@192 ~]$
+</code></pre><p>下面是由系统维护的 local 路由表：</p>
+<pre><code>[dahui@192 ~]$ ip route show table local
+broadcast 127.0.0.0 dev lo proto kernel scope link src 127.0.0.1
+local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1
+local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1
+broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1
+broadcast 192.168.1.0 dev em1 proto kernel scope link src 192.168.1.10
+local 192.168.1.10 dev em1 proto kernel scope host src 192.168.1.10
+broadcast 192.168.1.255 dev em1 proto kernel scope link src 192.168.1.10
+broadcast 192.168.2.0 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.0 dev br0 proto kernel scope link src 192.168.2.10
+local 192.168.2.10 dev br0 proto kernel scope host src 192.168.2.10
+local 192.168.2.20 dev veth1 proto kernel scope host src 192.168.2.20
+broadcast 192.168.2.255 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
+[dahui@192 ~]$
+</code></pre><p>Reference：<br><a href="https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat" target="_blank" rel="noopener">https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-09-18T16:21:02.000Z"><a href="/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">2020-09-19</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">用Ansible在KVM上创建虚拟机</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>这是一篇拿来主义的实践。<a href="https://github.com/csmart/virt-infra-ansible" target="_blank" rel="noopener">https://github.com/csmart/virt-infra-ansible</a></p>
+<p>我们的目标是用 Ansible 快速搭建出一个 miniCloud 环境，以方便以后部署基于 K8S 的各种生产力工具。<br>虽然 VMware vSphere 很好用，但因为 lisence 及价格的因素，KVM 是最适合拿来使用的 Hypervisor。</p>
+<p>在宿主机上需要以下软件：</p>
+<ul>
+<li>Ansible</li>
+<li>KVM</li>
+<li>KVM 用户空间工具</li>
+<li>SSH keys</li>
+<li>Guest Image</li>
+</ul>
+<p>可运行以下命令准备环境：</p>
+<pre><code># Create SSH key if you don&apos;t have one
+ssh-keygen
+
+# libvirtd
+sudo yum groupinstall -y &quot;Virtualization Host&quot;
+sudo systemctl enable --now libvirtd
+
+# Ansible
+sudo yum install -y epel-release
+sudo yum install -y python36
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple --user ansible
+
+# Other deps
+sudo yum install -y \
+git \
+genisoimage \
+libguestfs-tools-c \
+libosinfo \
+python36-libvirt \
+python36-lxml \
+libselinux-python3 \
+qemu-img qemu \
+virt-install
+</code></pre><p>国内用户为了使用 yum 时有更快的下载速度，可以设置 yum 国内镜像源。</p>
+<pre><code>mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+</code></pre><p>pip 使用 -i <a href="https://pypi.tuna.tsinghua.edu.cn/simple" target="_blank" rel="noopener">https://pypi.tuna.tsinghua.edu.cn/simple</a> 参数使用国内源。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2020-09-18T15:09:43.000Z"><a href="/2020/09/18/devops/hypervisor_types/">2020-09-18</a></time>
       
       
@@ -535,93 +705,6 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-03-10T02:01:29.000Z"><a href="/2020/03/10/Ordered-and-Ordering/">2020-03-10</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/03/10/Ordered-and-Ordering/">Ordered and Ordering</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>Java关于比较有两个基础接口：Comparable，Comparator。<br>其中Comparatable接口只定义了一个方法</p>
-<pre><code>public int compareTo(T o);
-</code></pre><p>而Comparator相对复杂:</p>
-<pre><code>int compare(T o1, T o2);
-thenComparing() ... 
-</code></pre><p>Scala与之对应的比较是Ordered，Ordering。<br>Ordered类似Comparable，并多出</p>
-<p><a href="https://www.scala-lang.org/api/current/scala/math/Ordering.html" target="_blank" rel="noopener">https://www.scala-lang.org/api/current/scala/math/Ordering.html</a></p>
-<p>This trait and scala.math.Ordered both provide this same functionality, but in different ways. A type T can be given a single way to order itself by extending Ordered. Using Ordering, this same type may be sorted in many other ways. Ordered and Ordering both provide implicits allowing them to be used interchangeably.</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-03-05T15:46:39.000Z"><a href="/2020/03/05/Future-s-mail-box-Promise/">2020-03-05</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/03/05/Future-s-mail-box-Promise/">未来的邮箱：Promise</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。<br>可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。</p>
-<pre><code>def successful[T](result: T): Promise[T]
-def failed[T](exception: Throwable): Promise[T]
-</code></pre><p>放了值之后，可以调用Promise的future() 得到一个已经完成了的Future。<br>Promise最核心的就是这个逻辑：你可以通过Promise.future()得到一个Future对象，而future里的计算结果是在什么其它地方(当然一般情况是在其它线程里、回调代码里)计算好放进去的。</p>
-<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line"><span class="keyword">val</span> f = p.future</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">produce</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  <span class="type">Thread</span>.sleep(<span class="number">500</span>)</span><br><span class="line">  p.success(<span class="number">1</span>)</span><br><span class="line">  println(<span class="string">"Produce done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">consume</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  f.foreach(r =&gt; println(<span class="string">s"Get <span class="subst">$r</span>"</span>))</span><br><span class="line">  println(<span class="string">s"Consume done"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">produce()</span><br><span class="line">consume()</span><br><span class="line"><span class="type">StdIn</span>.readLine(<span class="string">"End?\n"</span>)</span><br></pre></td></tr></table></figure>
-<p>这段代码的打印如下内容，可以看到consume()方法已经执行完了才打印出“Get 1”。</p>
-<pre><code>Consume done
-End?
-Produce done
-Get 1
-</code></pre><p>这个也好理解，foreach只是针对future Success的情况提供了callback机制。需要注意的是Future可以通过onComplete, foreach注册多个callback，但是这些callback运行先后以及运行所在线程是没有保证的。这点区别于map、flatMap。</p>
-<p>本来想试着用Promise实现 List[Future[T]] 到 Future[List[T]]的转换，找到foldLeft这种方式。如下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts.foldLeft(<span class="type">Future</span>&#123; <span class="type">List</span>.empty[<span class="type">T</span>]&#125;)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>画蛇添足地再体验下promise：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequenceByPromise</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">List</span>[<span class="type">T</span>]]()</span><br><span class="line">  <span class="keyword">val</span> result = p.success(<span class="type">List</span>.empty[<span class="type">T</span>]).future</span><br><span class="line"></span><br><span class="line">  fts.foldLeft(result)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">  result</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>下面代码演示了如何把callback风格代码转为Future风格。在Akka actor框架里，如果需要异步的执行代码并且后面的代码需要这个异步执行的结果，我们就可以通过Promise把结果封装到Future里。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">CallbackBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(continuation: <span class="type">Try</span>[<span class="type">Int</span>] =&gt; <span class="type">Unit</span>): <span class="type">Unit</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">FutureBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(): <span class="type">Future</span>[<span class="type">Int</span>]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">futurize</span></span>(callbackBasedApi: <span class="type">CallbackBasedApi</span>): <span class="type">FutureBasedApi</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 体会下把“Try=&gt;Unit”当做complete的参数。</span></span><br><span class="line">  callbackBasedApi.computeIntAsync( t =&gt; p.complete(t))</span><br><span class="line"></span><br><span class="line">  <span class="keyword">new</span> <span class="type">FutureBasedApi</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>() = p.future</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>Reference：<br><a href="https://docs.scala-lang.org/overviews/core/futures.html" target="_blank" rel="noopener">https://docs.scala-lang.org/overviews/core/futures.html</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -681,7 +764,7 @@ Get 1
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>2</small></li>
+    <li><a href="/tags/devops/">devops</a><small>4</small></li>
   
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
