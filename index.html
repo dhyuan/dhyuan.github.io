@@ -159,7 +159,7 @@ broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
     </header>
     <div class="entry">
       
-        <p>这是一篇拿来主义的实践。<a href="https://github.com/csmart/virt-infra-ansible" target="_blank" rel="noopener">https://github.com/csmart/virt-infra-ansible</a></p>
+        <p>此文是对尝试 <a href="https://github.com/csmart/virt-infra-ansible" target="_blank" rel="noopener">https://github.com/csmart/virt-infra-ansible</a> 的记录。</p>
 <p>我们的目标是用 Ansible 快速搭建出一个 miniCloud 环境，以方便以后部署基于 K8S 的各种生产力工具。<br>虽然 VMware vSphere 很好用，但因为 lisence 及价格的因素，KVM 是最适合拿来使用的 Hypervisor。</p>
 <p>在宿主机上需要以下软件：</p>
 <ul>
@@ -188,16 +188,39 @@ git \
 genisoimage \
 libguestfs-tools-c \
 libosinfo \
-python36-libvirt \
-python36-lxml \
+python3 \
+python3-libvirt \
+python3-lxml \
+python3-pip \
 libselinux-python3 \
-qemu-img qemu \
+qemu-img \
 virt-install
 </code></pre><p>国内用户为了使用 yum 时有更快的下载速度，可以设置 yum 国内镜像源。</p>
 <pre><code>mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
 
 wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 </code></pre><p>pip 使用 -i <a href="https://pypi.tuna.tsinghua.edu.cn/simple" target="_blank" rel="noopener">https://pypi.tuna.tsinghua.edu.cn/simple</a> 参数使用国内源。</p>
+<p><strong>确定要操作的网络接口及名称：</strong></p>
+<pre><code>export NET_DEV=em1
+sudo nmcli con |egrep -w &quot;${NET_DEV}&quot;
+export NM_NAME=em1
+</code></pre><p><strong>通过 ip 命令创建网桥：</strong></p>
+<pre><code>sudo ip link add name br0 type bridge
+sudo ip addr add 192.168.1.10/24 dev br0
+sudo ip link set dev em1 master br0 ; sudo ip addr del 192.168.1.10/24 dev em1 ; sudo ip link set br0 up
+</code></pre><p><strong>如果修改之后 ping baidu.com 不通，可以坚持一下路由表。确认是否有 default 路由、em1 是否还在路由表里等。</strong></p>
+<pre><code>route -v
+sudo ip route add default via 192.168.1.10 dev br0
+sudo ip route del 192.168.1.0/24 dev em1
+</code></pre><p>也可以用 nmci 创建网桥 br0 并把物理网卡 em1 插到网桥上。</p>
+<pre><code>sudo nmcli con add ifname br0 type bridge con-name br0
+sudo nmcli con add type bridge-slave ifname &quot;${NET_DEV}&quot; master br0
+</code></pre><p>也可以通过 brctl 创建网桥：</p>
+<pre><code>brctl addbr br0
+brctl addif br0 em1
+</code></pre><p>接下来就可以运行一下命令自动创建 KVM Guests 了。</p>
+<pre><code>ansible-playbook --limit kvmhost,simple ./virt-infra.yml
+</code></pre><p>Reference：<br><a href="https://github.com/csmart/virt-infra-ansible" target="_blank" rel="noopener">https://github.com/csmart/virt-infra-ansible</a></p>
 
       
     </div>
