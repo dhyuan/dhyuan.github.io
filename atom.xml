@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-09-19T17:13:55.537Z</updated>
+  <updated>2020-09-21T16:19:01.682Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,31 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>在CentOS7上创建持久化的桥接网络及Guests</title>
+    <link href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/"/>
+    <id>https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</id>
+    <published>2020-09-21T14:29:20.000Z</published>
+    <updated>2020-09-21T16:19:01.682Z</updated>
+    
+    <content type="html"><![CDATA[<p>上篇文章中用 ip link add name br0 type bridge 创建网桥重启之后就没有了。</p><p><strong>添加网桥设备文件</strong></p><pre><code>[devops@192 ~]$ touch /etc/sysconfig/network-scripts/ifcfg-br0</code></pre><p><strong>配置网桥</strong></p><pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-br0TYPE=BridgeBOOTPROTO=staticIPADDR=192.168.1.10PREFIX=24GATEWAY=192.168.1.1DNS1=192.168.1.1NM_CONTROLLED=noDEFROUTE=yesPEERDNS=yesPEERROUTES=yesIPV4_FAILURE_FATAL=noDEVICE=br0ONBOOT=yes[devops@192 ~]$</code></pre><p><strong>把网卡挂到网桥</strong><br>把 em1 网卡 IP 地址配置的部分注释掉(或者 BOOTPROTO=none)，并加入 BRIDGE=br0。</p><pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-em1TYPE=EthernetPROXY_METHOD=noneBROWSER_ONLY=noDEFROUTE=yesIPV4_FAILURE_FATAL=noIPV6INIT=yesIPV6_AUTOCONF=yesIPV6_DEFROUTE=yesIPV6_FAILURE_FATAL=noIPV6_ADDR_GEN_MODE=stable-privacyIPV6_PRIVACY=noNAME=em1UUID=48f1a196-a6ff-4966-8b93-fb0d7b707e47DEVICE=em1ONBOOT=yes#BOOTPROTO=static#IPADDR=192.168.1.10#PREFIX=24#GATEWAY=192.168.1.1#DNS1=192.168.1.1NM_CONTROLLED=no#BRIDGE=br0[devops@192 ~]$</code></pre><p><strong>当前主机路由及网桥接口</strong></p><pre><code>[devops@192 ~]$ route -vKernel IP routing tableDestination     Gateway         Genmask         Flags Metric Ref    Use Ifacedefault         192.168.1.1     0.0.0.0         UG    0      0        0 br0link-local      0.0.0.0         255.255.0.0     U     1002   0        0 em1link-local      0.0.0.0         255.255.0.0     U     1004   0        0 br0192.168.1.0     0.0.0.0         255.255.255.0   U     0      0        0 br0192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0[devops@192 ~]$[devops@192 ~]$[devops@192 ~]$ brctl showbridge name    bridge id        STP enabled    interfacesbr0        8000.1866daa0cb22    no        em1virbr0        8000.5254002a0526    yes        virbr0-nic[devops@192 ~]$</code></pre><p><strong>重启网络服务</strong></p><pre><code>sudo systemctl restart network</code></pre><p><em>如果再重启网络失败，出现这样的错误 Failed to start LSB: Bring up/down networking。需要检查一下 /etc/sysconfig/network-scripts/ 下面的网络接口文件定义的是不是有问题。我这里因为有双网卡，其中一个的配置出现问题，导致网络服务启动失败。</em></p><p><strong>创建使用 br0 的虚拟机们</strong></p><p>有了上面的网桥 br0，我们就可以通过下面的命令分分钟创建出使用 br0 的三台虚拟机。</p><pre><code>ansible-playbook  ./virt-infra.yml \  --limit kvmhost,k8shosts \  -e virt_infra_root_password=password \  -e virt_infra_disk_size=100 \  -e virt_infra_ram=4096 \  -e virt_infra_ram_max=8192 \  -e virt_infra_cpus=8 \  -e virt_infra_cpus_max=16 \  -e &apos;{ &quot;virt_infra_networks&quot;: [{ &quot;name&quot;: &quot;br0&quot;, &quot;type&quot;: &quot;bridge&quot; }] }&apos; \  -e virt_infra_state=running</code></pre><p>登录到创建出来的 k8s_host 虚拟机 ping 局域网及 internet 网络都是通的，证明 br0 桥接工作正常。以后，我们就可以基于这些虚拟机来折腾 K8S 了。。。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;上篇文章中用 ip link add name br0 type bridge 创建网桥重启之后就没有了。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;添加网桥设备文件&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;[devops@192 ~]$ touch /etc/sysconfi
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+  </entry>
   
   <entry>
     <title>ping veth不通的原因</title>
@@ -487,31 +512,6 @@ Kern
     
     
       <category term="FP" scheme="https://dhyuan.github.io/tags/FP/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>使用OpenSSL创建CA、Service证书的步骤</title>
-    <link href="https://dhyuan.github.io/2018/09/10/OpenSSL-create-CA-service-certificates/"/>
-    <id>https://dhyuan.github.io/2018/09/10/OpenSSL-create-CA-service-certificates/</id>
-    <published>2018-09-10T13:24:47.000Z</published>
-    <updated>2018-09-10T14:21:28.507Z</updated>
-    
-    <content type="html"><![CDATA[<blockquote><p>OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。</p></blockquote><h3 id="准备目录"><a href="#准备目录" class="headerlink" title="准备目录"></a>准备目录</h3><pre><code>mkdir root-cacd root-camkdir certs db privatechmod 700 privatetouch db/indexopenssl rand -hex 16 &gt; db/serialecho 1001 &gt; db/crlnumber</code></pre><h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure><h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a><pre><code># 这一步同时生产私钥和csropenssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key# 用root ca签署sub caopenssl ca -config root-ca.conf -in sub-ca.csr -out sub-ca.crt -extensions sub_ca_ext    </code></pre><h3 id="Service-Certificate"><a href="#Service-Certificate" class="headerlink" title="Service Certificate"></a>Service Certificate</h3><pre><code>openssl genrsa -aes128 -out server.key 2048openssl req -new -key server.key -out server.csropenssl ca -config sub-ca.conf -in server.csr -out server.crt -extensions server_ext</code></pre><p><em>Reference</em>:</p><p><a href="http://www.ituring.com.cn/book/download/338e1e55-fd94-4ac3-9e21-e0bf04984b3f" target="_blank" rel="noopener">《OpenSSL攻略》</a> 这篇文档详细介绍了OpenSSL的使用。</p><p>更多背景知识可参考：<a href="http://www.ituring.com.cn/book/1734" target="_blank" rel="noopener">《HTTPS权威指南》</a></p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;blockquote&gt;&lt;p&gt;OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;h3 id=&quot;准备目录&quot;&gt;&lt;a href=&quot;#准备目录&quot; class=&quot;headerlink&quot; titl
-      
-    
-    </summary>
-    
-    
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   

@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</loc>
+    
+    <lastmod>2020-09-21T16:19:01.682Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/</loc>
     
     <lastmod>2020-09-20T16:33:42.145Z</lastmod>
