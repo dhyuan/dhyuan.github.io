@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-09-21T16:19:01.682Z</updated>
+  <updated>2020-09-27T02:57:29.749Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,80 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>使用Ansible自动安装Docker</title>
+    <link href="https://dhyuan.github.io/2020/09/27/devops/install_docker_by_ansible/"/>
+    <id>https://dhyuan.github.io/2020/09/27/devops/install_docker_by_ansible/</id>
+    <published>2020-09-27T02:50:05.000Z</published>
+    <updated>2020-09-27T02:57:29.749Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/git clone git@github.com:dhyuan/virt-infra-ansible.gitcd ~/devenv_bootstrap/virt-infra-ansible/rolesgit clone https://github.com/dhyuan/ansible-role-virt-infra.gitcd ansible-role-virt-infragit checkout -b devenvgit branch --set-upstream-to origin/devenvgit pull</code></pre><h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.ymlvi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml</code></pre><p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p><h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes</code></pre><h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=running</code></pre><h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=shutdown</code></pre><h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=undefined</code></pre><h2 id="为安装-K8S，更新虚拟机"><a href="#为安装-K8S，更新虚拟机" class="headerlink" title="为安装 K8S，更新虚拟机"></a>为安装 K8S，更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><pre><code>ansible-playbook --ask-become-pass --inventory ./inventory ansible/update-vms.yaml</code></pre><h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \--roles-path ~/.ansible/roles/ \git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0#ansible-galaxy list</code></pre><p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p><h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml---- hosts: all,!kvmhost  vars:    docker_version: 19.03.8    docker_remove_pre_ce: false    docker_users: [devops]    docker_daemon_config:      registry-mirrors:        [          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,          &quot;http://registry.docker-cn.com&quot;,          &quot;http://docker.mirrors.ustc.edu.cn&quot;,          &quot;http://hub-mirror.c.163.com&quot;,        ]      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]  roles:    - role: ansible-role-docker-ce[devops@192 virt-infra-ansible]$</code></pre><h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \--limit k8s_masters,k8s_nodes -v \-e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;</code></pre><h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h2 id=&quot;准备虚拟机&quot;&gt;&lt;a href=&quot;#准备虚拟机&quot; class=&quot;headerlink&quot; title=&quot;准备虚拟机&quot;&gt;&lt;/a&gt;准备虚拟机&lt;/h2&gt;&lt;h3 id=&quot;checkout-用于创建-KVM-Guest-的-Ansible-脚本。&quot;&gt;&lt;a href=&quot;#chec
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+      <category term="docker" scheme="https://dhyuan.github.io/tags/docker/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>CentOS7科学上网</title>
+    <link href="https://dhyuan.github.io/2020/09/27/devops/setup_vpn_on_centos7/"/>
+    <id>https://dhyuan.github.io/2020/09/27/devops/setup_vpn_on_centos7/</id>
+    <published>2020-09-27T02:49:55.000Z</published>
+    <updated>2020-09-27T02:56:14.402Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="安装-VPN"><a href="#安装-VPN" class="headerlink" title="安装 VPN"></a>安装 VPN</h2><pre><code>sudo yum install -y epel-releasesudo yum install -y vpnc</code></pre><h3 id="配置-vpnc"><a href="#配置-vpnc" class="headerlink" title="配置 vpnc"></a>配置 vpnc</h3><pre><code>sudo cp /etc/vpnc/default.conf /etc/vpnc/config.conf</code></pre><p>根据你的 VPN 服务供应商提供的参数修改/etc/vpnc/config.conf：</p><pre><code>[root@osnode ~]# vi /etc/vpnc/config.confIPSec gateway my.vpn.gatewayIPSec ID my.ipsec.idIPSec secret mysecret# your username goes here:Xauth username[root@osnode ~]#</code></pre><h3 id="运行-vpnc"><a href="#运行-vpnc" class="headerlink" title="运行 vpnc"></a>运行 vpnc</h3><pre><code>sudo vpnc /etc/vpnc/config.conf --local-port 0</code></pre><h3 id="停止-vpnc"><a href="#停止-vpnc" class="headerlink" title="停止 vpnc"></a>停止 vpnc</h3><pre><code>sudo vpnc-disconnect</code></pre>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h2 id=&quot;安装-VPN&quot;&gt;&lt;a href=&quot;#安装-VPN&quot; class=&quot;headerlink&quot; title=&quot;安装 VPN&quot;&gt;&lt;/a&gt;安装 VPN&lt;/h2&gt;&lt;pre&gt;&lt;code&gt;sudo yum install -y epel-release
+sudo yum inst
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>使用kubeadm创建K8S单控制节点集群</title>
+    <link href="https://dhyuan.github.io/2020/09/25/devops/create_k8s_by_kubeadm/"/>
+    <id>https://dhyuan.github.io/2020/09/25/devops/create_k8s_by_kubeadm/</id>
+    <published>2020-09-25T07:23:52.000Z</published>
+    <updated>2020-09-26T18:56:05.454Z</updated>
+    
+    <content type="html"><![CDATA[<p>在对 K8S 控制节点有 HA 方面需求的化，应考虑 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/</a> 提到的两种拓扑。</p><p>HA 的方式除了让 controll nodes 和 etcd 有多个节点外，另外一个就是对外需要 VIP + LoadBalance 的功能。<a href="https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing" target="_blank" rel="noopener">https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing</a> 讲述了如果使用 keepalived 和 haproxy 来实现这个前提。这个连接讲述了三个部署 keepalive, haproxy 的方式。推荐还是使用第二或第三种，第一种方式仅作为我们理解背后工作的逻辑就好。</p><p>因为这里只是开发环境使用的 k8s，所以就不以 HA 的方式安装 k8s 了。。无非就是多了两部分：<br>1）准备 VIP/LB;<br>2）kubeadm –init 时，用–control-plane flag 添加其它 CP 节点而已）。</p><p>下面基本参照 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/</a> 来进行。</p><h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/git clone git@github.com:dhyuan/virt-infra-ansible.gitcd ~/devenv_bootstrap/virt-infra-ansible/rolesgit clone https://github.com/dhyuan/ansible-role-virt-infra.gitcd ansible-role-virt-infragit checkout -b devenvgit branch --set-upstream-to origin/devenvgit pull</code></pre><h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.ymlvi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml</code></pre><p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p><h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes</code></pre><h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=running</code></pre><h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=shutdown</code></pre><h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p><pre><code>ansible-playbook ./virt-infra.yml \--limit kvmhost,k8s_masters,k8s_nodes \--extra-vars virt_infra_state=undefined</code></pre><h2 id="为安装-K8S，更新虚拟机"><a href="#为安装-K8S，更新虚拟机" class="headerlink" title="为安装 K8S，更新虚拟机"></a>为安装 K8S，更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><p>ansible-playbook –ask-become-pass –inventory ./inventory ansible/update-vms.yaml</p><h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \--roles-path ~/.ansible/roles/ \git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0#ansible-galaxy list</code></pre><p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p><h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml---- hosts: all,!kvmhost  vars:    docker_version: 19.03.8    docker_remove_pre_ce: false    docker_users: [devops]    docker_daemon_config:      registry-mirrors:        [          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,          &quot;http://registry.docker-cn.com&quot;,          &quot;http://docker.mirrors.ustc.edu.cn&quot;,          &quot;http://hub-mirror.c.163.com&quot;,        ]      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]  roles:    - role: ansible-role-docker-ce[devops@192 virt-infra-ansible]$</code></pre><h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \--limit k8s_masters,k8s_nodes -v \-e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;</code></pre><h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3><h2 id="安装-VPN"><a href="#安装-VPN" class="headerlink" title="安装 VPN"></a>安装 VPN</h2><pre><code>sudo yum install -y epel-releasesudo yum install -y vpnc</code></pre><h3 id="配置-vpnc"><a href="#配置-vpnc" class="headerlink" title="配置 vpnc"></a>配置 vpnc</h3><pre><code>sudo cp /etc/vpnc/default.conf /etc/vpnc/config.conf</code></pre><hr><p>根据你的 VPN 服务供应商提供的参数修改/etc/vpnc/config.conf：</p><pre><code>[root@osnode ~]# sudo vi /etc/vpnc/config.confIPSec gateway my.vpn.gatewayIPSec ID my.ipsec.idIPSec secret mysecret# your username goes here:Xauth username[root@osnode ~]#</code></pre><hr><h3 id="运行-vpnc"><a href="#运行-vpnc" class="headerlink" title="运行 vpnc"></a>运行 vpnc</h3><pre><code>sudo vpnc /etc/vpnc/config.conf --local-port 0</code></pre><h3 id="停止-vpnc"><a href="#停止-vpnc" class="headerlink" title="停止 vpnc"></a>停止 vpnc</h3><pre><code>sudo vpnc-disconnect</code></pre><p>Reference:<br><a href="https://galaxy.ansible.com/geerlingguy/docker" target="_blank" rel="noopener">https://galaxy.ansible.com/geerlingguy/docker</a><br><a href="https://galaxy.ansible.com/" target="_blank" rel="noopener">https://galaxy.ansible.com/</a><br>在 CentOS7 上运行个 DHCP Server：<a href="https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/" target="_blank" rel="noopener">https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/</a><br><a href="https://www.cnblogs.com/hellxz/p/11044012.html" target="_blank" rel="noopener">https://www.cnblogs.com/hellxz/p/11044012.html</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;在对 K8S 控制节点有 HA 方面需求的化，应考虑 &lt;a href=&quot;https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/&quot; target=&quot;_blank&quot; r
+      
+    
+    </summary>
+    
+    
+      <category term="devops" scheme="https://dhyuan.github.io/tags/devops/"/>
+    
+      <category term="kubernets" scheme="https://dhyuan.github.io/tags/kubernets/"/>
+    
+  </entry>
   
   <entry>
     <title>在CentOS7上创建持久化的桥接网络及Guests</title>
@@ -437,81 +511,6 @@ Kern
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
       <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>JMM</title>
-    <link href="https://dhyuan.github.io/2020/02/17/JMM/"/>
-    <id>https://dhyuan.github.io/2020/02/17/JMM/</id>
-    <published>2020-02-17T03:47:11.000Z</published>
-    <updated>2020-02-17T04:09:34.788Z</updated>
-    
-    <content type="html"><![CDATA[<p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p><img src="/2020/02/17/JMM/JMM.png">]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。&lt;/p&gt;
-&lt;img src=&quot;/2020/02/17/JMM/JMM.png&quot;&gt;
-
-      
-    
-    </summary>
-    
-    
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Monoid</title>
-    <link href="https://dhyuan.github.io/2018/09/12/Monoid/"/>
-    <id>https://dhyuan.github.io/2018/09/12/Monoid/</id>
-    <published>2018-09-12T12:43:08.000Z</published>
-    <updated>2018-09-12T13:27:11.379Z</updated>
-    
-    <content type="html"><![CDATA[<h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {    T Empty}class (Semigroup a) &lt;= Monoid a where    empty :: a</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.a &lt;&gt; empty == aempty &lt;&gt; a == a</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h3 id=&quot;Monoid&quot;&gt;&lt;a href=&quot;#Monoid&quot; class=&quot;headerlink&quot; title=&quot;Monoid&quot;&gt;&lt;/a&gt;Monoid&lt;/h3&gt;&lt;h4 id=&quot;Type-signature&quot;&gt;&lt;a href=&quot;#Type-signature&quot; class=&quot;
-      
-    
-    </summary>
-    
-    
-      <category term="FP" scheme="https://dhyuan.github.io/tags/FP/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Semigroup</title>
-    <link href="https://dhyuan.github.io/2018/09/12/Semigroup/"/>
-    <id>https://dhyuan.github.io/2018/09/12/Semigroup/</id>
-    <published>2018-09-12T12:43:02.000Z</published>
-    <updated>2018-09-12T13:17:14.538Z</updated>
-    
-    <content type="html"><![CDATA[<h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：public interface SemiGroup&lt;T&gt; {    T Append(T thingToAppend);}// 用Haskell定义：class SemiGroup a where    append :: a-&gt; a -&gt; a// Haskell实现的String with append：instance Semigroup String where    append a b = a ++ b</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p><h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p><pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p><p><strong>2）Incremental</strong></p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h3 id=&quot;SemiGroup-幺半群&quot;&gt;&lt;a href=&quot;#SemiGroup-幺半群&quot; class=&quot;headerlink&quot; title=&quot;SemiGroup 幺半群&quot;&gt;&lt;/a&gt;SemiGroup 幺半群&lt;/h3&gt;&lt;h4 id=&quot;Type-signature&quot;&gt;&lt;a hr
-      
-    
-    </summary>
-    
-    
-      <category term="FP" scheme="https://dhyuan.github.io/tags/FP/"/>
     
   </entry>
   
