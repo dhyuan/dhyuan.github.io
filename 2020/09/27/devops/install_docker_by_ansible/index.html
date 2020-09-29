@@ -104,6 +104,7 @@ ansible-galaxy list
     docker_remove_pre_ce: false
     docker_users: [devops]
     docker_daemon_config:
+      exec-opts: [&quot;native.cgroupdriver=systemd&quot;],
       registry-mirrors:
         [
           &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,
@@ -116,6 +117,8 @@ ansible-galaxy list
   roles:
     - role: ansible-role-docker-ce
 [devops@192 virt-infra-ansible]$
+</code></pre><p>其中，exec-opts: [“native.cgroupdriver=systemd”], 是为了避免以后使用 kubeadm 安装 k8s 集群时警告：</p>
+<pre><code>[WARNING IsDockerSystemdCheck]: detected &quot;cgroupfs&quot; as the Docker cgroup driver. The recommended driver is &quot;systemd&quot;. Please follow the guide at https://kubernetes.io/docs/setup/cri/
 </code></pre><h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \
 --limit k8s_masters,k8s_nodes -v \
 -e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;
@@ -228,9 +231,9 @@ ansible-galaxy list
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>8</small></li>
+    <li><a href="/tags/devops/">devops</a><small>9</small></li>
   
-    <li><a href="/tags/docker/">docker</a><small>1</small></li>
+    <li><a href="/tags/docker/">docker</a><small>2</small></li>
   
     <li><a href="/tags/kubernets/">kubernets</a><small>1</small></li>
   
