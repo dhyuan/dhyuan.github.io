@@ -50,6 +50,91 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2016-09-12T13:57:54.000Z"><a href="/2016/09/12/java-lang-OutOfMemoryError/">2016-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/12/java-lang-OutOfMemoryError/">java.lang.OutOfMemoryError</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。</p>
+<ul>
+<li>java.lang.OutOfMemoryError: Java heap space</li>
+<li>java.lang.OutOfMemoryError: PermGen space</li>
+<li>java.lang.OutOfMemoryError: unable to create new native thread</li>
+<li>java.lang.OutOfMemoryError: GC Overhead limit exceeded</li>
+<li>java.lang.OutOfMemoryError: Requested array size exceeds VM limit</li>
+<li>java.lang.OutOfMemoryError: Metaspace</li>
+<li>java.lang.OutOfMemoryError: request size bytes for reason. Out of swap space?</li>
+<li>java.lang.OutOfMemoryError: Compressed class space</li>
+<li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li>
+</ul>
+<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。这个问题通过增大参数-Xmx<heap size="">[g|m|k]也许可以解决。当然，更踏实的做法还是要检测程序是不是有内存泄漏的问题。</heap></p>
+<p><strong>PermGen space</strong><br>通过参数-XX:PermSize=<perm gen="" size="">[g|m|k]进行调整。在JDK8之后，Permanent Generation这块heap内存已经放弃，而和Native Memory合并了。</perm></p>
+<p><strong>unable to create new native thread</strong></p>
+<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p>
+<pre><code>ulimit -s  256
+ulimit -i  120000
+echo 120000 &gt; /proc/sys/kernel/threads-max
+echo 600000 &gt; /proc/sys/vm/max_map_count
+echo 200000 &gt; /proc/sys/kernel/pid_max 
+</code></pre><p>这种类型的OOM不能通过-XX:+HeapDumpOnOutOfMemoryError参数dump出文件。</p>
+<pre><code>private static void createInfinitThreads() {
+    long i = 0;
+    while(true){
+        new Thread(new Runnable(){
+            public void run() {
+                try {
+                    Thread.sleep(10000000);
+                } catch(InterruptedException e) { }
+            }
+        }).start();
+
+        i ++;
+        System.out.println(i);
+    }
+}
+</code></pre><p>这个网页介绍JVM内存很清楚。<a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">Java内存区域与内存溢出异常</a></p>
+<p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg" alt=""></p>
+<p>图二：下面中的Permanent区域在Java8中已经和method area合并。<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif" alt=""></p>
+<p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png" alt=""></p>
+<p><em>Reference：</em></p>
+<ul>
+<li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE" target="_blank" rel="noopener">Oracle关于OOM Exception的官方文档</a></li>
+<li><a href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread" target="_blank" rel="noopener">关于unable to create new native thread这种情况的论述</a></li>
+<li><a href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads" target="_blank" rel="noopener">Linux上ulimit命令与unable to create new native thread的关系</a></li>
+<li><a href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux" target="_blank" rel="noopener">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li>
+<li><a href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/" target="_blank" rel="noopener">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
+<li><a href="http://wiki.jikexueyuan.com/project/java-vm/storage.html" target="_blank" rel="noopener">一篇关于内存结构和溢出的文章</a></li>
+<li><a href="https://my.oschina.net/itblog/blog/667182" target="_blank" rel="noopener">通过示例程序演示了不同类型的OOM</a></li>
+<li><a href="http://blog.sokolenko.me/2014/11/javavm-options-production.html" target="_blank" rel="noopener">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
+<li><a href="https://dzone.com/articles/how-analyze-java-thread-dumps" target="_blank" rel="noopener">这篇文章讲述了如何分析java dump文件</a></li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
       
       
@@ -470,7 +555,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>1</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>0</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
@@ -496,7 +581,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>9</small></li>
+    <li><a href="/tags/devops/">devops</a><small>11</small></li>
   
     <li><a href="/tags/docker/">docker</a><small>2</small></li>
   
