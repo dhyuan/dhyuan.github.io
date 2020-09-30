@@ -63,7 +63,7 @@
         <p>在对 K8S 控制节点有 HA 方面需求的话，应考虑 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/</a> 提到的两种拓扑。</p>
 <p>HA 的方式除了让 controll nodes 和 etcd 有多个节点外，另外一个就是对外需要 VIP + LoadBalance 的功能。<a href="https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing" target="_blank" rel="noopener">https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing</a> 讲述了如果使用 keepalived 和 haproxy 来实现这个前提。这个连接讲述了三个部署 keepalive, haproxy 的方式。推荐还是使用第二或第三种，第一种方式仅作为我们理解背后工作的逻辑就好。</p>
 <p>因为这里只是开发环境使用的 k8s，所以就不以 HA 的方式安装 k8s 了。。无非就是多了两个步骤：<br>1）准备 VIP/LB;<br>2）kubeadm –init 时，用–control-plane flag 添加其它 CP 节点而已）。</p>
-<h2 id="1）为-kubeadm-准备虚拟机和-docker"><a href="#1）为-kubeadm-准备虚拟机和-docker" class="headerlink" title="1）为 kubeadm 准备虚拟机和 docker"></a>1）为 kubeadm 准备虚拟机和 docker</h2><h3 id="进入开发用-KVM-HOST-创建网桥"><a href="#进入开发用-KVM-HOST-创建网桥" class="headerlink" title="进入开发用 KVM HOST 创建网桥"></a>进入开发用 KVM HOST 创建网桥</h3><p>参考 <a href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/">https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</a></p>
+<h2 id="1）为-kubeadm-准备虚拟机和-docker"><a href="#1）为-kubeadm-准备虚拟机和-docker" class="headerlink" title="1）为 kubeadm 准备虚拟机和 docker"></a>1）为 kubeadm 准备虚拟机和 docker</h2><h3 id="准备开发用-KVM-HOST-并-创建网桥"><a href="#准备开发用-KVM-HOST-并-创建网桥" class="headerlink" title="准备开发用 KVM HOST 并 创建网桥"></a>准备开发用 KVM HOST 并 创建网桥</h3><p>步骤参考：<br>a) 准备 kvm：<a href="https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/</a><br>b) 创建网桥：<a href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/">https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</a></p>
 <h3 id="下载创建虚拟机的-CentOS7-镜像"><a href="#下载创建虚拟机的-CentOS7-镜像" class="headerlink" title="下载创建虚拟机的 CentOS7 镜像"></a>下载创建虚拟机的 CentOS7 镜像</h3><pre><code>curl -O https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2
 
 sudo mv -iv CentOS-7-x86_64-GenericCloud.qcow2 /var/lib/libvirt/images/
@@ -74,11 +74,10 @@ git clone -b devenv https://github.com/dhyuan/virt-infra-ansible.git
 cd ~/devenv_bootstrap/virt-infra-ansible/roles
 git clone -b devenv https://github.com/dhyuan/ansible-role-virt-infra
 
-
 ansible-galaxy install \
 --roles-path ~/.ansible/roles/ \
 git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
-</code></pre><h3 id="根据自己的需求修改-K8S-master、nodes-节点的主机配置。"><a href="#根据自己的需求修改-K8S-master、nodes-节点的主机配置。" class="headerlink" title="根据自己的需求修改 K8S master、nodes 节点的主机配置。"></a>根据自己的需求修改 K8S master、nodes 节点的主机配置。</h3><p>注意：节点名称已经改为使用-而不是_以符合 DNS 规范。这点是 K8S 的要求。</p>
+</code></pre><h3 id="根据自己的需求修改-K8S-master、nodes-节点的主机配置。"><a href="#根据自己的需求修改-K8S-master、nodes-节点的主机配置。" class="headerlink" title="根据自己的需求修改 K8S master、nodes 节点的主机配置。"></a>根据自己的需求修改 K8S master、nodes 节点的主机配置。</h3><p>注意：节点名称已经改为使用-而不是_以符合 DNS 规范。这点是 K8S 的要求，但是和 yaml 的格式规范使用下划线有点而冲突。</p>
 <pre><code>cd ~/devenv_bootstrap
 vi inventory/k8s-masters.yml
 vi inventory/k8s-nodes.yml
@@ -87,7 +86,7 @@ vi inventory/k8s-nodes.yml
 </code></pre><h3 id="一键在-master、nodes-节点上安装-docker"><a href="#一键在-master、nodes-节点上安装-docker" class="headerlink" title="一键在 master、nodes 节点上安装 docker"></a>一键在 master、nodes 节点上安装 docker</h3><pre><code>ansible-playbook ./install_docker.yml \
 --limit k8s-masters,k8s-nodes -v \
 -e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;
-</code></pre><h3 id="验证环境"><a href="#验证环境" class="headerlink" title="验证环境"></a>验证环境</h3><p>在 KVM HOST 查看/etc/hosts 里面记录了各个主机节点 IP。<br>各节点互相 ping<br>登录到各主机检查 docker 引擎是否工作正常。</p>
+</code></pre><h3 id="验证环境"><a href="#验证环境" class="headerlink" title="验证环境"></a>验证环境</h3><p>在 KVM HOST 查看/etc/hosts 里面记录了各个主机节点 IP。<br>各节点互相 ping<br>登录到各主机检查 docker 引擎是否工作正常。<br><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png" title="This is an image"></p>
 <h2 id="2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。"><a href="#2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。" class="headerlink" title="2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。"></a>2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。</h2><p>下面基本参照官网 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/</a> 以及另阿良的<br><a href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a> 来进行。</p>
 <h3 id="设置-kubernets-yum-源"><a href="#设置-kubernets-yum-源" class="headerlink" title="设置 kubernets yum 源"></a>设置 kubernets yum 源</h3><pre><code>cat &lt;&lt;EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
@@ -122,7 +121,7 @@ yum list installed | grep kube
 <h3 id="enable-kubelet"><a href="#enable-kubelet" class="headerlink" title="enable kubelet"></a>enable kubelet</h3><pre><code>sudo systemctl enable kubelet
 sudo systemctl status kubelet
 </code></pre><p>此时 kubelet 的状态是 failed，因为 api server 还没有起来。</p>
-<h2 id="3）构建集群"><a href="#3）构建集群" class="headerlink" title="3）构建集群"></a>3）构建集群</h2><h3 id="在规划的-master-节点上首先初始化一个集群的-master-节点"><a href="#在规划的-master-节点上首先初始化一个集群的-master-节点" class="headerlink" title="在规划的 master 节点上首先初始化一个集群的 master 节点"></a>在规划的 master 节点上首先初始化一个集群的 master 节点</h3><p>这里要注意因为 gcr.io 被墙， 所以是使用 ali 镜像。各参数含义参考：<a href="https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/" target="_blank" rel="noopener">https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/</a><br>另外，关于 pod-network-cidr 的意义这篇文章非常好：<a href="https://blog.csdn.net/shida_csdn/article/details/104334372" target="_blank" rel="noopener">https://blog.csdn.net/shida_csdn/article/details/104334372</a><br>执行 kubeadm 是需要下载镜像，所以需要稍等一会儿。</p>
+<h2 id="3）构建集群"><a href="#3）构建集群" class="headerlink" title="3）构建集群"></a>3）构建集群</h2><h3 id="在规划的-master-节点上首先初始化一个集群的-master-节点"><a href="#在规划的-master-节点上首先初始化一个集群的-master-节点" class="headerlink" title="在规划的 master 节点上首先初始化一个集群的 master 节点"></a>在规划的 master 节点上首先初始化一个集群的 master 节点</h3><p>这里要注意因为 gcr.io 被墙， 所以是使用 ali 镜像。各参数含义参考：<a href="https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/" target="_blank" rel="noopener">https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/</a><br>另外，关于 pod-network-cidr 的意义这篇文章非常好：<a href="https://blog.csdn.net/shida_csdn/article/details/104334372" target="_blank" rel="noopener">https://blog.csdn.net/shida_csdn/article/details/104334372</a><br>执行 kubeadm 时需要下载镜像，所以需要稍等一会儿。</p>
 <pre><code>sudo kubeadm init \
 --apiserver-advertise-address=192.168.1.11 \
 --image-repository registry.aliyuncs.com/google_containers \
@@ -179,7 +178,9 @@ k8s-node-0     Ready    &lt;none&gt;   4m41s   v1.19.2
 k8s-node-1     Ready    &lt;none&gt;   76s     v1.19.2
 k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2
 [devops@k8s-master-0 ~]$
-</code></pre><p>至此，已经完成了 Kubernetes 集群的搭建。</p>
+</code></pre><img src="/2020/09/28/devops/create_k8s_by_kubeadm/kubelet_status.png" title="kubelet up">
+<img src="/2020/09/28/devops/create_k8s_by_kubeadm/done.png" title="Done">
+<p>至此，已经完成了 Kubernetes 集群的搭建。</p>
 <hr>
 <p><em>Reference:</em></p>
 <p><a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm</a><br><a href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a><br><a href="https://my.oschina.net/u/3021599/blog/4308021" target="_blank" rel="noopener">https://my.oschina.net/u/3021599/blog/4308021</a><br><a href="https://cloud.tencent.com/developer/article/1525487" target="_blank" rel="noopener">https://cloud.tencent.com/developer/article/1525487</a><br><a href="https://galaxy.ansible.com/geerlingguy/docker" target="_blank" rel="noopener">https://galaxy.ansible.com/geerlingguy/docker</a><br><a href="https://galaxy.ansible.com/" target="_blank" rel="noopener">https://galaxy.ansible.com/</a><br>在 CentOS7 上运行个 DHCP Server：<a href="https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/" target="_blank" rel="noopener">https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/</a><br><a href="https://www.cnblogs.com/hellxz/p/11044012.html" target="_blank" rel="noopener">https://www.cnblogs.com/hellxz/p/11044012.html</a></p>
