@@ -3,17 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>网站环境设置（1） | Dahui’s 开发笔记</title>
+  <title>关于 Reactive Manifesto | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="1) 免密登录服务区。制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。cd ~/.ssh
-ssh-keygen -t rsa
-把公钥 copy 到服务器。ssh-copy-id -i server_name.rsa.pub userId">
+  <meta name="description" content="反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。
+反应式宣言英文版：https://www.reactivemanifesto.org/反应式宣言中文版：https://www.reactivemanifesto.org">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="网站环境设置（1）"/>
+  <meta property="og:title" content="关于 Reactive Manifesto"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -53,62 +52,33 @@ ssh-keygen -t rsa
     <header>
       
         <div class="icon"></div>
-        <time datetime="2020-09-16T13:53:29.000Z"><a href="/2020/09/16/网站环境设置（1）/">2020-09-16</a></time>
+        <time datetime="2020-10-05T12:36:22.000Z"><a href="/2020/10/05/reactive/about_reactive_manifesto/">2020-10-05</a></time>
       
       
   
-    <h1 class="title">网站环境设置（1）</h1>
+    <h1 class="title">关于 Reactive Manifesto</h1>
   
 
     </header>
     <div class="entry">
       
-        <h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.ssh
-ssh-keygen -t rsa
-</code></pre><h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip
-</code></pre><h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IP
-HostName Server_Name
-IdentityFile YOUR_PRIVATE_KEY_FILE_PATH
-</code></pre><h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p>
-<h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p>
-<h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p>
-<h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p>
-<pre><code>root /home/devop/linkedall/web;
-index index.html index.htm;
-
-server_name www.linkedall.netlinkedall.net *.linkedall.net;
-
-location / {
-  try_files $uri $uri/ =404;
-}
-location ~* \.(html)$ {
-  access_log off;
-  add_header  Cache-Control  max-age=no-cache;
-}
-
-location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
-  access_log off;
-  add_header    Cache-Control  max-age=360000;
-}
-... ...
-</code></pre><h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server {
-  listen 80 default_server;
-  listen [::]:80 default_server ipv6only=on;
-  root /usr/share/nginx/html;
-  index index.html index.htm;
-
-  # Make site accessible from http://localhost/
-  server_name www.telbox.cn;
-
-  location / {
-          proxy_pass http://localhost:8080;
-          # First attempt to serve request as file, then
-          # as directory, then fall back to displaying a 404.
-  # try_files $uri $uri/ =404;
-          # Uncomment to enable naxsi on this location
-          # include /etc/nginx/naxsi.rules
-  }
-</code></pre><p>Reference:<br><a href="https://juejin.im/post/6844903604034240525" target="_blank" rel="noopener">https://juejin.im/post/6844903604034240525</a></p>
+        <p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p>
+<p>反应式宣言英文版：<a href="https://www.reactivemanifesto.org/" target="_blank" rel="noopener">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">https://www.reactivemanifesto.org/zh-CN</a></p>
+<p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应这某个解决方案的思想原则。</p>
+<img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" title="反应式">
+<p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p>
+<p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p>
+<blockquote>
+<p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p>
+</blockquote>
+<p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p>
+<p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p>
+<p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p>
+<blockquote>
+<p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.<br>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。</p>
+</blockquote>
+<p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手端，但不是唯一的手段，比如就位置透明这店来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p>
+<p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>
 
       
     </div>
@@ -118,7 +88,7 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
         
   
   <div class="tags">
-    <a href="/tags/devops/">devops</a>
+    <a href="/tags/Reactive/">Reactive</a>
   </div>
 
         
@@ -161,7 +131,7 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ {
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2020/09/16/网站环境设置（1）/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/10/05/reactive/about_reactive_manifesto/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
