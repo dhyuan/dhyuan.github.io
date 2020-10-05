@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-10-05T14:23:34.654Z</updated>
+  <updated>2020-10-05T14:25:50.993Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -21,9 +21,9 @@
     <link href="https://dhyuan.github.io/2020/10/05/reactive/about_reactive_manifesto/"/>
     <id>https://dhyuan.github.io/2020/10/05/reactive/about_reactive_manifesto/</id>
     <published>2020-10-05T12:36:22.000Z</published>
-    <updated>2020-10-05T14:23:34.654Z</updated>
+    <updated>2020-10-05T14:25:50.993Z</updated>
     
-    <content type="html"><![CDATA[<p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p><p>反应式宣言英文版：<a href="https://www.reactivemanifesto.org/" target="_blank" rel="noopener">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">https://www.reactivemanifesto.org/zh-CN</a></p><p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应这某个解决方案的思想原则。</p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" title="反应式"><p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p><p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p><blockquote><p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p></blockquote><p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p><p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p><p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p><blockquote><p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p></blockquote><p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。</p><p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手端，但不是唯一的手段，比如就位置透明这店来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p><p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>]]></content>
+    <content type="html"><![CDATA[<p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p><p>反应式宣言英文版：<a href="https://www.reactivemanifesto.org/" target="_blank" rel="noopener">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">https://www.reactivemanifesto.org/zh-CN</a></p><p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应这某个解决方案的思想原则。</p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" title="反应式"><p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p><p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p><blockquote><p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p></blockquote><p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p><p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p><p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p><blockquote><p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p></blockquote><p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p><p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手端，但不是唯一的手段，比如就位置透明这店来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p><p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>]]></content>
     
     <summary type="html">
     
@@ -347,9 +347,9 @@ Kern
     </summary>
     
     
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
   </entry>
   
@@ -372,9 +372,9 @@ Kern
     </summary>
     
     
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
   </entry>
   
@@ -398,9 +398,9 @@ Kern
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
   </entry>
   
@@ -424,11 +424,11 @@ Kern
     </summary>
     
     
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
   </entry>
   

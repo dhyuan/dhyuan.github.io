@@ -77,7 +77,7 @@
 <blockquote>
 <p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p>
 </blockquote>
-<p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。</p>
+<p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p>
 <p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手端，但不是唯一的手段，比如就位置透明这店来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p>
 <p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>
 
