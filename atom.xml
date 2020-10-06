@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-10-05T14:25:50.993Z</updated>
+  <updated>2020-10-06T15:19:34.218Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -17,13 +17,39 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>从观察者模式到reactive stream规范</title>
+    <link href="https://dhyuan.github.io/2020/10/06/reactive/about_reactive_stream/"/>
+    <id>https://dhyuan.github.io/2020/10/06/reactive/about_reactive_stream/</id>
+    <published>2020-10-06T14:12:12.000Z</published>
+    <updated>2020-10-06T15:19:34.218Z</updated>
+    
+    <content type="html"><![CDATA[<p>Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。</p><p>正如 Reactive Manifesto 说的：</p><blockquote><p>Systems built as Reactive Systems are more flexible, loosely-coupled and scalable.</p></blockquote><p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不比知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p><p><strong>响应式流 = 观察者 + 迭代器</strong></p><p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，最所是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<e> {<br>E next();<br>boolean hasNext();<br>}</e></p><p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p><pre><code>public interface RxObserver&lt;T&gt; {  void onNext(T next);  void onComplete();  void onError();}</code></pre><p>以 on 形式的前缀开头的方法名让我很明显的感受到一种“通知”的味道。上游组件告诉我们有新数据了、结束了、出错了！一种“推”的味道。</p><p>演进到这一步是不是就完美了呢？不。<br>如果 RxObserver 与上游组件是跨网络通信，那么我们可以想象每次的 onNext 通过网络一次处理一个数据的这种模式并不高效。而且 RxObserver 不能想上游表达自己的需求(比如需要几个数据？不再需要数据等)，这就很容易延伸到 RxObserver 作为消费者的处理速度与上游不匹配时如何与上游协调工作这样的问题。<br>Reactive Stream 规范对以上需求进行了标准化，如下。其中 Subscription 就可用于向上游 Publisher 表达是否还需要、需要多少数据这样的请求。如果每次 request(1)，整个模式就相当于“拉”模型；request(Integer.MAX_VALUE)就相当于“推”模型了。</p><pre><code>public interface Publisher&lt;T&gt; {    public void subscribe(Subscriber&lt;? super T&gt; s);}public interface Subscriber&lt;T&gt; {    public void onSubscribe(Subscription s);    public void onNext(T t);    public void onError(Throwable t);    public void onComplete();}public interface Subscription {    public void request(long n);    public void cancel();}public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt;R&gt; {}</code></pre><hr><p><em>Reference：</em></p><p><a href="https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md" target="_blank" rel="noopener">https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md</a></p><p><a href="http://reactivex.io/" target="_blank" rel="noopener">http://reactivex.io/</a></p><p><a href="https://www.youtube.com/watch?v=WKore-AkisY&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=14" target="_blank" rel="noopener">A Playful Introduction to Rx by Erik Meijer</a></p><p><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。&lt;/p&gt;
+&lt;p&gt;正如 Reactive Manifesto 说的：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Systems built as Reactive Systems are more
+      
+    
+    </summary>
+    
+    
+      <category term="Reactive" scheme="https://dhyuan.github.io/tags/Reactive/"/>
+    
+  </entry>
+  
+  <entry>
     <title>关于 Reactive Manifesto</title>
     <link href="https://dhyuan.github.io/2020/10/05/reactive/about_reactive_manifesto/"/>
     <id>https://dhyuan.github.io/2020/10/05/reactive/about_reactive_manifesto/</id>
     <published>2020-10-05T12:36:22.000Z</published>
-    <updated>2020-10-05T14:25:50.993Z</updated>
+    <updated>2020-10-05T14:30:34.250Z</updated>
     
-    <content type="html"><![CDATA[<p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p><p>反应式宣言英文版：<a href="https://www.reactivemanifesto.org/" target="_blank" rel="noopener">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">https://www.reactivemanifesto.org/zh-CN</a></p><p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应这某个解决方案的思想原则。</p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" title="反应式"><p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p><p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p><blockquote><p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p></blockquote><p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p><p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p><p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p><blockquote><p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p></blockquote><p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p><p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手端，但不是唯一的手段，比如就位置透明这店来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p><p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>]]></content>
+    <content type="html"><![CDATA[<p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p><p>反应式宣言英文版：<a href="https://www.reactivemanifesto.org/" target="_blank" rel="noopener">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a href="https://www.reactivemanifesto.org/zh-CN" target="_blank" rel="noopener">https://www.reactivemanifesto.org/zh-CN</a></p><p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应着某个解决方案的思想原则。</p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" title="反应式"><p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p><p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p><blockquote><p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p></blockquote><p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p><p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p><p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p><blockquote><p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p></blockquote><p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p><p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手段，但不是唯一的手段，比如就位置透明这点来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p><p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>]]></content>
     
     <summary type="html">
     
@@ -347,9 +373,9 @@ Kern
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
   </entry>
   
@@ -372,9 +398,9 @@ Kern
     </summary>
     
     
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
       <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+    
+      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
   </entry>
   
@@ -398,9 +424,9 @@ Kern
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
+    
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -424,11 +450,11 @@ Kern
     </summary>
     
     
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
+      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
     
       <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
     
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
+      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
@@ -474,32 +500,6 @@ Kern
       
         &lt;p&gt;按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。&lt;br&gt;可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;def successful[T](result: T): Prom
-      
-    
-    </summary>
-    
-    
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
-    
-      <category term="Scala" scheme="https://dhyuan.github.io/tags/Scala/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Try Future sequence</title>
-    <link href="https://dhyuan.github.io/2020/03/02/Future-sequence/"/>
-    <id>https://dhyuan.github.io/2020/03/02/Future-sequence/</id>
-    <published>2020-03-02T13:21:09.000Z</published>
-    <updated>2020-03-06T12:06:38.148Z</updated>
-    
-    <content type="html"><![CDATA[<p>这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。</p><h3 id="1）关于Option-T-Either-E-R-和-Try-T-的使用场景。"><a href="#1）关于Option-T-Either-E-R-和-Try-T-的使用场景。" class="headerlink" title="1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。"></a>1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。</h3><p>这三种type很容易让人想到处理Exception的场景。这些types如果只是针对Exception就略显狭隘了。现在我的感觉是：<br>1）Option适于处理业务逻辑上需要空值的地方，这里不一定是因为Exception导致。往往是业务上需要表达这种“空”/“没值”。<br>2）Either的左值不一定是Exception，表示一个计算可能有两种结果比较好，右值按照惯例表示正确/正常路径下的结果。左值是另个分支的结果。当然，也可以放Exception，Error什么的。STTP的Response body部分就是一个Either[Error, T]。<br>3）Try，其实才是最适合表示一个计算可能出现Exception的type。Try的apply()接受的就是一个代码块并运行，对异常封装到子类Failure。<br>最后的感觉是Option，Either更像标量，是结果的一个静态表示。而Try是动态的，包含了代码的执行及对结果的封装。看Try的定义体会下：<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">Try</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>[<span class="type">T</span>](r: =&gt; <span class="type">T</span>): <span class="type">Try</span>[<span class="type">T</span>] =</span><br><span class="line">    <span class="keyword">try</span> <span class="type">Success</span>(r) <span class="keyword">catch</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">NonFatal</span>(e) =&gt; <span class="type">Failure</span>(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><h3 id="2）Future’s-sequence-的实现。"><a href="#2）Future’s-sequence-的实现。" class="headerlink" title="2）Future’s sequence()的实现。"></a>2）Future’s sequence()的实现。</h3><p>1）这是Erik喜欢的递归方式的实现。<br>其中两个flatMap都是Future上的flatMap。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).flatMap(ts =&gt; <span class="type">Future</span>(t::ts)))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>2）通过类型推导，我发现把flatMap()换成了map()也符合类型检查，似乎也也没有大的问题。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).map(ts =&gt; t::ts))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>3）Erik通过async，await实现的sequence。<br>这种方式似乎更容易理解，但风格太不FP了。Erik警告说，如果是基于Future编程，那么不要wait。但是在async块里除外，因为async本身是异步的所以不会阻塞。另外，async/await在模块scala-async里，需要加到sbt的依赖里。<br><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scala.async.<span class="type">Async</span>.&#123;async, await&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fs: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = async &#123;</span><br><span class="line">  <span class="keyword">var</span> _fs = fs</span><br><span class="line">  <span class="keyword">val</span> result = <span class="type">ListBuffer</span>[<span class="type">T</span>]()</span><br><span class="line">  <span class="keyword">while</span> (_fs != <span class="type">Nil</span>) &#123;</span><br><span class="line">    result += await &#123; _fs.head &#125;</span><br><span class="line">    _fs = _fs.tail</span><br><span class="line">  &#125;</span><br><span class="line">  result.toList</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p><p>4）还可以通过Promise来实现。<br>等磕完promise再说吧。。。</p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。&lt;/p&gt;
-&lt;h3 id=&quot;1）关于Option-T-Either-E-R-和-Try-T-的使用场景。&quot;&gt;&lt;a href=&quot;#1）关于Option-T-Either-
       
     
     </summary>

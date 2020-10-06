@@ -3,21 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Semigroup | Dahui’s 开发笔记</title>
+  <title>从观察者模式到reactive stream规范 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="SemiGroup 幺半群Type signature:// C#定义SemiGroup：
-public interface SemiGroup&amp;lt;T&amp;gt; {
-    T Append(T thingToAppend);
-}
+  <meta name="description" content="Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。
+正如 Reactive Manifesto 说的：
 
-// 用Haskell定义：
-class SemiGroup a">
+Systems built as Reactive Systems are more flexible, loosely-coupled and scalable">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Semigroup"/>
+  <meta property="og:title" content="从观察者模式到reactive stream规范"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -57,35 +54,56 @@ class SemiGroup a">
     <header>
       
         <div class="icon"></div>
-        <time datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
+        <time datetime="2020-10-06T14:12:12.000Z"><a href="/2020/10/06/reactive/about_reactive_stream/">2020-10-06</a></time>
       
       
   
-    <h1 class="title">Semigroup</h1>
+    <h1 class="title">从观察者模式到reactive stream规范</h1>
   
 
     </header>
     <div class="entry">
       
-        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
-public interface SemiGroup&lt;T&gt; {
-    T Append(T thingToAppend);
+        <p>Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。</p>
+<p>正如 Reactive Manifesto 说的：</p>
+<blockquote>
+<p>Systems built as Reactive Systems are more flexible, loosely-coupled and scalable.</p>
+</blockquote>
+<p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不比知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+<p><strong>响应式流 = 观察者 + 迭代器</strong></p>
+<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，最所是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<e> {<br>E next();<br>boolean hasNext();<br>}</e></p>
+<p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p>
+<pre><code>public interface RxObserver&lt;T&gt; {
+  void onNext(T next);
+  void onComplete();
+  void onError();
+}
+</code></pre><p>以 on 形式的前缀开头的方法名让我很明显的感受到一种“通知”的味道。上游组件告诉我们有新数据了、结束了、出错了！一种“推”的味道。</p>
+<p>演进到这一步是不是就完美了呢？不。<br>如果 RxObserver 与上游组件是跨网络通信，那么我们可以想象每次的 onNext 通过网络一次处理一个数据的这种模式并不高效。而且 RxObserver 不能想上游表达自己的需求(比如需要几个数据？不再需要数据等)，这就很容易延伸到 RxObserver 作为消费者的处理速度与上游不匹配时如何与上游协调工作这样的问题。<br>Reactive Stream 规范对以上需求进行了标准化，如下。其中 Subscription 就可用于向上游 Publisher 表达是否还需要、需要多少数据这样的请求。如果每次 request(1)，整个模式就相当于“拉”模型；request(Integer.MAX_VALUE)就相当于“推”模型了。</p>
+<pre><code>public interface Publisher&lt;T&gt; {
+    public void subscribe(Subscriber&lt;? super T&gt; s);
 }
 
-// 用Haskell定义：
-class SemiGroup a where
-    append :: a-&gt; a -&gt; a
+public interface Subscriber&lt;T&gt; {
+    public void onSubscribe(Subscription s);
+    public void onNext(T t);
+    public void onError(Throwable t);
+    public void onComplete();
+}
 
-// Haskell实现的String with append：
-instance Semigroup String where
-    append a b = a ++ b
-</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
-<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
-<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
+public interface Subscription {
+    public void request(long n);
+    public void cancel();
+}
 
-(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
-</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
-<p><strong>2）Incremental</strong></p>
+public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt;R&gt; {
+}
+</code></pre><hr>
+<p><em>Reference：</em></p>
+<p><a href="https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md" target="_blank" rel="noopener">https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md</a></p>
+<p><a href="http://reactivex.io/" target="_blank" rel="noopener">http://reactivex.io/</a></p>
+<p><a href="https://www.youtube.com/watch?v=WKore-AkisY&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=14" target="_blank" rel="noopener">A Playful Introduction to Rx by Erik Meijer</a></p>
+<p><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
 
       
     </div>
@@ -95,7 +113,7 @@ instance Semigroup String where
         
   
   <div class="tags">
-    <a href="/tags/FP/">FP</a>
+    <a href="/tags/Reactive/">Reactive</a>
   </div>
 
         
@@ -138,7 +156,7 @@ instance Semigroup String where
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2018/09/12/Semigroup/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/10/06/reactive/about_reactive_stream/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
