@@ -69,9 +69,9 @@ Systems built as Reactive Systems are more flexible, loosely-coupled and scalabl
 <blockquote>
 <p>Systems built as Reactive Systems are more flexible, loosely-coupled and scalable.</p>
 </blockquote>
-<p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不比知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+<p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不必知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a href="https://www.baeldung.com/spring-events" target="_blank" rel="noopener">https://www.baeldung.com/spring-events</a><br><a href="https://reflectoring.io/spring-boot-application-events-explained/" target="_blank" rel="noopener">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
 <p><strong>响应式流 = 观察者 + 迭代器</strong></p>
-<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，最所是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<e> {<br>E next();<br>boolean hasNext();<br>}</e></p>
+<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，只能是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<e> {<br>E next();<br>boolean hasNext();<br>}</e></p>
 <p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p>
 <pre><code>public interface RxObserver&lt;T&gt; {
   void onNext(T next);
@@ -195,7 +195,7 @@ public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>4</small></li>
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
   
     <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
   

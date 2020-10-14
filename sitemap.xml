@@ -2,9 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://dhyuan.github.io/2020/10/12/reactive/popular_reactive_libs/</loc>
+    
+    <lastmod>2020-10-14T14:08:49.929Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://dhyuan.github.io/2020/10/06/reactive/about_reactive_stream/</loc>
     
-    <lastmod>2020-10-06T15:19:34.218Z</lastmod>
+    <lastmod>2020-10-06T15:25:48.260Z</lastmod>
     
   </url>
   
