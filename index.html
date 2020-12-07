@@ -50,6 +50,113 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-12-02T14:42:01.000Z"><a href="/2020/12/02/Gradle-101/">2020-12-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/02/Gradle-101/">Gradle 101</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <ol>
+<li><p>确保团队使用统一的 gradle 版本。<br>避免 Gradle 的版本兼容性问题，项目中应使用 gradldw 命令运行。因为 gradlew 会根据 gradle-wrapper.properties 定义的 gradle 分发 dizhi 去下载 gradle 到本地。</p>
+<p>在 build.gradle 中定义如下 task，生成两个文件：gradlew、gradlew.bat，一个目录：gradle。</p>
+<pre><code>task genWrapper(type: Wrapper){
+  gradleVersion=&apos;5.3.1&apos;
+  distributionUrl=&apos;https://services.gradle.org/distributions/gradle-5.3.1-all.zip&apos;
+  distributionBase=&apos;GRADLE_USER_HOME&apos;
+  distributionPath=&apos;wrapper/dists&apos;
+  archiveBase=&apos;GRADLE_USER_HOME&apos;
+  archivePath=&apos;wrapper/dists&apos;
+}
+</code></pre><p>对于不能访问互联网的内网，需要保证 distributionUrl 地址在私服上可用。执行 gradle genWrapper 后，把生成的内容作为项目文件提交到代码库。</p>
+<p>这样后面的同事，checkout 出代码后遵循使用 gradlew 构建项目的规则就可以避免 gradle 版本冲突的问题了。</p>
+</li>
+<li><p>Spring Boot 2.4 gradle 插件是需要 Gradle5.6 以上 或 Gradle6.3 版本以上的，否则报错如下。这也从一个方面证明 gradle 版本兼容问题是存在的，所以很有必要在团队中使用 gradlew。</p>
+<p>An exception occurred applying plugin request [id: ‘org.springframework.boot’, version: ‘2.4.0’]</p>
+<blockquote>
+<p>Failed to apply plugin [id ‘org.springframework.boot’]<br>Spring Boot plugin requires Gradle 5 (5.6.x only) or Gradle 6 (6.3 or later). The current version is Gradle 5.3.1</p>
+</blockquote>
+</li>
+</ol>
+<p>Reference:</p>
+<p>基本元素：<br><a href="https://www.cnblogs.com/itck/p/10478382.html" target="_blank" rel="noopener">https://www.cnblogs.com/itck/p/10478382.html</a><br><a href="https://blog.csdn.net/qq_36850813/article/details/93996333" target="_blank" rel="noopener">https://blog.csdn.net/qq_36850813/article/details/93996333</a></p>
+<p>wrapper：<br><a href="https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html" target="_blank" rel="noopener">https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-11-28T07:47:43.000Z"><a href="/2020/11/28/开发环境setup/">2020-11-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/11/28/开发环境setup/">开发环境setup</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdk
+brew search /adoptopenjdk
+brew cask install adoptopenjdk8
+</code></pre><h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrew
+git remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git
+</code></pre><h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p>
+<pre><code>wsl --shutdown
+</code></pre><p>3）迁移</p>
+<pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tar
+wsl --unregister docker-desktop-data
+wsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2
+</code></pre><h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
+ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \
+ -v /home/mysql/logs:/logs \
+ -v /home/mysql/data/mysql:/var/lib/mysql \
+ -d mysql:8.0.22
+</code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
+ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;
+</code></pre>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2020-10-12T14:05:29.000Z"><a href="/2020/10/12/reactive/popular_reactive_libs/">2020-10-12</a></time>
       
       
@@ -591,217 +698,6 @@ Xauth username
 </code></pre><h3 id="运行-vpnc"><a href="#运行-vpnc" class="headerlink" title="运行 vpnc"></a>运行 vpnc</h3><pre><code>sudo vpnc /etc/vpnc/config.conf --local-port 0
 </code></pre><h3 id="停止-vpnc"><a href="#停止-vpnc" class="headerlink" title="停止 vpnc"></a>停止 vpnc</h3><pre><code>sudo vpnc-disconnect
 </code></pre>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-21T14:29:20.000Z"><a href="/2020/09/21/devops/create_bridge_on_centos7/">2020-09-21</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/21/devops/create_bridge_on_centos7/">在CentOS7上创建持久化的桥接网络及Guests</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>上篇文章中用 ip link add name br0 type bridge 创建网桥重启之后就没有了。</p>
-<p><strong>添加网桥设备文件</strong></p>
-<pre><code>[devops@192 ~]$ touch /etc/sysconfig/network-scripts/ifcfg-br0
-</code></pre><p><strong>配置网桥</strong></p>
-<pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-br0
-TYPE=Bridge
-BOOTPROTO=static
-IPADDR=192.168.1.10
-PREFIX=24
-GATEWAY=192.168.1.1
-DNS1=192.168.1.1
-NM_CONTROLLED=no
-
-DEFROUTE=yes
-PEERDNS=yes
-PEERROUTES=yes
-IPV4_FAILURE_FATAL=no
-
-DEVICE=br0
-ONBOOT=yes
-[devops@192 ~]$
-</code></pre><p><strong>把网卡挂到网桥</strong><br>把 em1 网卡 IP 地址配置的部分注释掉(或者 BOOTPROTO=none)，并加入 BRIDGE=br0。</p>
-<pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-em1
-TYPE=Ethernet
-PROXY_METHOD=none
-BROWSER_ONLY=no
-DEFROUTE=yes
-IPV4_FAILURE_FATAL=no
-IPV6INIT=yes
-IPV6_AUTOCONF=yes
-IPV6_DEFROUTE=yes
-IPV6_FAILURE_FATAL=no
-IPV6_ADDR_GEN_MODE=stable-privacy
-IPV6_PRIVACY=no
-NAME=em1
-UUID=48f1a196-a6ff-4966-8b93-fb0d7b707e47
-DEVICE=em1
-ONBOOT=yes
-
-#BOOTPROTO=static
-#IPADDR=192.168.1.10
-#PREFIX=24
-#GATEWAY=192.168.1.1
-#DNS1=192.168.1.1
-
-NM_CONTROLLED=no
-#BRIDGE=br0
-[devops@192 ~]$
-</code></pre><p><strong>当前主机路由及网桥接口</strong></p>
-<pre><code>[devops@192 ~]$ route -v
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
-default         192.168.1.1     0.0.0.0         UG    0      0        0 br0
-link-local      0.0.0.0         255.255.0.0     U     1002   0        0 em1
-link-local      0.0.0.0         255.255.0.0     U     1004   0        0 br0
-192.168.1.0     0.0.0.0         255.255.255.0   U     0      0        0 br0
-192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0
-[devops@192 ~]$
-[devops@192 ~]$
-[devops@192 ~]$ brctl show
-bridge name    bridge id        STP enabled    interfaces
-br0        8000.1866daa0cb22    no        em1
-virbr0        8000.5254002a0526    yes        virbr0-nic
-[devops@192 ~]$
-</code></pre><p><strong>重启网络服务</strong></p>
-<pre><code>sudo systemctl restart network
-</code></pre><p><em>如果再重启网络失败，出现这样的错误 Failed to start LSB: Bring up/down networking。需要检查一下 /etc/sysconfig/network-scripts/ 下面的网络接口文件定义的是不是有问题。我这里因为有双网卡，其中一个的配置出现问题，导致网络服务启动失败。</em></p>
-<p><strong>创建使用 br0 的虚拟机们</strong></p>
-<p>有了上面的网桥 br0，我们就可以通过下面的命令分分钟创建出使用 br0 的三台虚拟机。</p>
-<pre><code>ansible-playbook  ./virt-infra.yml \
-  --limit kvmhost,k8shosts \
-  -e virt_infra_root_password=password \
-  -e virt_infra_disk_size=100 \
-  -e virt_infra_ram=4096 \
-  -e virt_infra_ram_max=8192 \
-  -e virt_infra_cpus=8 \
-  -e virt_infra_cpus_max=16 \
-  -e &apos;{ &quot;virt_infra_networks&quot;: [{ &quot;name&quot;: &quot;br0&quot;, &quot;type&quot;: &quot;bridge&quot; }] }&apos; \
-  -e virt_infra_state=running
-</code></pre><p>登录到创建出来的 k8s_host 虚拟机 ping 局域网及 internet 网络都是通的，证明 br0 桥接工作正常。以后，我们就可以基于这些虚拟机来折腾 K8S 了。。。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-19T17:07:42.000Z"><a href="/2020/09/20/devops/route_local_table/">2020-09-20</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/20/devops/route_local_table/">ping veth不通的原因</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。<br>原因都在 ip route show table local 输出里。 直接上步骤：</p>
-<pre><code>[dahui@192 ~]$ route -v
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
-default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
-192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
-[dahui@192 ~]$
-
-# 创建veth对。
-sudo ip link add veth0 type veth peer name veth1
-
-# 给veth设置IP地址
-sudo ip addr add 192.168.2.10/24 dev veth0
-sudo ip addr add 192.168.2.20/24 dev veth1
-
-# 激活接口
-sudo ip link set veth0 up
-sudo ip link set veth1 up
-
-
-# 直连路由被自动添加了路由表
-[dahui@192 ~]$ route -v
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
-default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
-192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
-192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth0
-192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth1
-[dahui@192 ~]$
-
-
-# 创建一个linux网桥 br0
-sudo ip link add name br0 type bridge
-sudo ip link set br0 up
-
-# 把veth0接到br0，veth0有ip的情况下虽然能接收来自协议栈的数据但是reponse只能走br0了。
-sudo ip link set dev veth0 master br0
-
-# veth0 拥有IP已经没有意义，把这个IP给br0
-sudo ip addr del 192.168.2.10/24 dev veth0
-sudo ip addr add 192.168.2.10/24 dev br0
-
-# 期待通过 br0接口ping  veth2能成功。 但是失败了。
-[dahui@192 ~]$  ping -c 1 -I br0 192.168.2.20
-PING 192.168.2.20 (192.168.2.20) from 192.168.2.10 br0: 56(84) bytes of data.
-
---- 192.168.2.20 ping statistics ---
-1 packets transmitted, 0 received, 100% packet loss, time 0ms
-
-[dahui@192 ~]$
-</code></pre><p>下面是由系统维护的 local 路由表：</p>
-<pre><code>[dahui@192 ~]$ ip route show table local
-broadcast 127.0.0.0 dev lo proto kernel scope link src 127.0.0.1
-local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1
-local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1
-broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1
-broadcast 192.168.1.0 dev em1 proto kernel scope link src 192.168.1.10
-local 192.168.1.10 dev em1 proto kernel scope host src 192.168.1.10
-broadcast 192.168.1.255 dev em1 proto kernel scope link src 192.168.1.10
-broadcast 192.168.2.0 dev veth1 proto kernel scope link src 192.168.2.20
-broadcast 192.168.2.0 dev br0 proto kernel scope link src 192.168.2.10
-local 192.168.2.10 dev br0 proto kernel scope host src 192.168.2.10
-local 192.168.2.20 dev veth1 proto kernel scope host src 192.168.2.20
-broadcast 192.168.2.255 dev veth1 proto kernel scope link src 192.168.2.20
-broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
-[dahui@192 ~]$
-</code></pre><p>Reference：<br><a href="https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat" target="_blank" rel="noopener">https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat</a></p>
-
       
     </div>
     <footer>

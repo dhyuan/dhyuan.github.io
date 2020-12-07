@@ -50,6 +50,101 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html" target="_blank" rel="noopener">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html" target="_blank" rel="noopener">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p>
+<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p>
+<p><strong>Server端的配置</strong>：</p>
+<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
+server.port=8888
+</code></pre><p><strong>Client端的配置</strong></p>
+<pre><code>spring.application.name=reservation-service
+spring.profiles.active=profile1,profile3
+SpringConfigClient_GitBackend.png
+spring.cloud.config.uri＝http://localhost:8888
+</code></pre><p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" title="application name、profile、label的使用"></p>
+<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" title="多个profile中重复定义"></p>
+<ul>
+<li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
+</li>
+<li><p>在config client项目中添加Actuator库，通过浏览器访问<a href="http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST" target="_blank" rel="noopener">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
+<pre><code>可以同通过 curl -d {} http://localhost:8000/refresh 获取更新。
+</code></pre></li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/14/了解一点CQRS/">了解一点CQRS</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>Reference：</p>
+<p><a href="https://msdn.microsoft.com/en-us/library/jj554200.aspx" target="_blank" rel="noopener">微软网站关于CQRS的描述</a></p>
+<p><a href="http://martinfowler.com/bliki/CQRS.html" target="_blank" rel="noopener">Martin Fowler的论述</a> 文章后面警告我们不要乱用这个设计。</p>
+<p><a href="http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/" target="_blank" rel="noopener">gregyoung的论述</a></p>
+<p>在Vaughn Vernon的名著IDDD中，也有专门章节论述CQRS。</p>
+<blockquote>
+<blockquote>
+<blockquote>
+</blockquote>
+<p>TODO： 我的理解和实践。。。</p>
+</blockquote>
+</blockquote>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
       
       

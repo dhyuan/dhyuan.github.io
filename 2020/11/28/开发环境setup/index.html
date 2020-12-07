@@ -3,13 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>第 5 页 | 归档 | Dahui’s 开发笔记</title>
+  <title>开发环境setup | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
+  
+  <meta name="description" content="在 macOS 上安装 OpenJDK。brew tap AdoptOpenJDK/openjdk
+brew search /adoptopenjdk
+brew cask install adoptopenjdk8
+设置 Homebrew 使用国内源，加速 updatecd /usr/local/H">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  
+  <meta property="og:title" content="开发环境setup"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -43,61 +48,93 @@
 <div class="clearfix"></div>
 </header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper">
-<h2 class="archive-title">归档</h2>
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-11-28T07:47:43.000Z"><a href="/2020/11/28/开发环境setup/">2020-11-28</a></time>
+      
+      
+  
+    <h1 class="title">开发环境setup</h1>
+  
 
-
-  <div class="archive">
+    </header>
+    <div class="entry">
+      
+        <h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdk
+brew search /adoptopenjdk
+brew cask install adoptopenjdk8
+</code></pre><h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrew
+git remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git
+</code></pre><h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p>
+<pre><code>wsl --shutdown
+</code></pre><p>3）迁移</p>
+<pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tar
+wsl --unregister docker-desktop-data
+wsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2
+</code></pre><h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
+ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \
+ -v /home/mysql/logs:/logs \
+ -v /home/mysql/data/mysql:/var/lib/mysql \
+ -d mysql:8.0.22
+</code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
+ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;
+</code></pre>
+      
+    </div>
+    <footer>
+      
+        
+        
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
     
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
-            
-              <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
-            
-          </header>
-        </div>
-      </article>
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
     
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-08-14T06:59:35.000Z"><a href="/2016/08/14/了解一点CQRS/">2016-08-14</a></time>
-            
-              <h1 class="title"><a href="/2016/08/14/了解一点CQRS/">了解一点CQRS</a></h1>
-            
-          </header>
-        </div>
-      </article>
     
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring常用注解/">2016-08-13</a></time>
-            
-              <h1 class="title"><a href="/2016/08/13/Spring常用注解/">Spring常用注解</a></h1>
-            
-          </header>
-        </div>
-      </article>
+      <a class="addthis_button_tweet"></a>
     
-      <article class="post">
-        <div class="post-content">
-          <header>
-            <div class="icon"></div>
-            <time datetime="2016-08-12T15:52:30.000Z"><a href="/2016/08/12/hello-world/">2016-08-12</a></time>
-            
-              <h1 class="title"><a href="/2016/08/12/hello-world/">Hello Hexo</a></h1>
-            
-          </header>
-        </div>
-      </article>
     
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
   </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/11/28/开发环境setup/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
 </div></div>
     <aside id="sidebar" class="alignright">
   <div class="search">
