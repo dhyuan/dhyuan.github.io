@@ -83,7 +83,10 @@ docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
  -d mysql:8.0.22
 </code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
 ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;
-</code></pre>
+</code></pre><h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p> docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p>
+<p>–appendonly yes ： 开启redis 持久化<br>–requirepass “password”   ： 密码</p>
+<p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>
+
       
     </div>
     <footer>
@@ -175,7 +178,7 @@ ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password 
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>3</small></li>
   
     <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
   
@@ -203,7 +206,7 @@ ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password 
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-      &copy; 2020 Dahui
+      &copy; 2021 Dahui
       <!-- 不蒜统计 -->
 	  <br>
 	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>

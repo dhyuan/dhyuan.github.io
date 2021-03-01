@@ -50,6 +50,232 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-04-11T07:55:38.000Z"><a href="/2020/04/11/用CountDownLatch做并发练习题/">2020-04-11</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/11/用CountDownLatch做并发练习题/">用CountDownLatch做并发练习题</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>拿CountDownLatch对比着Semaphore来学习会简单很多。<br>CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说</p>
+<h5 id="1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"><a href="#1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。" class="headerlink" title="1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"></a>1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。</h5><h5 id="2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。"><a href="#2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。" class="headerlink" title="2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。"></a>2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。</h5><p>所以，对于LeetCode多线程练习题，只有1114题可以用CountDownLatch来完成。 <a href="https://leetcode-cn.com/problemset/concurrency/" target="_blank" rel="noopener">https://leetcode-cn.com/problemset/concurrency/</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-04-10T10:03:53.000Z"><a href="/2020/04/10/Concurrency-in-LeetCode/">2020-04-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/10/Concurrency-in-LeetCode/">用Semaphore解决LeetCode并发练习题</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p>
+<p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p>
+<p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p>
+<p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p>
+<p>利用下面的知识点应该就足够团灭这几道题了。</p>
+<p>1) 线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p>
+<p>2) 调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p>
+<p>3) 因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p>
+<p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p>
+<p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p>
+<p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p>
+<p>LeetCode 1114, 多线程按序打印1，2，3。</p>
+<pre><code>public class FooBySemaphore {
+
+    public FooBySemaphore() {}
+
+    // 先打印 one， 所以这个初始化为放行。
+    private Semaphore firstPermission = new Semaphore(1);
+    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’
+    private Semaphore secondPermission = new Semaphore(0);
+    private Semaphore thirdPermission = new Semaphore(0);
+
+    public void first(Runnable printFirst) throws InterruptedException {
+        firstPermission.acquire();
+        printFirst.run();
+        secondPermission.release(); // 放行第二个线程
+    }
+
+    public void second(Runnable printSecond) throws InterruptedException {
+        secondPermission.acquire();
+        printSecond.run();
+        thirdPermission.release(); // 放行第三个线程
+    }
+
+    public void third(Runnable printThird) throws InterruptedException {
+        thirdPermission.acquire();
+        printThird.run();
+        firstPermission.release(); // 放行第一个线程
+    }
+}
+</code></pre><p>LeetCode 1117,  多线程生成水分子。</p>
+<pre><code>public class H2OBySemaphore {
+    /**
+     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。
+     *
+     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。
+     * 生产出2个氢原子后oSemaphore的信号数量就是2。
+     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。
+     *
+     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。
+     */
+    public H2OBySemaphore() {
+    }
+
+    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。
+    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。
+    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException {
+        hPermission.acquire();
+        releaseHydrogen.run();
+        oPermission.release();
+    }
+
+    public void oxygen(Runnable releaseOxygen) throws InterruptedException {
+        oPermission.acquire(2);
+
+        releaseOxygen.run();
+        hPermission.release(2);
+    }
+}
+</code></pre><p>LeetCode 1226, 哲学家就餐问题。</p>
+<pre><code>public class DiningPhilosophers {
+
+    private Semaphore[] forksPermission = new Semaphore[5];
+
+    public DiningPhilosophers() {
+        for (int i = 0; i &lt; 5; i ++) {
+            forksPermission[i] = new Semaphore(1);
+        }
+    }
+
+    // call the run() method of any runnable to execute its code
+    public void wantsToEat(int philosopher,
+                           Runnable pickLeftFork,
+                           Runnable pickRightFork,
+                           Runnable eat,
+                           Runnable putLeftFork,
+                           Runnable putRightFork) throws InterruptedException {
+
+        int leftFork = philosopher;
+        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5
+        int rightFork = (philosopher + 4) % 5;
+        while (true) {
+            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。
+            if (forksPermission[leftFork].tryAcquire()) { 
+                // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。
+                // 拿到左叉，尝试拿右叉。
+                if (forksPermission[rightFork].tryAcquire()) {
+                    // 左叉，右叉都拿到了。开吃！ 
+                    pickLeftFork.run();
+                    pickRightFork.run();
+
+                    eat.run();
+
+                    putLeftFork.run();
+                    forksPermission[leftFork].release();
+                    putRightFork.run();
+                    forksPermission[rightFork].release();
+
+                    break; // 吃完退出(线程)
+                } else {
+                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。
+                    forksPermission[leftFork].release();
+                    Thread.sleep(1); //_ 为什么必须sleep？
+                }
+            } else {
+                // 没抢到左叉，歇歇继续试。
+                Thread.sleep(1);  //_ 为什么必须sleep？
+            }
+        }
+    }
+}
+</code></pre>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-04-02T07:39:09.000Z"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">2020-04-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">锁这个词太有意思了，有几个意思？</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？</p>
+<p>并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。<br>从更一般的、更笼统的意义上讲锁跟synchronizer其实一个意思，都可以看作是协调线程、控制线程的对象。这里所谓的更一般是说，我们可以把CountDownLatch、Semphore这些不带Locak字眼的Synchronizer也化分到锁这个概念里。</p>
+<p>这样把概念统一到锁上之后，我们就可以把锁/Synchronizer分成耳熟能详的两类了：悲观锁、乐观锁。<br>对于乐观锁正如数据库事务解决方案里提到的乐观锁的概念，核心就是与观察旧值是否有变化而决定是否成功修改。<br>所以乐观锁想成基于“compare and set”的算法更好。更进一步把锁想成算法就好，具体的门锁那种感觉有点二狭隘了。<br>从最根本的提供“锁“算法实现的CPU指令上讲：对于乐观锁是CAS(LL, SC)提供了最核心的支持，对于悲观锁(对应到OS的互斥量，java的thread都一一映射到OS的thread)是lock指令前缀。除了这些CPU指令还有混存一致性协议这样的技术一起向上层提供了实现各种Syncrhonizer(悲观锁/乐观锁)的最基础支持。更详细内容可以参考文末的引用链接。</p>
+<p>基于CAS实现的乐观锁其实不牵扯到什么类似mutex这样<strong>具体的锁</strong>，把它当作一种synchronizer就好(怎么有点儿金刚经的感觉)。我们可以利用CAS指令实现了非阻塞的多线程协调工作的各种算法。比如，列用CAS实现非阻塞计数器、非阻塞栈、非阻塞队列。JDK中的ConcurrentLinkedQueue就是利用原子化域更新器实现的支持并发(多线程)操作的非阻塞数据结构。</p>
+<p>基于CAS cpu指令的有ABA问题。而load-linked/store-condition这样的cpu指令可以避免ABA问题。<br>从API的角度，可以用AtomicMarkableReference, AtomicStampedReference避免CAS下的ABA。<br><a href="https://en.wikipedia.org/wiki/ABA_problem。" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/ABA_problem。</a></p>
+<p>References:<br>《Java并发编程实践》<br><a href="https://www.ibm.com/developerworks/cn/java/j-jtp04186/" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/java/j-jtp04186/</a></p>
+<p>0、<a href="https://blog.csdn.net/Saintyyu/article/details/94493694" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/94493694</a><br>1、<a href="https://blog.csdn.net/zacklin/article/details/7445442" target="_blank" rel="noopener">https://blog.csdn.net/zacklin/article/details/7445442</a> 原子操作与 x86 上的 lock 指令前缀<br>2、<a href="https://www.cnblogs.com/xrq730/p/7048693.html" target="_blank" rel="noopener">https://www.cnblogs.com/xrq730/p/7048693.html</a> 就是要你懂Java中volatile关键字实现原理<br>3、<a href="https://blog.csdn.net/u011244446/article/details/52574369" target="_blank" rel="noopener">https://blog.csdn.net/u011244446/article/details/52574369</a> Linux 互斥锁、原子操作实现原理<br>4、<a href="https://www.jianshu.com/p/6745203ae1fe" target="_blank" rel="noopener">https://www.jianshu.com/p/6745203ae1fe</a> 关于volatile、MESI、内存屏障、#Lock<br>5、<a href="https://www.jianshu.com/p/61490effab35" target="_blank" rel="noopener">https://www.jianshu.com/p/61490effab35</a> 操作系统中锁的原理<br>6、<a href="https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html" target="_blank" rel="noopener">https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html</a> Linux中同步互斥机制研究之原子操作<br>7、<a href="https://blog.csdn.net/Saintyyu/article/details/100838503" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/100838503</a> cas vs mutex</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2020-03-30T12:48:33.000Z"><a href="/2020/03/30/About-Lock-and-Synchronizer/">2020-03-30</a></time>
       
       
@@ -323,133 +549,6 @@ Get 1
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-02-17T03:47:11.000Z"><a href="/2020/02/17/JMM/">2020-02-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/02/17/JMM/">JMM</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p>
-<img src="/2020/02/17/JMM/JMM.png">
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2018-09-12T12:43:08.000Z"><a href="/2018/09/12/Monoid/">2018-09-12</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2018/09/12/Monoid/">Monoid</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {
-    T Empty
-}
-
-class (Semigroup a) &lt;= Monoid a where
-    empty :: a
-</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.
-a &lt;&gt; empty == a
-empty &lt;&gt; a == a
-</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2018/09/12/Semigroup/">Semigroup</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
-public interface SemiGroup&lt;T&gt; {
-    T Append(T thingToAppend);
-}
-
-// 用Haskell定义：
-class SemiGroup a where
-    append :: a-&gt; a -&gt; a
-
-// Haskell实现的String with append：
-instance Semigroup String where
-    append a b = a ++ b
-</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
-<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
-<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
-
-(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
-</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
-<p><strong>2）Incremental</strong></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -499,7 +598,7 @@ instance Semigroup String where
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>3</small></li>
   
     <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
   
@@ -527,7 +626,7 @@ instance Semigroup String where
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-      &copy; 2020 Dahui
+      &copy; 2021 Dahui
       <!-- 不蒜统计 -->
 	  <br>
 	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>

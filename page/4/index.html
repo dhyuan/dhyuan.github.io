@@ -50,6 +50,133 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2020-02-17T03:47:11.000Z"><a href="/2020/02/17/JMM/">2020-02-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/17/JMM/">JMM</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p>
+<img src="/2020/02/17/JMM/JMM.png">
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-09-12T12:43:08.000Z"><a href="/2018/09/12/Monoid/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Monoid/">Monoid</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; {
+    T Empty
+}
+
+class (Semigroup a) &lt;= Monoid a where
+    empty :: a
+</code></pre><h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&apos;t change the meaning of a monoidal value.
+a &lt;&gt; empty == a
+empty &lt;&gt; a == a
+</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Semigroup/">Semigroup</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
+public interface SemiGroup&lt;T&gt; {
+    T Append(T thingToAppend);
+}
+
+// 用Haskell定义：
+class SemiGroup a where
+    append :: a-&gt; a -&gt; a
+
+// Haskell实现的String with append：
+instance Semigroup String where
+    append a b = a ++ b
+</code></pre><p><strong>Law</strong>s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
+<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
+<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
+
+(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
+</code></pre><h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
+<p><strong>2）Incremental</strong></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2018-09-10T13:24:47.000Z"><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/">2018-09-10</a></time>
       
       
@@ -483,163 +610,6 @@ config/application/data
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config" target="_blank" rel="noopener">使用ZooKeeper作为配置信息的Repository</a></p>
-<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
-<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。</p>
-<p>例一：</p>
-<pre><code>config/testApp,dev
-config/testApp
-config/application,dev
-config/application
-</code></pre><p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
-<pre><code>spring:
-  cloud:
-    zookeeper:
-      config:
-        enabled: true
-        root: configuration
-        defaultContext: apps
-        profileSeparator: &apos;::&apos;
-</code></pre><p>这样，例一，就应变成下面这样：</p>
-<pre><code>configuration/testApp,dev
-configuration/testApp
-configuration/apps,dev
-configuration/apps
-</code></pre><blockquote>
-<p>依赖:</p>
-<p>org.springframework.cloud:spring-cloud-starter-zookeeper-config</p>
-</blockquote>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-01T14:00:21.000Z"><a href="/2016/09/01/Reactive-Programming-notes/">2016-09-01</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/01/Reactive-Programming-notes/">Reactive Programming notes</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <ul>
-<li>Collection</li>
-<li>Stream</li>
-<li>Reactive Stream</li>
-<li>ReactiveX规范</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/01/To-learn-To-know-To-use/">To learn, To know, To use</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
-<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
-<ul>
-<li>Configuration Management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
-<li>配置服务的设计与实践。</li>
-</ul>
-</li>
-<li>service discovery</li>
-<li>circuit breakers</li>
-<li>intelligent routing</li>
-<li>micro-proxy</li>
-<li>control bus</li>
-<li>one-time tokens</li>
-<li>global locks</li>
-<li>Leadership election<ul>
-<li>利用ZooKeeper、Curator实现leader选举</li>
-<li>利用leadership election实现“单例服务”</li>
-</ul>
-</li>
-<li>distributed sessions</li>
-<li>cluster state</li>
-</ul>
-<h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul>
-<li>RxJava</li>
-<li>Akka</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -689,7 +659,7 @@ configuration/apps
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>3</small></li>
   
     <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
   
@@ -717,7 +687,7 @@ configuration/apps
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-      &copy; 2020 Dahui
+      &copy; 2021 Dahui
       <!-- 不蒜统计 -->
 	  <br>
 	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>

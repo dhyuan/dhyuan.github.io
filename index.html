@@ -50,6 +50,194 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一个开发服务器</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
+<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
+</code></pre><h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
+<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。</p>
+<p>g <a href="https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/" target="_blank" rel="noopener">https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/</a></p>
+<p>… virt-infra-ansible/inventory/dev-servers.yml，内容如下：</p>
+<pre><code>devServers:
+    hosts:
+        repositoryServer:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_size: 500
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+        devopsServer[0:2]:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+    vars:
+        virt_infra_root_password: password
+        virt_infra_disk_size: 80
+        virt_infra_ram: 4094
+        virt_infra_ram_max: 8192
+        virt_infra_cpus: 4
+        virt_infra_cpus_max: 8
+        virt_infra_state: running
+        virt_infra_networks:
+        - name: br0
+            type: bridge
+</code></pre><h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
+</code></pre><h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
+</code></pre><h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
+<pre><code>- name: Add Aliyun Docker official GPG key
+become: true
+apt_key:
+url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
+state: present
+register: \_pkg_result
+until: \_pkg_result is succeeded
+when:
+
+- docker_network_access | bool
+- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
+    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
+
+- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
+become: true
+lineinfile:
+path: /etc/apt/sources.list.d/docker-ce.list
+line: &quot;deb [arch={{ _docker_os_arch|lower }}] http://mirrors.aliyun.com/docker-ce/linux/{{ \_docker_os_dist|lower }} {{ ansible_lsb.codename }} stable&quot;
+insertbefore: BOF
+</code></pre><p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
+<pre><code>root@basehost0:~# apt-cache madison docker-ce
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+。。。 。。。
+</code></pre><p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
+<pre><code>ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
+</code></pre><p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
+<pre><code>ansible-playbook ./install_docker.yml \
+--limit devopServers -v \
+-e &apos;{&quot;docker_repository_url&quot;: {&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; }}&apos;
+</code></pre><p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
+<pre><code>root@basehost0:~# docker -v
+Docker version 20.10.4, build d3cb89e
+</code></pre>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/13/notes/spring_tech4framework/">Spring 中的常用定式</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<t> 不能和 Feign 一起使用。</t></p>
+<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
+<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><p>####</p>
+<h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2020-12-10T15:23:29.000Z"><a href="/2020/12/10/notes/about_shiro_path_filter/">2020-12-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/10/notes/about_shiro_path_filter/">关于Shiro中路径匹配与注解</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2020-12-02T14:42:01.000Z"><a href="/2020/12/02/Gradle-101/">2020-12-02</a></time>
       
       
@@ -135,7 +323,10 @@ docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
  -d mysql:8.0.22
 </code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
 ALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;
-</code></pre>
+</code></pre><h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p> docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p>
+<p>–appendonly yes ： 开启redis 持久化<br>–requirepass “password”   ： 密码</p>
+<p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>
+
       
     </div>
     <footer>
@@ -536,183 +727,6 @@ k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-27T13:17:11.000Z"><a href="/2020/09/27/devops/setup_local_docker_registry/">2020-09-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/27/devops/setup_local_docker_registry/">建立本地docker镜像中心</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>以下是在本地建立 docker registry 的过程，避免每次去互联网拉取镜像以及各种墙的问题。</p>
-<h2 id="安装-docker"><a href="#安装-docker" class="headerlink" title="安装 docker"></a>安装 docker</h2><p>因为我们使用 registry 镜像安装镜像中心，所以需要首先安装 docker 引擎。</p>
-<pre><code>sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-
-sudo yum install docker-ce docker-ce-cli containerd.io
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo systemctl status docker
-</code></pre><h2 id="运行-docker-registry"><a href="#运行-docker-registry" class="headerlink" title="运行 docker-registry"></a>运行 docker-registry</h2><p>sudo docker pull registry<br>sudo docker run –restart=always -d -p 15000:5000 -v /mnt/data/registry:/var/lib/registry registry</p>
-<h2 id="TODO：添加镜像。。。"><a href="#TODO：添加镜像。。。" class="headerlink" title="TODO：添加镜像。。。"></a>TODO：添加镜像。。。</h2>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-27T02:50:05.000Z"><a href="/2020/09/27/devops/install_docker_by_ansible/">2020-09-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/27/devops/install_docker_by_ansible/">使用Ansible自动安装Docker</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/
-git clone git@github.com:dhyuan/virt-infra-ansible.git
-
-cd ~/devenv_bootstrap/virt-infra-ansible/roles
-git clone https://github.com/dhyuan/ansible-role-virt-infra.git
-cd ansible-role-virt-infra
-git checkout -b devenv
-git branch --set-upstream-to origin/devenv
-git pull
-</code></pre><h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.yml
-vi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml
-</code></pre><p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p>
-<h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes
-</code></pre><h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=running
-</code></pre><h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=shutdown
-</code></pre><h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p>
-<pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=undefined
-</code></pre><h2 id="为安装-K8S，更新虚拟机"><a href="#为安装-K8S，更新虚拟机" class="headerlink" title="为安装 K8S，更新虚拟机"></a>为安装 K8S，更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><pre><code>ansible-playbook --ask-become-pass --inventory ./inventory ansible/update-vms.yaml
-</code></pre><h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \
---roles-path ~/.ansible/roles/ \
-git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
-
-#
-ansible-galaxy list
-</code></pre><p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p>
-<h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml
----
-- hosts: all,!kvmhost
-  vars:
-    docker_version: 19.03.8
-    docker_remove_pre_ce: false
-    docker_users: [devops]
-    docker_daemon_config:
-      exec-opts: [&quot;native.cgroupdriver=systemd&quot;],
-      registry-mirrors:
-        [
-          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,
-          &quot;http://registry.docker-cn.com&quot;,
-          &quot;http://docker.mirrors.ustc.edu.cn&quot;,
-          &quot;http://hub-mirror.c.163.com&quot;,
-        ]
-      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]
-
-  roles:
-    - role: ansible-role-docker-ce
-[devops@192 virt-infra-ansible]$
-</code></pre><p>其中，exec-opts: [“native.cgroupdriver=systemd”], 是为了避免以后使用 kubeadm 安装 k8s 集群时警告：</p>
-<pre><code>[WARNING IsDockerSystemdCheck]: detected &quot;cgroupfs&quot; as the Docker cgroup driver. The recommended driver is &quot;systemd&quot;. Please follow the guide at https://kubernetes.io/docs/setup/cri/
-</code></pre><h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \
---limit k8s_masters,k8s_nodes -v \
--e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;
-</code></pre><h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-27T02:49:55.000Z"><a href="/2020/09/27/devops/setup_vpn_on_centos7/">2020-09-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/27/devops/setup_vpn_on_centos7/">CentOS7科学上网</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <h2 id="安装-VPN"><a href="#安装-VPN" class="headerlink" title="安装 VPN"></a>安装 VPN</h2><pre><code>sudo yum install -y epel-release
-sudo yum install -y vpnc
-</code></pre><h3 id="配置-vpnc"><a href="#配置-vpnc" class="headerlink" title="配置 vpnc"></a>配置 vpnc</h3><pre><code>sudo cp /etc/vpnc/default.conf /etc/vpnc/config.conf
-</code></pre><p>根据你的 VPN 服务供应商提供的参数修改/etc/vpnc/config.conf：</p>
-<pre><code>[root@osnode ~]# vi /etc/vpnc/config.conf
-IPSec gateway my.vpn.gateway
-IPSec ID my.ipsec.id
-IPSec secret mysecret
-# your username goes here:
-Xauth username
-[root@osnode ~]#
-</code></pre><h3 id="运行-vpnc"><a href="#运行-vpnc" class="headerlink" title="运行 vpnc"></a>运行 vpnc</h3><pre><code>sudo vpnc /etc/vpnc/config.conf --local-port 0
-</code></pre><h3 id="停止-vpnc"><a href="#停止-vpnc" class="headerlink" title="停止 vpnc"></a>停止 vpnc</h3><pre><code>sudo vpnc-disconnect
-</code></pre>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -760,7 +774,7 @@ Xauth username
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>1</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>3</small></li>
   
     <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
   
@@ -788,7 +802,7 @@ Xauth username
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-      &copy; 2020 Dahui
+      &copy; 2021 Dahui
       <!-- 不蒜统计 -->
 	  <br>
 	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>

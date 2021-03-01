@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://dhyuan.github.io/"/>
-  <updated>2020-12-07T13:49:45.057Z</updated>
+  <updated>2021-03-01T15:31:34.279Z</updated>
   <id>https://dhyuan.github.io/</id>
   
   <author>
@@ -15,6 +15,75 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>在基于KVM的环境中添加一个开发服务器</title>
+    <link href="https://dhyuan.github.io/2021/02/27/devops/add_an_devServer_in_kvm/"/>
+    <id>https://dhyuan.github.io/2021/02/27/devops/add_an_devServer_in_kvm/</id>
+    <published>2021-02-27T10:18:01.000Z</published>
+    <updated>2021-03-01T15:31:34.279Z</updated>
+    
+    <content type="html"><![CDATA[<p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p><h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.imgmv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/</code></pre><h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p><p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。</p><p>g <a href="https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/" target="_blank" rel="noopener">https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/</a></p><p>… virt-infra-ansible/inventory/dev-servers.yml，内容如下：</p><pre><code>devServers:    hosts:        repositoryServer:        virt_infra_state: running        virt_infra_distro: ubuntu        virt_infra_distro_image: focal-server-cloudimg-amd64.img        ansible_python_interpreter: /usr/bin/python3        virt_infra_timezone: &quot;Asia/Shanghai&quot;        virt_infra_disk_size: 500        virt_infra_disk_cmd:            - apt update            - apt install -y net-tools            - apt install -y lsb            - useradd -m devops            - echo &quot;devops:password&quot;| chpasswd        devopsServer[0:2]:        virt_infra_state: running        virt_infra_distro: ubuntu        virt_infra_distro_image: focal-server-cloudimg-amd64.img        ansible_python_interpreter: /usr/bin/python3        virt_infra_timezone: &quot;Asia/Shanghai&quot;        virt_infra_disk_cmd:            - apt update            - apt install -y net-tools            - apt install -y lsb            - useradd -m devops            - echo &quot;devops:password&quot;| chpasswd    vars:        virt_infra_root_password: password        virt_infra_disk_size: 80        virt_infra_ram: 4094        virt_infra_ram_max: 8192        virt_infra_cpus: 4        virt_infra_cpus_max: 8        virt_infra_state: running        virt_infra_networks:        - name: br0            type: bridge</code></pre><h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansibleansible-playbook ./virt-infra.yml --limit kvmhost,devopServers</code></pre><h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p><pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined</code></pre><h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p><pre><code>- name: Add Aliyun Docker official GPG keybecome: trueapt_key:url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpgstate: presentregister: \_pkg_resultuntil: \_pkg_result is succeededwhen:- docker_network_access | bool- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)become: truelineinfile:path: /etc/apt/sources.list.d/docker-ce.listline: &quot;deb [arch={{ _docker_os_arch|lower }}] http://mirrors.aliyun.com/docker-ce/linux/{{ \_docker_os_dist|lower }} {{ ansible_lsb.codename }} stable&quot;insertbefore: BOF</code></pre><p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p><pre><code>root@basehost0:~# apt-cache madison docker-cedocker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packagesdocker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packagesdocker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packagesdocker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packagesdocker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages。。。 。。。</code></pre><p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p><pre><code>ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal</code></pre><p>之前 CentOS7 Guest 上安装 Docker 的命令：</p><pre><code>ansible-playbook ./install_docker.yml \--limit devopServers -v \-e &apos;{&quot;docker_repository_url&quot;: {&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; }}&apos;</code></pre><p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p><pre><code>root@basehost0:~# docker -vDocker version 20.10.4, build d3cb89e</code></pre>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。&lt;/p&gt;
+&lt;h3 id=&quot;
+      
+    
+    </summary>
+    
+    
+  </entry>
+  
+  <entry>
+    <title>Spring 中的常用定式</title>
+    <link href="https://dhyuan.github.io/2020/12/13/notes/spring_tech4framework/"/>
+    <id>https://dhyuan.github.io/2020/12/13/notes/spring_tech4framework/</id>
+    <published>2020-12-13T08:48:43.000Z</published>
+    <updated>2020-12-14T15:14:22.161Z</updated>
+    
+    <content type="html"><![CDATA[<h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p><p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<t> 不能和 Feign 一起使用。</t></p><p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p><h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p><h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><p>####</p><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;h4 id=&quot;统一异常处理&quot;&gt;&lt;a href=&quot;#统一异常处理&quot; class=&quot;headerlink&quot; title=&quot;统一异常处理&quot;&gt;&lt;/a&gt;统一异常处理&lt;/h4&gt;&lt;p&gt;对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。&lt;br
+      
+    
+    </summary>
+    
+    
+      <category term="Spring" scheme="https://dhyuan.github.io/tags/Spring/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>关于Shiro中路径匹配与注解</title>
+    <link href="https://dhyuan.github.io/2020/12/10/notes/about_shiro_path_filter/"/>
+    <id>https://dhyuan.github.io/2020/12/10/notes/about_shiro_path_filter/</id>
+    <published>2020-12-10T15:23:29.000Z</published>
+    <updated>2020-12-19T14:03:28.512Z</updated>
+    
+    <content type="html"><![CDATA[<p>Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成&lt;/p&gt;
+
+      
+    
+    </summary>
+    
+    
+      <category term="Spring" scheme="https://dhyuan.github.io/tags/Spring/"/>
+    
+  </entry>
   
   <entry>
     <title>Gradle 101</title>
@@ -43,9 +112,9 @@
     <link href="https://dhyuan.github.io/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/"/>
     <id>https://dhyuan.github.io/2020/11/28/开发环境setup/</id>
     <published>2020-11-28T07:47:43.000Z</published>
-    <updated>2020-12-07T13:57:34.002Z</updated>
+    <updated>2021-01-24T07:29:14.841Z</updated>
     
-    <content type="html"><![CDATA[<h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdkbrew search /adoptopenjdkbrew cask install adoptopenjdk8</code></pre><h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrewgit remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git</code></pre><h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p><pre><code>wsl --shutdown</code></pre><p>3）迁移</p><pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tarwsl --unregister docker-desktop-datawsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2</code></pre><h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \ -v /home/mysql/logs:/logs \ -v /home/mysql/data/mysql:/var/lib/mysql \ -d mysql:8.0.22</code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bashALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;</code></pre>]]></content>
+    <content type="html"><![CDATA[<h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdkbrew search /adoptopenjdkbrew cask install adoptopenjdk8</code></pre><h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrewgit remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git</code></pre><h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p><pre><code>wsl --shutdown</code></pre><p>3）迁移</p><pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tarwsl --unregister docker-desktop-datawsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2</code></pre><h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \ -v /home/mysql/logs:/logs \ -v /home/mysql/data/mysql:/var/lib/mysql \ -d mysql:8.0.22</code></pre><h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bashALTER USER &apos;root&apos;@&apos;%&apos; IDENTIFIED WITH mysql_native_password BY &apos;123456&apos;;</code></pre><h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p> docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p><p>–appendonly yes ： 开启redis 持久化<br>–requirepass “password”   ： 密码</p><p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>]]></content>
     
     <summary type="html">
     
@@ -161,7 +230,7 @@
     <link href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/"/>
     <id>https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</id>
     <published>2020-09-28T07:23:52.000Z</published>
-    <updated>2020-09-30T04:29:47.975Z</updated>
+    <updated>2021-02-27T10:31:41.580Z</updated>
     
     <content type="html"><![CDATA[<p>在对 K8S 控制节点有 HA 方面需求的话，应考虑 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/</a> 提到的两种拓扑。</p><p>HA 的方式除了让 controll nodes 和 etcd 有多个节点外，另外一个就是对外需要 VIP + LoadBalance 的功能。<a href="https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing" target="_blank" rel="noopener">https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing</a> 讲述了如果使用 keepalived 和 haproxy 来实现这个前提。这个连接讲述了三个部署 keepalive, haproxy 的方式。推荐还是使用第二或第三种，第一种方式仅作为我们理解背后工作的逻辑就好。</p><p>因为这里只是开发环境使用的 k8s，所以就不以 HA 的方式安装 k8s 了。。无非就是多了两个步骤：<br>1）准备 VIP/LB;<br>2）kubeadm –init 时，用–control-plane flag 添加其它 CP 节点而已）。</p><h2 id="1）为-kubeadm-准备虚拟机和-docker"><a href="#1）为-kubeadm-准备虚拟机和-docker" class="headerlink" title="1）为 kubeadm 准备虚拟机和 docker"></a>1）为 kubeadm 准备虚拟机和 docker</h2><h3 id="准备开发用-KVM-HOST-并-创建网桥"><a href="#准备开发用-KVM-HOST-并-创建网桥" class="headerlink" title="准备开发用 KVM HOST 并 创建网桥"></a>准备开发用 KVM HOST 并 创建网桥</h3><p>步骤参考：<br>a) 准备 kvm：<a href="https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/</a><br>b) 创建网桥：<a href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/">https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</a></p><h3 id="下载创建虚拟机的-CentOS7-镜像"><a href="#下载创建虚拟机的-CentOS7-镜像" class="headerlink" title="下载创建虚拟机的 CentOS7 镜像"></a>下载创建虚拟机的 CentOS7 镜像</h3><pre><code>curl -O https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2sudo mv -iv CentOS-7-x86_64-GenericCloud.qcow2 /var/lib/libvirt/images/</code></pre><h3 id="得到一键安装-GuestHost-和-Docker-的-ansible-脚本。"><a href="#得到一键安装-GuestHost-和-Docker-的-ansible-脚本。" class="headerlink" title="得到一键安装 GuestHost 和 Docker 的 ansible 脚本。"></a>得到一键安装 GuestHost 和 Docker 的 ansible 脚本。</h3><p>注意这里是使用分支 devenv 上的代码。</p><pre><code>cd ~/devenv_bootstrapgit clone -b devenv https://github.com/dhyuan/virt-infra-ansible.gitcd ~/devenv_bootstrap/virt-infra-ansible/rolesgit clone -b devenv https://github.com/dhyuan/ansible-role-virt-infraansible-galaxy install \--roles-path ~/.ansible/roles/ \git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0</code></pre><h3 id="根据自己的需求修改-K8S-master、nodes-节点的主机配置。"><a href="#根据自己的需求修改-K8S-master、nodes-节点的主机配置。" class="headerlink" title="根据自己的需求修改 K8S master、nodes 节点的主机配置。"></a>根据自己的需求修改 K8S master、nodes 节点的主机配置。</h3><p>注意：节点名称已经改为使用-而不是_以符合 DNS 规范。这点是 K8S 的要求，但是和 yaml 的格式规范使用下划线有点而冲突。</p><pre><code>cd ~/devenv_bootstrapvi inventory/k8s-masters.ymlvi inventory/k8s-nodes.yml</code></pre><h3 id="一键创建-master-nodes-虚拟机"><a href="#一键创建-master-nodes-虚拟机" class="headerlink" title="一键创建 master + nodes 虚拟机"></a>一键创建 master + nodes 虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \    --limit kvmhost,k8s-masters,k8s-nodes</code></pre><h3 id="一键在-master、nodes-节点上安装-docker"><a href="#一键在-master、nodes-节点上安装-docker" class="headerlink" title="一键在 master、nodes 节点上安装 docker"></a>一键在 master、nodes 节点上安装 docker</h3><pre><code>ansible-playbook ./install_docker.yml \--limit k8s-masters,k8s-nodes -v \-e &apos;{&quot;docker_repository_url&quot;: {&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;}}&apos;</code></pre><h3 id="验证环境"><a href="#验证环境" class="headerlink" title="验证环境"></a>验证环境</h3><p>在 KVM HOST 查看/etc/hosts 里面记录了各个主机节点 IP。<br>各节点互相 ping<br>登录到各主机检查 docker 引擎是否工作正常。<br><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png" title="This is an image"></p><h2 id="2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。"><a href="#2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。" class="headerlink" title="2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。"></a>2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。</h2><p>下面基本参照官网 <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/</a> 以及另阿良的<br><a href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a> 来进行。</p><h3 id="设置-kubernets-yum-源"><a href="#设置-kubernets-yum-源" class="headerlink" title="设置 kubernets yum 源"></a>设置 kubernets yum 源</h3><pre><code>cat &lt;&lt;EOF | sudo tee /etc/yum.repos.d/kubernetes.repo[kubernetes]name=Kubernetes# 使用阿里源baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpgenabled=1gpgcheck=0repo_gpgcheck=0exclude=kubelet kubeadm kubectlEOF</code></pre><h3 id="确保将桥接的-IPv4-流量传递到-iptables-的链："><a href="#确保将桥接的-IPv4-流量传递到-iptables-的链：" class="headerlink" title="确保将桥接的 IPv4 流量传递到 iptables 的链："></a>确保将桥接的 IPv4 流量传递到 iptables 的链：</h3><p>加载 br_netfilter 模块加载：</p><pre><code>sudo modprobe br_netfilterlsmod | grep br_netfilter</code></pre><p>设置 br_netfilter，也可设置在/etc/sysctl.d/99-sysctl.conf 文件里。</p><pre><code>cat &lt;&lt;EOF | sudo tee /etc/sysctl.d/k8s.confnet.bridge.bridge-nf-call-ip6tables=1net.bridge.bridge-nf-call-iptables=1EOFsudo sysctl --system</code></pre><h3 id="设置禁用-SELinux"><a href="#设置禁用-SELinux" class="headerlink" title="设置禁用 SELinux"></a>设置禁用 SELinux</h3><pre><code>sudo setenforce 0sudo sed -i &apos;s/^SELINUX=enforcing$/SELINUX=disabled/&apos; /etc/selinux/config</code></pre><h3 id="让各机器时间同步"><a href="#让各机器时间同步" class="headerlink" title="让各机器时间同步"></a>让各机器时间同步</h3><p>因为这里的环境是运行在 KVM 里的虚拟机，所以这一步可忽略。在生成环境中，各机器时间应该同步。</p><pre><code>yum install ntpdate -yntpdate time.windows.com</code></pre><h3 id="安装-kubeadm"><a href="#安装-kubeadm" class="headerlink" title="安装 kubeadm"></a>安装 kubeadm</h3><pre><code>sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetesyum list installed | grep kube</code></pre><p>此时可用的最新版本是 1.19.2。</p><h3 id="enable-kubelet"><a href="#enable-kubelet" class="headerlink" title="enable kubelet"></a>enable kubelet</h3><pre><code>sudo systemctl enable kubeletsudo systemctl status kubelet</code></pre><p>此时 kubelet 的状态是 failed，因为 api server 还没有起来。</p><h2 id="3）构建集群"><a href="#3）构建集群" class="headerlink" title="3）构建集群"></a>3）构建集群</h2><h3 id="在规划的-master-节点上首先初始化一个集群的-master-节点"><a href="#在规划的-master-节点上首先初始化一个集群的-master-节点" class="headerlink" title="在规划的 master 节点上首先初始化一个集群的 master 节点"></a>在规划的 master 节点上首先初始化一个集群的 master 节点</h3><p>这里要注意因为 gcr.io 被墙， 所以是使用 ali 镜像。各参数含义参考：<a href="https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/" target="_blank" rel="noopener">https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/</a><br>另外，关于 pod-network-cidr 的意义这篇文章非常好：<a href="https://blog.csdn.net/shida_csdn/article/details/104334372" target="_blank" rel="noopener">https://blog.csdn.net/shida_csdn/article/details/104334372</a><br>执行 kubeadm 时需要下载镜像，所以需要稍等一会儿。</p><pre><code>sudo kubeadm init \--apiserver-advertise-address=192.168.1.11 \--image-repository registry.aliyuncs.com/google_containers \--kubernetes-version v1.19.2 \--service-cidr=10.96.0.0/12 \--pod-network-cidr=10.244.0.0/16</code></pre><p>kubeadm init 命令输出大致如下，并且 kubelet 服务也已经正常。</p><pre><code>[bootstrap-token] Creating the &quot;cluster-info&quot; ConfigMap in the &quot;kube-public&quot; namespace[kubelet-finalize] Updating &quot;/etc/kubernetes/kubelet.conf&quot; to point to a rotatable kubelet client certificate and key[addons] Applied essential addon: CoreDNS[addons] Applied essential addon: kube-proxyYour Kubernetes control-plane has initialized successfully!To start using your cluster, you need to run the following as a regular user:  mkdir -p $HOME/.kube  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config  sudo chown $(id -u):$(id -g) $HOME/.kube/configYou should now deploy a pod network to the cluster.Run &quot;kubectl apply -f [podnetwork].yaml&quot; with one of the options listed at:  https://kubernetes.io/docs/concepts/cluster-administration/addons/Then you can join any number of worker nodes by running the following on each as root:kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \    --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d[devops@k8s-master-0 ~]$</code></pre><p>执行以下命令，让普通用户也能执行 kubectl 命令：</p><pre><code>mkdir -p $HOME/.kubesudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/configsudo chown $(id -u):$(id -g) $HOME/.kube/config</code></pre><h3 id="安装网络插件-flannel"><a href="#安装网络插件-flannel" class="headerlink" title="安装网络插件 flannel"></a>安装网络插件 flannel</h3><pre><code>wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml# 替换 quay.io 为国内镜像 quay.mirrors.ustc.edu.cnkubectl apply -f kube-flannel.yml# 验证网络插件安装成功kubectl get pods -n kube-system</code></pre><p>如果需要，可以删除刚才安装的 flannel 插件：</p><pre><code>kubectl delete -f kube-flannel.ymlip linkip link delete cni0ip link delete flannel.1</code></pre><h3 id="把-nodes-加入集群"><a href="#把-nodes-加入集群" class="headerlink" title="把 nodes 加入集群"></a>把 nodes 加入集群</h3><p>在各个 node 节点运行以下命令：</p><pre><code>sudo kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \        --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d</code></pre><h3 id="在-master-节点，验证-nodes-都成功加入-K8S-集群："><a href="#在-master-节点，验证-nodes-都成功加入-K8S-集群：" class="headerlink" title="在 master 节点，验证 nodes 都成功加入 K8S 集群："></a>在 master 节点，验证 nodes 都成功加入 K8S 集群：</h3><pre><code>[devops@k8s-master-0 ~]$ kubectl get nodesNAME           STATUS   ROLES    AGE     VERSIONk8s-master-0   Ready    master   72m     v1.19.2k8s-node-0     Ready    &lt;none&gt;   4m41s   v1.19.2k8s-node-1     Ready    &lt;none&gt;   76s     v1.19.2k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2[devops@k8s-master-0 ~]$</code></pre><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png" title="This is an image"><img src="/2020/09/28/devops/create_k8s_by_kubeadm/done.png" title="Done"><p>至此，已经完成了 Kubernetes 集群的搭建。</p><hr><p><em>Reference:</em></p><p><a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm" target="_blank" rel="noopener">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm</a><br><a href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a><br><a href="https://my.oschina.net/u/3021599/blog/4308021" target="_blank" rel="noopener">https://my.oschina.net/u/3021599/blog/4308021</a><br><a href="https://cloud.tencent.com/developer/article/1525487" target="_blank" rel="noopener">https://cloud.tencent.com/developer/article/1525487</a><br><a href="https://galaxy.ansible.com/geerlingguy/docker" target="_blank" rel="noopener">https://galaxy.ansible.com/geerlingguy/docker</a><br><a href="https://galaxy.ansible.com/" target="_blank" rel="noopener">https://galaxy.ansible.com/</a><br>在 CentOS7 上运行个 DHCP Server：<a href="https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/" target="_blank" rel="noopener">https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/</a><br><a href="https://www.cnblogs.com/hellxz/p/11044012.html" target="_blank" rel="noopener">https://www.cnblogs.com/hellxz/p/11044012.html</a></p>]]></content>
     
@@ -416,83 +485,6 @@ Kern
     
     </summary>
     
-    
-  </entry>
-  
-  <entry>
-    <title>用CountDownLatch做并发练习题</title>
-    <link href="https://dhyuan.github.io/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/"/>
-    <id>https://dhyuan.github.io/2020/04/11/用CountDownLatch做并发练习题/</id>
-    <published>2020-04-11T07:55:38.000Z</published>
-    <updated>2020-05-06T12:35:17.102Z</updated>
-    
-    <content type="html"><![CDATA[<p>拿CountDownLatch对比着Semaphore来学习会简单很多。<br>CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说</p><h5 id="1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"><a href="#1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。" class="headerlink" title="1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"></a>1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。</h5><h5 id="2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。"><a href="#2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。" class="headerlink" title="2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。"></a>2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。</h5><p>所以，对于LeetCode多线程练习题，只有1114题可以用CountDownLatch来完成。 <a href="https://leetcode-cn.com/problemset/concurrency/" target="_blank" rel="noopener">https://leetcode-cn.com/problemset/concurrency/</a> </p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;拿CountDownLatch对比着Semaphore来学习会简单很多。&lt;br&gt;CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说&lt;/p&gt;
-&lt;h5 id=&quot;1-CountDownLatch初始化之后设置的计数
-      
-    
-    </summary>
-    
-    
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>用Semaphore解决LeetCode并发练习题</title>
-    <link href="https://dhyuan.github.io/2020/04/10/Concurrency-in-LeetCode/"/>
-    <id>https://dhyuan.github.io/2020/04/10/Concurrency-in-LeetCode/</id>
-    <published>2020-04-10T10:03:53.000Z</published>
-    <updated>2020-04-11T07:54:36.144Z</updated>
-    
-    <content type="html"><![CDATA[<h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p><p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p><p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p><p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p><p>利用下面的知识点应该就足够团灭这几道题了。</p><p>1) 线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p><p>2) 调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p><p>3) 因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p><p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p><p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p><p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p><p>LeetCode 1114, 多线程按序打印1，2，3。</p><pre><code>public class FooBySemaphore {    public FooBySemaphore() {}    // 先打印 one， 所以这个初始化为放行。    private Semaphore firstPermission = new Semaphore(1);    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’    private Semaphore secondPermission = new Semaphore(0);    private Semaphore thirdPermission = new Semaphore(0);    public void first(Runnable printFirst) throws InterruptedException {        firstPermission.acquire();        printFirst.run();        secondPermission.release(); // 放行第二个线程    }    public void second(Runnable printSecond) throws InterruptedException {        secondPermission.acquire();        printSecond.run();        thirdPermission.release(); // 放行第三个线程    }    public void third(Runnable printThird) throws InterruptedException {        thirdPermission.acquire();        printThird.run();        firstPermission.release(); // 放行第一个线程    }}</code></pre><p>LeetCode 1117,  多线程生成水分子。</p><pre><code>public class H2OBySemaphore {    /**     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。     *     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。     * 生产出2个氢原子后oSemaphore的信号数量就是2。     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。     *     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。     */    public H2OBySemaphore() {    }    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException {        hPermission.acquire();        releaseHydrogen.run();        oPermission.release();    }    public void oxygen(Runnable releaseOxygen) throws InterruptedException {        oPermission.acquire(2);        releaseOxygen.run();        hPermission.release(2);    }}</code></pre><p>LeetCode 1226, 哲学家就餐问题。</p><pre><code>public class DiningPhilosophers {    private Semaphore[] forksPermission = new Semaphore[5];    public DiningPhilosophers() {        for (int i = 0; i &lt; 5; i ++) {            forksPermission[i] = new Semaphore(1);        }    }    // call the run() method of any runnable to execute its code    public void wantsToEat(int philosopher,                           Runnable pickLeftFork,                           Runnable pickRightFork,                           Runnable eat,                           Runnable putLeftFork,                           Runnable putRightFork) throws InterruptedException {        int leftFork = philosopher;        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5        int rightFork = (philosopher + 4) % 5;        while (true) {            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。            if (forksPermission[leftFork].tryAcquire()) {                 // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。                // 拿到左叉，尝试拿右叉。                if (forksPermission[rightFork].tryAcquire()) {                    // 左叉，右叉都拿到了。开吃！                     pickLeftFork.run();                    pickRightFork.run();                    eat.run();                    putLeftFork.run();                    forksPermission[leftFork].release();                    putRightFork.run();                    forksPermission[rightFork].release();                    break; // 吃完退出(线程)                } else {                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。                    forksPermission[leftFork].release();                    Thread.sleep(1); //_ 为什么必须sleep？                }            } else {                // 没抢到左叉，歇歇继续试。                Thread.sleep(1);  //_ 为什么必须sleep？            }        }    }}</code></pre>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h4 id=&quot;Semaphore&quot;&gt;&lt;a href=&quot;#Semaphore&quot; class=&quot;headerlink&quot; title=&quot;Semaphore&quot;&gt;&lt;/a&gt;Semaphore&lt;/h4&gt;&lt;p&gt;Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。
-      
-    
-    </summary>
-    
-    
-      <category term="Java" scheme="https://dhyuan.github.io/tags/Java/"/>
-    
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>锁这个词太有意思了，有几个意思？</title>
-    <link href="https://dhyuan.github.io/2020/04/02/Nonblocking-comes-from-CAS/"/>
-    <id>https://dhyuan.github.io/2020/04/02/Nonblocking-comes-from-CAS/</id>
-    <published>2020-04-02T07:39:09.000Z</published>
-    <updated>2020-04-29T15:56:11.134Z</updated>
-    
-    <content type="html"><![CDATA[<p>读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？</p><p>并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。<br>从更一般的、更笼统的意义上讲锁跟synchronizer其实一个意思，都可以看作是协调线程、控制线程的对象。这里所谓的更一般是说，我们可以把CountDownLatch、Semphore这些不带Locak字眼的Synchronizer也化分到锁这个概念里。</p><p>这样把概念统一到锁上之后，我们就可以把锁/Synchronizer分成耳熟能详的两类了：悲观锁、乐观锁。<br>对于乐观锁正如数据库事务解决方案里提到的乐观锁的概念，核心就是与观察旧值是否有变化而决定是否成功修改。<br>所以乐观锁想成基于“compare and set”的算法更好。更进一步把锁想成算法就好，具体的门锁那种感觉有点二狭隘了。<br>从最根本的提供“锁“算法实现的CPU指令上讲：对于乐观锁是CAS(LL, SC)提供了最核心的支持，对于悲观锁(对应到OS的互斥量，java的thread都一一映射到OS的thread)是lock指令前缀。除了这些CPU指令还有混存一致性协议这样的技术一起向上层提供了实现各种Syncrhonizer(悲观锁/乐观锁)的最基础支持。更详细内容可以参考文末的引用链接。</p><p>基于CAS实现的乐观锁其实不牵扯到什么类似mutex这样<strong>具体的锁</strong>，把它当作一种synchronizer就好(怎么有点儿金刚经的感觉)。我们可以利用CAS指令实现了非阻塞的多线程协调工作的各种算法。比如，列用CAS实现非阻塞计数器、非阻塞栈、非阻塞队列。JDK中的ConcurrentLinkedQueue就是利用原子化域更新器实现的支持并发(多线程)操作的非阻塞数据结构。</p><p>基于CAS cpu指令的有ABA问题。而load-linked/store-condition这样的cpu指令可以避免ABA问题。<br>从API的角度，可以用AtomicMarkableReference, AtomicStampedReference避免CAS下的ABA。<br><a href="https://en.wikipedia.org/wiki/ABA_problem。" target="_blank" rel="noopener">https://en.wikipedia.org/wiki/ABA_problem。</a></p><p>References:<br>《Java并发编程实践》<br><a href="https://www.ibm.com/developerworks/cn/java/j-jtp04186/" target="_blank" rel="noopener">https://www.ibm.com/developerworks/cn/java/j-jtp04186/</a></p><p>0、<a href="https://blog.csdn.net/Saintyyu/article/details/94493694" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/94493694</a><br>1、<a href="https://blog.csdn.net/zacklin/article/details/7445442" target="_blank" rel="noopener">https://blog.csdn.net/zacklin/article/details/7445442</a> 原子操作与 x86 上的 lock 指令前缀<br>2、<a href="https://www.cnblogs.com/xrq730/p/7048693.html" target="_blank" rel="noopener">https://www.cnblogs.com/xrq730/p/7048693.html</a> 就是要你懂Java中volatile关键字实现原理<br>3、<a href="https://blog.csdn.net/u011244446/article/details/52574369" target="_blank" rel="noopener">https://blog.csdn.net/u011244446/article/details/52574369</a> Linux 互斥锁、原子操作实现原理<br>4、<a href="https://www.jianshu.com/p/6745203ae1fe" target="_blank" rel="noopener">https://www.jianshu.com/p/6745203ae1fe</a> 关于volatile、MESI、内存屏障、#Lock<br>5、<a href="https://www.jianshu.com/p/61490effab35" target="_blank" rel="noopener">https://www.jianshu.com/p/61490effab35</a> 操作系统中锁的原理<br>6、<a href="https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html" target="_blank" rel="noopener">https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html</a> Linux中同步互斥机制研究之原子操作<br>7、<a href="https://blog.csdn.net/Saintyyu/article/details/100838503" target="_blank" rel="noopener">https://blog.csdn.net/Saintyyu/article/details/100838503</a> cas vs mutex</p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？&lt;/p&gt;
-&lt;p&gt;并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。&lt;br&gt;从更一般的、更笼统的意义上讲锁跟synchroniz
-      
-    
-    </summary>
-    
-    
-      <category term="Concurrency" scheme="https://dhyuan.github.io/tags/Concurrency/"/>
-    
-      <category term="笔记" scheme="https://dhyuan.github.io/tags/%E7%AC%94%E8%AE%B0/"/>
     
   </entry>
   
