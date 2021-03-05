@@ -66,10 +66,8 @@
 <h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
 mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
 </code></pre><h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
-<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。</p>
-<p>g <a href="https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/" target="_blank" rel="noopener">https://www.myfreax.com/how-to-add-apt-repository-in-ubuntu/</a></p>
-<p>… virt-infra-ansible/inventory/dev-servers.yml，内容如下：</p>
-<pre><code>devServers:
+<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
+<pre><code>devopServers:
     hosts:
         repositoryServer:
         virt_infra_state: running
@@ -155,6 +153,11 @@ Docker version 20.10.4, build d3cb89e
       
         
         
+  
+  <div class="tags">
+    <a href="/tags/devops/">devops</a>
+  </div>
+
         
   <div class="addthis addthis_toolbox addthis_default_style">
     
@@ -250,7 +253,7 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>11</small></li>
+    <li><a href="/tags/devops/">devops</a><small>13</small></li>
   
     <li><a href="/tags/docker/">docker</a><small>2</small></li>
   

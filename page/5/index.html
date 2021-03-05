@@ -50,6 +50,66 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/07/spring-cloud-consul-config/">spring cloud config 之 consul</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p><em>Reference</em>:<br><a href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config" target="_blank" rel="noopener">使用Consul作为配置信息的Repository</a></p>
+<p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p>
+<p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p>
+<pre><code>org.springframework.cloud:spring-cloud-consul-config
+</code></pre><p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        enabled: true
+        prefix: configuration
+        defaultContext: apps
+        profileSeparator: &apos;::&apos;
+</code></pre><p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        format: YAML
+
+
+config/testApp,dev/data
+config/testApp/data
+config/application,dev/data
+config/application/data
+</code></pre><p>可以通过下面的设置，修改健data的值</p>
+<pre><code>spring.cloud.consul.config.data-key
+</code></pre><p>4）git2consul<br>consul社区的开源项目<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见<a href="https://github.com/Cimpress-MCP/git2consul" target="_blank" rel="noopener">]https://github.com/Cimpress-MCP/git2consul</a>。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
       
       
@@ -434,7 +494,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>11</small></li>
+    <li><a href="/tags/devops/">devops</a><small>13</small></li>
   
     <li><a href="/tags/docker/">docker</a><small>2</small></li>
   

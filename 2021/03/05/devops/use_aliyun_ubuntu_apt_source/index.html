@@ -1,0 +1,276 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>设置Ubuntu Guest使用aliyun apt镜像源 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：
+ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars ">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="设置Ubuntu Guest使用aliyun apt镜像源"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content="undefined"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Dahui’s 开发笔记" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+  
+
+</head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title">设置Ubuntu Guest使用aliyun apt镜像源</h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true
+</code></pre><p>通过在命令行里设置参数 change_to_ali_ubuntu_source=yes 来创建虚拟机的时候进行 ali ubunt apt source 的设置。</p>
+<p>1）禁止使用 could init 设置默认的 apt sources</p>
+<pre><code>- name: Do not use cloud source
+  command: &gt;
+    virt-customize
+    -a {{ hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) }}/{{ inventory_hostname }}-boot.qcow2
+    --run-command &quot;echo &apos;apt_preserve_sources_list: true&apos; &gt;&gt; /etc/cloud/cloud.cfg&quot;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&apos;kvmhost&apos;]
+    - inventory_hostname not in hostvars[groups[&apos;kvmhost&apos;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;{{ groups['kvmhost'][0] }}&quot;
+</code></pre><p>2）使用 aliyun 的 ubuntu apt source 镜像。</p>
+<pre><code>- name: Setup Aliyun Source
+  command: &gt;
+    virt-customize
+    -a {{ hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) }}/{{ inventory_hostname }}-boot.qcow2
+    --run-command &apos;mv /etc/apt/sources.list /etc/apt/sources.list.bak&apos;
+    --run-command &apos;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+    --run-command &apos;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&apos;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&apos;kvmhost&apos;]
+    - inventory_hostname not in hostvars[groups[&apos;kvmhost&apos;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;{{ groups['kvmhost'][0] }}&quot;
+</code></pre><p>3）删除已存在的 Guest 并重新创建。这个虚拟使用 Ali 源并跟随宿主机启动时自动启动。</p>
+<pre><code>[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
+[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true --extra-vars virt_infra_autostart=yes
+</code></pre><ol start="4">
+<li><p>安装 Docker 环境</p>
+<p>[devops@localhost virt-infra-ansible]$ ansible-playbook ./install_docker.yml –limit ubuntu20Server -vv –extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal</p>
+</li>
+</ol>
+<p>参考：</p>
+<p>关于 virt-customize 命令<br><a href="https://libguestfs.org/virt-customize.1.html" target="_blank" rel="noopener">https://libguestfs.org/virt-customize.1.html</a><br> <a href="https://ywnz.com/linuxjc/5680.html" target="_blank" rel="noopener">https://ywnz.com/linuxjc/5680.html</a></p>
+<p>关于 Ansible yaml 中 command<br><a href="https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html" target="_blank" rel="noopener">https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/devops/">devops</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/03/05/devops/use_aliyun_ubuntu_apt_source/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="q" value="site:dhyuan.github.io">
+  </form>
+</div>
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>3</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/devops/">devops</a><small>13</small></li>
+  
+    <li><a href="/tags/docker/">docker</a><small>2</small></li>
+  
+    <li><a href="/tags/kubernets/">kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/笔记/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+      &copy; 2021 Dahui
+      <!-- 不蒜统计 -->
+	  <br>
+	  <span style="display: inline;" id="busuanzi_container_site_uv">本站总访客数 <span id="busuanzi_value_site_uv" font="微软雅黑" style="color:black"></span> 次</span>
+	  <span style="display: inline;" id="busuanzi_container_site_pv">本站总访问量 <span id="busuanzi_value_site_pv" font="微软雅黑" style="color:black"></span> 次</span>
+
+  
+</div>
+<div class="clearfix"></div>
+<script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js">
+</script>
+</footer>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
