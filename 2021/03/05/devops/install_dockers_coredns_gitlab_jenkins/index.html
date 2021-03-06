@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   
-  <title>安装CoreDNS、GitLab、Jennkis | Dahui’s 开发笔记</title>
+  <title>安装CoreDNS、GitLab、Jenkins | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
   <meta name="description" content="在之前创建的 repository server 上安装下面的服务。
-1）搭建 DNS 服务Reference:BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）： https://computingforgeeks.com/bind-vs-dnsmasq-vs-p">
+1）搭建 CoreDNS 服务先从 Docer Hub 上拉取 CoreDNS 镜像。docker pull coredns/coredns:1.8.3
+停止 Ubuntu 上默认启动的 DNS 服务。在下载 coredns 镜像">
   
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="安装CoreDNS、GitLab、Jennkis"/>
+  <meta property="og:title" content="安装CoreDNS、GitLab、Jenkins"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -56,15 +57,14 @@
       
       
   
-    <h1 class="title">安装CoreDNS、GitLab、Jennkis</h1>
+    <h1 class="title">安装CoreDNS、GitLab、Jenkins</h1>
   
 
     </header>
     <div class="entry">
       
         <p>在之前创建的 repository server 上安装下面的服务。</p>
-<h3 id="1）搭建-DNS-服务"><a href="#1）搭建-DNS-服务" class="headerlink" title="1）搭建 DNS 服务"></a>1）搭建 DNS 服务</h3><p>Reference:<br>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）： <a href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/" target="_blank" rel="noopener">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker： <a href="https://blog.csdn.net/weixin_36938307/article/details/105390004" target="_blank" rel="noopener">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
-<h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+<h3 id="1）搭建-CoreDNS-服务"><a href="#1）搭建-CoreDNS-服务" class="headerlink" title="1）搭建 CoreDNS 服务"></a>1）搭建 CoreDNS 服务</h3><h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
 </code></pre><h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
 <pre><code>sudo systemctl disable systemd-resolved
 sudo systemctl stop systemd-resolved
@@ -100,6 +100,8 @@ devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
 coredns/coredns:1.8.3 \
 -conf /etc/coredns/Corefile
 </code></pre><p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<p>Reference:</p>
+<p>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）：<br><a href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/" target="_blank" rel="noopener">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker：<br><a href="https://blog.csdn.net/weixin_36938307/article/details/105390004" target="_blank" rel="noopener">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
 <h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
 <pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
 sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
