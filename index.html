@@ -50,6 +50,116 @@
     <header>
       
         <div class="icon"></div>
+        <time datetime="2021-03-05T14:59:25.000Z"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">安装CoreDNS、GitLab、Jennkis</a></h1>
+  
+
+    </header>
+    <div class="entry">
+      
+        <p>在之前创建的 repository server 上安装下面的服务。</p>
+<h3 id="1）搭建-DNS-服务"><a href="#1）搭建-DNS-服务" class="headerlink" title="1）搭建 DNS 服务"></a>1）搭建 DNS 服务</h3><p>Reference:<br>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）： <a href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/" target="_blank" rel="noopener">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker： <a href="https://blog.csdn.net/weixin_36938307/article/details/105390004" target="_blank" rel="noopener">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
+<h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+</code></pre><h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
+<pre><code>sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+</code></pre><h4 id="在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下："><a href="#在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下：" class="headerlink" title="在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下："></a>在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下：</h4><p>192.168.0.1 是家里无线路由器的 IP 地址。我这里用的是 TL-WDR7650 千兆易展无线路由。</p>
+<pre><code># ls
+Corefile  hostsfile
+# cat Corefile
+.:53 {
+    hosts /etc/coredns/hostsfile {
+        fallthrough
+    }
+    forward . 192.168.0.1:53
+    log
+}
+</code></pre><p>把之前创建的 Guest 虚拟机 IP 都加进来。</p>
+<pre><code># cat hostsfile
+devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
+192.168.0.114 repositoryServer dnsServer gitlab jenkins gitlab.telbox.cn jenkins.telbox.cn
+192.168.0.112 devopServer0
+192.168.0.113 devopServer1
+192.168.0.115 devopServer2
+
+192.168.0.106 k8s-master-0
+192.168.0.107 k8s-node-0
+192.168.0.109 k8s-node-1
+192.168.0.108 k8s-node-2
+
+192.168.0.114 basehost0
+192.168.0.111 ubuntu20Server
+</code></pre><h4 id="运行-CoreDNS-镜像"><a href="#运行-CoreDNS-镜像" class="headerlink" title="运行 CoreDNS 镜像"></a>运行 CoreDNS 镜像</h4><pre><code>docker run -it -d --net=host \
+--name=coredns --restart=always \
+-v /home/devops/dockerSrvStorage/coredns:/etc/coredns/ \
+coredns/coredns:1.8.3 \
+-conf /etc/coredns/Corefile
+</code></pre><p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
+sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
+
+sudo docker run --detach \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--name gitlab \
+--restart always \
+--volume /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.9.2-ce.0
+</code></pre><p>如有需要，可进入 GitLab 容器进行配置。</p>
+<pre><code>sudo docker exec gitlab gitlab-ctl reconfigure
+</code></pre><p>第一次访问安装好的 GitLab 服务<a href="http://gitlab.telbox.cn:9180/需要设置root用户的口令。" target="_blank" rel="noopener">http://gitlab.telbox.cn:9180/需要设置root用户的口令。</a></p>
+<p>Reference:<br><a href="https://www.jianshu.com/p/080a962c35b6" target="_blank" rel="noopener">https://www.jianshu.com/p/080a962c35b6</a><br><a href="https://zhuanlan.zhihu.com/p/63786567" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/63786567</a></p>
+<h3 id="3）Jenkins"><a href="#3）Jenkins" class="headerlink" title="3）Jenkins"></a>3）Jenkins</h3><pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins
+
+sudo docker run -p 9183:8080 -p 9184:50000 \
+--name jenkins -d \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+jenkins/jenkins:lts
+</code></pre><p>启动后，进入 docker 查看初始密码。首次访问 jenkins.telbox.cn:9183 时会用到这个密码。</p>
+<pre><code>sudo docker exec -it jenkins bash
+jenkins@e061aa64ed7b:/$ cat /var/jenkins_home/secrets/initialAdminPassword
+</code></pre><p>访问 jenkins.telbox.cn:9183 输入初始密码，选择安装建议的插件。<br>插件安装完毕后，要求输入 Jenkins URL，这里输入 jenkins.telbox.cn:9183</p>
+<blockquote>
+<p>The Jenkins URL is used to provide the root URL for absolute links to various Jenkins resources. That means this value is required for proper operation of many Jenkins features including email notifications, PR status updates, and the BUILD_URL environment variable provided to build steps.<br>The proposed default value shown is not saved yet and is generated from the current request, if possible. The best practice is to set this value to the URL that users are expected to use. This will avoid confusion when sharing or viewing links.</p>
+</blockquote>
+<p>如果需要，<strong>可以给 Jenkins 配置日志</strong>：</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/data
+cat &gt; /home/devops/dockerSrvStorage/jenkins/data/log.properties &lt;&lt;EOF
+handlers=java.util.logging.ConsoleHandler
+jenkins.level=FINEST
+java.util.logging.ConsoleHandler.level=FINEST
+EOF
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-Djava.util.logging.config.file=/var/jenkins_home/log.properties&quot; -v `pwd`/data:/var/jenkins_home jenkins
+</code></pre><p>如果 Jenkins 插件安装比较慢，可以使用国内插件镜像源，参考<a href="https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。" target="_blank" rel="noopener">https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。</a></p>
+<p>Reference:<br><a href="https://github.com/jenkinsci/docker/blob/master/README.md" target="_blank" rel="noopener">https://github.com/jenkinsci/docker/blob/master/README.md</a><br><a href="https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html" target="_blank" rel="noopener">https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article class="post">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
         <time datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">2021-03-05</a></time>
       
       
@@ -605,60 +715,6 @@ public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt
 
 
 
-  <article class="post">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time datetime="2020-09-30T03:21:02.000Z"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">2020-09-30</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">安装k8s的Dashboard</a></h1>
-  
-
-    </header>
-    <div class="entry">
-      
-        <p>安装 Dashboard 相较之前的步骤就容易很多了。</p>
-<h3 id="下载-Dashboard-yaml"><a href="#下载-Dashboard-yaml" class="headerlink" title="下载 Dashboard yaml"></a>下载 Dashboard yaml</h3><p>这里使用 Dashboard 2.0.4。</p>
-<pre><code>wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
-
-vi recommended.yml
-
-# 设置node port，让集群外部通过node port可以访问Dashboard
-    nodePort: 30443
-type: NodePort
-</code></pre><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_node_port.png" title="Dashboard Home Page">
-<h3 id="安装-Dashboard"><a href="#安装-Dashboard" class="headerlink" title="安装 Dashboard"></a>安装 Dashboard</h3><pre><code>kubectl apply -f recommended.yaml
-kubectl get pods -n kubernetes-dashboard
-</code></pre><h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>此时访问 <a href="http://master_node_ip:30443" target="_blank" rel="noopener">http://master_node_ip:30443</a> 并用 kubeadmin init 输出的 token 可以登录到 Dashboard 管理界面。</p>
-<h3 id="创建-Dashboard-专用登录用户"><a href="#创建-Dashboard-专用登录用户" class="headerlink" title="创建 Dashboard 专用登录用户"></a>创建 Dashboard 专用登录用户</h3><pre><code># 创建用户 devops
-kubectl create serviceaccount devops -n kube-system
-
-# 授权
-kubectl create clusterrolebinding devops --clusterrole=cluster-admin --serviceaccount=kube-system:devops
-
-kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | awk &apos;/devops/{print $1}&apos;)
-</code></pre><p>访问 <a href="http://master_node_ip:30443" target="_blank" rel="noopener">http://master_node_ip:30443</a> 并用 devops 的 token 登录。</p>
-<img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_home_page.png" title="kubelet up">
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -716,7 +772,7 @@ kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | aw
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/devops/">devops</a><small>13</small></li>
+    <li><a href="/tags/devops/">devops</a><small>14</small></li>
   
     <li><a href="/tags/docker/">docker</a><small>2</small></li>
   
