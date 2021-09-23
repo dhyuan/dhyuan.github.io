@@ -1,0 +1,243 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>响应式流的生命周期 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="这里所说的响应式流的生命周期是说我们从定义响应式流到触发这个流的处理所经历的不同阶段。总的来说，就是三个阶段。组装时、订阅时、运行时。
+组装时这个阶段就是我们建立处理模型的阶段。基本上是解决了下面 3 个方面的问题。
+1）定义这个 reactive stream 的数据来源是什么。Publisher">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="响应式流的生命周期"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">2021-04-13</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">响应式流的生命周期</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这里所说的响应式流的生命周期是说我们从定义响应式流到触发这个流的处理所经历的不同阶段。<br>总的来说，就是三个阶段。组装时、订阅时、运行时。</p>
+<h2 id="组装时"><a href="#组装时" class="headerlink" title="组装时"></a>组装时</h2><p>这个阶段就是我们建立处理模型的阶段。基本上是解决了下面 3 个方面的问题。</p>
+<h3 id="1）定义这个-reactive-stream-的数据来源是什么。Publisher"><a href="#1）定义这个-reactive-stream-的数据来源是什么。Publisher" class="headerlink" title="1）定义这个 reactive stream 的数据来源是什么。Publisher"></a>1）定义这个 reactive stream 的数据来源是什么。Publisher</h3><p>这个阶段我们通过使用诸如 just(), range(), fromArray(), push(), create(), generate()等方法来设置数据源头。</p>
+<h3 id="2）这个数据流的最终订阅者是谁？Subscriber"><a href="#2）这个数据流的最终订阅者是谁？Subscriber" class="headerlink" title="2）这个数据流的最终订阅者是谁？Subscriber"></a>2）这个数据流的最终订阅者是谁？Subscriber</h3><p>我们在最下游 publisher 上通过调用 subscribe()方法把 subscriber 从下游到上游依次传递到最上游的包含数据源的 publisher。</p>
+<h3 id="3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator"><a href="#3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator" class="headerlink" title="3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator"></a>3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator</h3><p>以上两个调用解决了数据来源于哪里、被谁最终接收的问题。但是在数据从上游被传递到下游的过程中，我们往往需要对数据做各种处理。这个阶段就各种 operator 大显身手的地方，比如 map(), flatMap(), filter(), reduce(), scan(), concatMap(), usingWhen()… …<br>实际上每经历一个 operator，就生成了一个新的中间级别的 publisher，这就是 reactive stream 的不可变性。</p>
+<p>组装时基本就是我们写出的代码定义出的静态逻辑这部分。<br>程序运行起来，才会进入下面的两个阶段：订阅时、运行时，所以说这两个阶段是程序的动态表现。</p>
+<h2 id="订阅时"><a href="#订阅时" class="headerlink" title="订阅时"></a>订阅时</h2><p>通过组装时我们定义了什么数据(publisher)经过怎样的处理(operator)最后传递给谁(subscriber)。而订阅时这个阶段，解决的问题是把调用下游 publisher 时传入的 subscriber 依次传递给上游的的 publisher。可以想象 Project Reactor 在传递 subscriber 的时候是依次进行封装之后传递的而不会是直接把下游的 subscriber 传递上去，因为以 operator 串联起来的各个 publisher 都需要“自己”的 subscriber。可以体会下这里“Subscriber 链”的概念。<br>这个传递过程很重要，因为 subscriber 中的 onSubscribe(Subscription s)提供了上游 publisher 把 Subscription 传递给下游 Subscriber 的机制。<br>因为 Subscriber 只有通过 subsciption 的 request 方法才能启动数据的流动。</p>
+<h2 id="运行时"><a href="#运行时" class="headerlink" title="运行时"></a>运行时</h2><p>经过组装时、订阅时，数据流已经“一触即发”。我们只有通过上游传递给我们的 Subscription 调用 request()方法就可以触发数据的流动了。<br>通过（在 Subscirberd 的 onSubscription(), onNext()被回调时）向 Subscription 的 request()传入不同的数字，我们分别可以实现拉模型、推模型、拉-推模型。<br>响应式流的运行时所强调的就是这种 Publisher 和 Subscriber 之间的信号交换。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Reactive-Programming/">Reactive Programming</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/04/13/reactive/reactive_stream_lifecycle/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

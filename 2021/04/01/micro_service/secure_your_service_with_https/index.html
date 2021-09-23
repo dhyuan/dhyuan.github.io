@@ -1,0 +1,250 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>创建基于HTTPS的服务 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="关于私钥、公钥的生成https://www.cnblogs.com/charlesblc/p/6130433.htmlhttps://blog.csdn.net/qq_41259576/article/details/91356419
+KeyStore vs OpenSSLKeyStore with">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="创建基于HTTPS的服务"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-micro_service/secure_your_service_with_https" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">2021-04-01</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">创建基于HTTPS的服务</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="关于私钥、公钥的生成"><a href="#关于私钥、公钥的生成" class="headerlink" title="关于私钥、公钥的生成"></a>关于私钥、公钥的生成</h3><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/charlesblc/p/6130433.html">https://www.cnblogs.com/charlesblc/p/6130433.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h3 id="KeyStore-vs-OpenSSL"><a href="#KeyStore-vs-OpenSSL" class="headerlink" title="KeyStore vs OpenSSL"></a>KeyStore vs OpenSSL</h3><h3 id="KeyStore-with-keytool"><a href="#KeyStore-with-keytool" class="headerlink" title="KeyStore with keytool"></a>KeyStore with keytool</h3><p>KeyStor 有三种类型（格式）：JKS， PKCS12 。。</p>
+<h4 id="1-创建一个自签名证书和密钥"><a href="#1-创建一个自签名证书和密钥" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><pre><code>keytool -genkeypair -keystore demoAppKeyStore.jks \
+-alias demoAppServer \
+-keyalg RSA \
+-keysize 3072 \
+-validity 36500 \
+-storepass demoApp
+</code></pre>
+<h4 id="2-导出证书"><a href="#2-导出证书" class="headerlink" title="2. 导出证书"></a>2. 导出证书</h4><pre><code>keytool -export -alias demoAppServer -file demoApp.crt -keystore demoAppKeyStore.keystore
+</code></pre>
+<h4 id="1-创建一个自签名证书和密钥-1"><a href="#1-创建一个自签名证书和密钥-1" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-2"><a href="#1-创建一个自签名证书和密钥-2" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-3"><a href="#1-创建一个自签名证书和密钥-3" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><p>docker run –name nginx -v ~/devEnv/dockerSrvStorage/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx</p>
+<h3 id="什么是跨站请求伪造"><a href="#什么是跨站请求伪造" class="headerlink" title="什么是跨站请求伪造"></a>什么是跨站请求伪造</h3><p>例子：A 是受害用户，B 是银行，C 是恶意代码。C 利用浏览器里存在的有效 A 到 B 的 session(cookie)来伪造请求。再加上利用 XSS 漏洞，用户可以子在无感知的情况下被伤害。<br>Cross-Site Scripting (XSS)</p>
+<p><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained</a></p>
+<p>Reference:</p>
+<p>What is keystore: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/23202046/what-is-keystore">https://stackoverflow.com/questions/23202046/what-is-keystore</a><br>openssl vs keystore: <a target="_blank" rel="noopener" href="https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool">https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Security/">Security</a>, <a href="/tags/MicroService/">MicroService</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/04/01/micro_service/secure_your_service_with_https/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

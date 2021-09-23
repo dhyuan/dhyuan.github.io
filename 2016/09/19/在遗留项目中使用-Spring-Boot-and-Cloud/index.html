@@ -1,0 +1,322 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>在遗留项目中使用 Spring Boot and Cloud | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇官方文档介绍了在已有parent pom的情况下如何使用boot。
+下面算是几个学">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="在遗留项目中使用 Spring Boot and Cloud"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-在遗留项目中使用-Spring-Boot-and-Cloud" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-19T14:34:40.000Z"><a href="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/">2016-09-19</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">在遗留项目中使用 Spring Boot and Cloud</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇<a target="_blank" rel="noopener" href="http://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html">官方文档</a>介绍了在已有parent pom的情况下如何使用boot。</p>
+<p>下面算是几个学习摘要。</p>
+<p><strong>1) 如果遗留项目中没有使用自己parent pom，那么在项目模块中就可以直接设置parent为spring-boot-starter-parent</strong></p>
+<pre><code>&lt;!-- Inherit defaults from Spring Boot --&gt;
+&lt;parent&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+    &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+&lt;/parent&gt;
+</code></pre>
+<p>如果想更改某个子项目版本，通过下面设置属性的方式进行更改。</p>
+<pre><code>&lt;properties&gt;
+    &lt;spring-data-releasetrain.version&gt;Fowler-SR2&lt;/spring-data-releasetrain.version&gt;
+&lt;/properties&gt;
+</code></pre>
+<p>查看有哪些可更改的properties，<a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-boot/blob/v1.3.6.RELEASE/spring-boot-dependencies/pom.xml">参考这里</a>。</p>
+<p><strong>2）如果已有的maven项目中已经存在parent pom，那么可以通过 denpendencyManagemengt的方式指定boot的BOM。</strong></p>
+<pre><code>&lt;dependencyManagement&gt;
+     &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;!-- Import dependency management from Spring Boot --&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p>这种情况下，如果需要指定某个版本的库，就需要在定义spring-boot-dependencies的前面定义dependence了。就像下面这样，spring-data-releasetrain使用了不同于1.3.6.RELEASE的另一个版本Fowler-SR2。</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;!-- Override Spring Data release train provided by Spring Boot --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-data-releasetrain&lt;/artifactId&gt;
+            &lt;version&gt;Fowler-SR2&lt;/version&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p><strong>3）关于Maven中BOM[Bill Of Materials]的概念。</strong><br>这篇文章讲得不错：<a target="_blank" rel="noopener" href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a>。</p>
+<blockquote>
+<p>A BOM dependency keep track of version numbers and ensure that all dependencies (both direct and transitive) are at the same version.</p>
+</blockquote>
+<p><strong>4) 如何添加BOM依赖?</strong></p>
+<p>maven通过dependencyManagement来支持BOM。比如像下面这样加入Spring BOM。</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-framework-bom&lt;/artifactId&gt;
+            &lt;version&gt;4.0.1.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p>那么，以后再使用那个这个BOM包含的库时，就不必制定version了。比如：</p>
+<pre><code>&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-context&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-web&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+&lt;dependencies&gt;
+</code></pre>
+<p>在__dependencyManagement下的声明不会引入实际的依赖__，它仅仅__用来约束dependencies__下面的依赖使用。<br>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p>
+<p><strong>5) 图例</strong></p>
+<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。</p>
+
+
+
+
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Maven/">Maven</a>, <a href="/tags/Spring/">Spring</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

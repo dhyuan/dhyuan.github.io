@@ -1,0 +1,790 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 6 页 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-android-emulator-operations" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2018-08-27T13:59:10.000Z"><a href="/2018/08/27/android-emulator-operations/">2018-08-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/08/27/android-emulator-operations/">修改Android模拟器中的文件</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本地开发机运行着server向跑在模拟器中的app提供rest api服务。</p>
+<p><strong>1）模拟器中的127.0.0.1是指模拟器自己本机。</strong></p>
+<p><strong>2）模拟器中使用10.0.2.2来访问开发机。</strong></p>
+<p><strong>3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。</strong></p>
+<pre><code>// 列出安装的模拟器
+emulator -list-avds
+
+// 以可写模式启动模拟器
+emulator -avd Your_Emulator_Name -writable-system
+adb root
+adb remount
+
+// 把模拟器上的文件pull到本地
+adb pull /etc/hosts newHosts
+
+// 添加 &quot;10.0.2.2    your_domain&quot;
+vi newHosts             
+
+adb push newHosts /etc/hosts
+
+// 进入模拟器的shell
+adb shell
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Reactive-Scala-Driver-for-MongoDB" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-11-13T07:22:50.000Z"><a href="/2016/11/13/Reactive-Scala-Driver-for-MongoDB/">2016-11-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/11/13/Reactive-Scala-Driver-for-MongoDB/">Reactive Scala Driver for MongoDB</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>其实最好的学习文档就是官方提供的<a target="_blank" rel="noopener" href="http://reactivemongo.org/releases/0.12/documentation/index.html">http://reactivemongo.org/releases/0.12/documentation/index.html</a>。</p>
+<p><strong><a target="_blank" rel="noopener" href="http://reactivemongo.org/releases/0.12/documentation/tutorial/connect-database.html">关于Driver和Connection</a></strong></p>
+<p>MongoDriver的实例管理者共享的资源，比如用于异步处理的actor system。<br>一个连接管理着网络连接池。通常一个driver和connection在一个应用中只需要一个实例即可。</p>
+<p>MongoConnection是一个逻辑连接的表示，实际是有一个连接池构成，默认有10个连接。可以通过connection option参数rm.nbChannelsPerNode进行设置。<br>Driver和connection的创建是有代价的，所以在应用中可以创建之后共享使用。而DefaultDB， Collection这样的对象是及其轻量的，随用随建即可。而且我们也不应创建出DB，Collection之后把这些引用就保存起来一直使用，因为如果底层网络出现问题，你一直使用的这个DB活着Collection对象就会出现问题。随用随取这种方式可以避免获得有问题的对象。</p>
+<p><strong>Connection options</strong></p>
+<pre><code>import reactivemongo.api.MongoConnectionOptions
+
+val conOpts = MongoConnectionOptions(/* connection options */)
+val connection4 = driver1.connection(List(&quot;localhost&quot;), options = conOpts)
+</code></pre>
+<p>通过设置连接选项参数可以指定网络连接、mongo写关注等方面的行为。<br>详情参见</p>
+<p><a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/reference/write-concern/">Write-concern文档</a><br><a target="_blank" rel="noopener" href="http://reactivemongo.org/releases/0.12/documentation/advanced-topics/read-preferences.html">Read-preferences文档</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-使用Maven-pom的聚会、继承来组织项目" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-28T16:05:26.000Z"><a href="/2016/09/29/%E4%BD%BF%E7%94%A8Maven-pom%E7%9A%84%E8%81%9A%E4%BC%9A%E3%80%81%E7%BB%A7%E6%89%BF%E6%9D%A5%E7%BB%84%E7%BB%87%E9%A1%B9%E7%9B%AE/">2016-09-29</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/29/%E4%BD%BF%E7%94%A8Maven-pom%E7%9A%84%E8%81%9A%E4%BC%9A%E3%80%81%E7%BB%A7%E6%89%BF%E6%9D%A5%E7%BB%84%E7%BB%87%E9%A1%B9%E7%9B%AE/">使用Maven pom的聚和、继承来组织项目</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-在遗留项目中使用-Spring-Boot-and-Cloud" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-19T14:34:40.000Z"><a href="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/">2016-09-19</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/">在遗留项目中使用 Spring Boot and Cloud</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>几年前还没有Spring Booot的时候，公司Maven项目里一般都定义了自己的parent pom，规范了可用的第三方类库。在这样的系统里如何引进Spring Boot，Spring Clould这样的工具呢？这篇<a target="_blank" rel="noopener" href="http://docs.spring.io/spring-boot/docs/current/reference/html/using-boot-build-systems.html">官方文档</a>介绍了在已有parent pom的情况下如何使用boot。</p>
+<p>下面算是几个学习摘要。</p>
+<p><strong>1) 如果遗留项目中没有使用自己parent pom，那么在项目模块中就可以直接设置parent为spring-boot-starter-parent</strong></p>
+<pre><code>&lt;!-- Inherit defaults from Spring Boot --&gt;
+&lt;parent&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-parent&lt;/artifactId&gt;
+    &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+&lt;/parent&gt;
+</code></pre>
+<p>如果想更改某个子项目版本，通过下面设置属性的方式进行更改。</p>
+<pre><code>&lt;properties&gt;
+    &lt;spring-data-releasetrain.version&gt;Fowler-SR2&lt;/spring-data-releasetrain.version&gt;
+&lt;/properties&gt;
+</code></pre>
+<p>查看有哪些可更改的properties，<a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-boot/blob/v1.3.6.RELEASE/spring-boot-dependencies/pom.xml">参考这里</a>。</p>
+<p><strong>2）如果已有的maven项目中已经存在parent pom，那么可以通过 denpendencyManagemengt的方式指定boot的BOM。</strong></p>
+<pre><code>&lt;dependencyManagement&gt;
+     &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;!-- Import dependency management from Spring Boot --&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p>这种情况下，如果需要指定某个版本的库，就需要在定义spring-boot-dependencies的前面定义dependence了。就像下面这样，spring-data-releasetrain使用了不同于1.3.6.RELEASE的另一个版本Fowler-SR2。</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;!-- Override Spring Data release train provided by Spring Boot --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.data&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-data-releasetrain&lt;/artifactId&gt;
+            &lt;version&gt;Fowler-SR2&lt;/version&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+        &lt;/dependency&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-dependencies&lt;/artifactId&gt;
+            &lt;version&gt;1.3.6.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p><strong>3）关于Maven中BOM[Bill Of Materials]的概念。</strong><br>这篇文章讲得不错：<a target="_blank" rel="noopener" href="http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/">http://howtodoinjava.com/maven/maven-bom-bill-of-materials-dependency/</a>。</p>
+<blockquote>
+<p>A BOM dependency keep track of version numbers and ensure that all dependencies (both direct and transitive) are at the same version.</p>
+</blockquote>
+<p><strong>4) 如何添加BOM依赖?</strong></p>
+<p>maven通过dependencyManagement来支持BOM。比如像下面这样加入Spring BOM。</p>
+<pre><code>&lt;dependencyManagement&gt;
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-framework-bom&lt;/artifactId&gt;
+            &lt;version&gt;4.0.1.RELEASE&lt;/version&gt;
+            &lt;type&gt;pom&lt;/type&gt;
+            &lt;scope&gt;import&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/dependencyManagement&gt;
+</code></pre>
+<p>那么，以后再使用那个这个BOM包含的库时，就不必制定version了。比如：</p>
+<pre><code>&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-context&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.springframework&lt;/groupId&gt;
+        &lt;artifactId&gt;spring-web&lt;/artifactId&gt;
+    &lt;/dependency&gt;
+&lt;dependencies&gt;
+</code></pre>
+<p>在__dependencyManagement下的声明不会引入实际的依赖__，它仅仅__用来约束dependencies__下面的依赖使用。<br>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p>
+<p><strong>5) 图例</strong></p>
+<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。</p>
+
+
+
+
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-java-lang-OutOfMemoryError" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-12T13:57:54.000Z"><a href="/2016/09/12/java-lang-OutOfMemoryError/">2016-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/12/java-lang-OutOfMemoryError/">java.lang.OutOfMemoryError</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>当你看到OutOfMemoryError，应该怎么办？如果只是想到设置-Xmx值更大些，可能是不够的。因为有多种不同的情形，都可以导致OutOfMemory错误。</p>
+<ul>
+<li>java.lang.OutOfMemoryError: Java heap space</li>
+<li>java.lang.OutOfMemoryError: PermGen space</li>
+<li>java.lang.OutOfMemoryError: unable to create new native thread</li>
+<li>java.lang.OutOfMemoryError: GC Overhead limit exceeded</li>
+<li>java.lang.OutOfMemoryError: Requested array size exceeds VM limit</li>
+<li>java.lang.OutOfMemoryError: Metaspace</li>
+<li>java.lang.OutOfMemoryError: request size bytes for reason. Out of swap space?</li>
+<li>java.lang.OutOfMemoryError: Compressed class space</li>
+<li>java.lang.OutOfMemoryError: reason stack_trace_with_native_method</li>
+</ul>
+<p><strong>Java heap space</strong><br>这个可能是最常见的OutOfMemory了。这个问题通过增大参数-Xmx<heap size>[g|m|k]也许可以解决。当然，更踏实的做法还是要检测程序是不是有内存泄漏的问题。</p>
+<p><strong>PermGen space</strong><br>通过参数-XX:PermSize=<perm gen size>[g|m|k]进行调整。在JDK8之后，Permanent Generation这块heap内存已经放弃，而和Native Memory合并了。</p>
+<p><strong>unable to create new native thread</strong></p>
+<p>Java虚拟机中每创建的一个线程，就需要在操作系统中对应的创建一个线程。这个错误提示，就是说操作系统已经不能创建更多线程给JVM使用了。我们使用线程一般是基于线程池的。出现这个错误提示，那基本上说明程序执行过程中有线程被大量的创建出来，一定要好好去检查一下代码了。不同的操作系统支持的线程数不同，可以通过简单的小程序跑跑看。对于Linux系统来说，线程数的限制不是基于进程的，而是针对整个操作系统的。可以通过cat /proc/sys/kernel/threads-max查看最大线程数。</p>
+<pre><code>ulimit -s  256
+ulimit -i  120000
+echo 120000 &gt; /proc/sys/kernel/threads-max
+echo 600000 &gt; /proc/sys/vm/max_map_count
+echo 200000 &gt; /proc/sys/kernel/pid_max 
+</code></pre>
+<p>这种类型的OOM不能通过-XX:+HeapDumpOnOutOfMemoryError参数dump出文件。</p>
+<pre><code>private static void createInfinitThreads() &#123;
+    long i = 0;
+    while(true)&#123;
+        new Thread(new Runnable()&#123;
+            public void run() &#123;
+                try &#123;
+                    Thread.sleep(10000000);
+                &#125; catch(InterruptedException e) &#123; &#125;
+            &#125;
+        &#125;).start();
+
+        i ++;
+        System.out.println(i);
+    &#125;
+&#125;
+</code></pre>
+<p>这个网页介绍JVM内存很清楚。<a target="_blank" rel="noopener" href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/">Java内存区域与内存溢出异常</a></p>
+<p>图一：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaStacks.jpg"></p>
+<p>图二：下面中的Permanent区域在Java8中已经和method area合并。<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/JavaHeap.gif"></p>
+<p>图三：<br><img src="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA%E6%8B%93%E6%89%91%E5%85%B3%E7%B3%BB.png"></p>
+<p><em>Reference：</em></p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/memleaks002.html#CIHHJDJE">Oracle关于OOM Exception的官方文档</a></li>
+<li><a target="_blank" rel="noopener" href="https://plumbr.eu/outofmemoryerror/unable-to-create-new-native-thread">关于unable to create new native thread这种情况的论述</a></li>
+<li><a target="_blank" rel="noopener" href="http://stackoverflow.com/questions/10742634/java-outofmemoryerror-when-creating-100-threads">Linux上ulimit命令与unable to create new native thread的关系</a></li>
+<li><a target="_blank" rel="noopener" href="http://stackoverflow.com/questions/344203/maximum-number-of-threads-per-process-in-linux">Linux上关于线程数、线程堆栈大小、进程数限制的设置</a></li>
+<li><a target="_blank" rel="noopener" href="https://geosmart.github.io/2016/03/07/JVM%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%EF%BC%88%E4%BA%8C%EF%BC%89Java%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F%E4%B8%8E%E5%86%85%E5%AD%98%E6%BA%A2%E5%87%BA%E5%BC%82%E5%B8%B8/">《深入理解Java虚拟机 JVM高级特性与最佳实践》</a></li>
+<li><a target="_blank" rel="noopener" href="http://wiki.jikexueyuan.com/project/java-vm/storage.html">一篇关于内存结构和溢出的文章</a></li>
+<li><a target="_blank" rel="noopener" href="https://my.oschina.net/itblog/blog/667182">通过示例程序演示了不同类型的OOM</a></li>
+<li><a target="_blank" rel="noopener" href="http://blog.sokolenko.me/2014/11/javavm-options-production.html">这篇博客讲了常用的用于生产环境的JVM参数</a></li>
+<li><a target="_blank" rel="noopener" href="https://dzone.com/articles/how-analyze-java-thread-dumps">这篇文章讲述了如何分析java dump文件</a></li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring-cloud-consul-config" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/07/spring-cloud-consul-config/">spring cloud config 之 consul</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config">使用Consul作为配置信息的Repository</a></p>
+<p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p>
+<p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p>
+<pre><code>org.springframework.cloud:spring-cloud-consul-config
+</code></pre>
+<p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        enabled: true
+        prefix: configuration
+        defaultContext: apps
+        profileSeparator: &#39;::&#39;
+</code></pre>
+<p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p>
+<pre><code>spring:
+  cloud:
+    consul:
+      config:
+        format: YAML
+
+
+config/testApp,dev/data
+config/testApp/data
+config/application,dev/data
+config/application/data
+</code></pre>
+<p>可以通过下面的设置，修改健data的值</p>
+<pre><code>spring.cloud.consul.config.data-key
+</code></pre>
+<p>4）git2consul<br>consul社区的开源项目<a target="_blank" rel="noopener" href="https://github.com/Cimpress-MCP/git2consul">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见[]<a target="_blank" rel="noopener" href="https://github.com/Cimpress-MCP/git2consul](https://github.com/Cimpress-MCP/git2consul)%E3%80%82">https://github.com/Cimpress-MCP/git2consul](https://github.com/Cimpress-MCP/git2consul)。</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring-cloud-zookeeper-config" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config">使用ZooKeeper作为配置信息的Repository</a></p>
+<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
+<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。</p>
+<p>例一：</p>
+<pre><code>config/testApp,dev
+config/testApp
+config/application,dev
+config/application
+</code></pre>
+<p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
+<pre><code>spring:
+  cloud:
+    zookeeper:
+      config:
+        enabled: true
+        root: configuration
+        defaultContext: apps
+        profileSeparator: &#39;::&#39;
+</code></pre>
+<p>这样，例一，就应变成下面这样：</p>
+<pre><code>configuration/testApp,dev
+configuration/testApp
+configuration/apps,dev
+configuration/apps
+</code></pre>
+<blockquote>
+<p>依赖:</p>
+<p>org.springframework.cloud:spring-cloud-starter-zookeeper-config</p>
+</blockquote>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Reactive-Programming-notes" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-01T14:00:21.000Z"><a href="/2016/09/01/Reactive-Programming-notes/">2016-09-01</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/01/Reactive-Programming-notes/">Reactive Programming notes</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <ul>
+<li>Collection</li>
+<li>Stream</li>
+<li>Reactive Stream</li>
+<li>ReactiveX规范</li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-To-learn-To-know-To-use" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/01/To-learn-To-know-To-use/">To learn, To know, To use</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
+<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
+<ul>
+<li>Configuration Management<ul>
+<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
+<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
+<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
+<li>配置服务的设计与实践。</li>
+</ul>
+</li>
+<li>service discovery</li>
+<li>circuit breakers</li>
+<li>intelligent routing</li>
+<li>micro-proxy</li>
+<li>control bus</li>
+<li>one-time tokens</li>
+<li>global locks</li>
+<li>Leadership election<ul>
+<li>利用ZooKeeper、Curator实现leader选举</li>
+<li>利用leadership election实现“单例服务”</li>
+</ul>
+</li>
+<li>distributed sessions</li>
+<li>cluster state</li>
+</ul>
+<h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul>
+<li>RxJava</li>
+<li>Akka</li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring-cloud-config-git-backend" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a target="_blank" rel="noopener" href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p>
+<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p>
+<p><strong>Server端的配置</strong>：</p>
+<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
+server.port=8888
+</code></pre>
+<p><strong>Client端的配置</strong></p>
+<pre><code>spring.application.name=reservation-service
+spring.profiles.active=profile1,profile3
+SpringConfigClient_GitBackend.png
+spring.cloud.config.uri＝http://localhost:8888
+</code></pre>
+<p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。</p>
+
+
+
+<p>Config Client端配置说明：</p>
+
+
+
+<ul>
+<li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
+</li>
+<li><p>在config client项目中添加Actuator库，通过浏览器访问<a target="_blank" rel="noopener" href="http://localhost:8888/mappings%EF%BC%8C%E5%B0%B1%E5%8F%AF%E4%BB%A5%E7%9C%8B%E5%88%B0Actuator%E6%8F%90%E4%BE%9B%E7%9A%84REST%E6%8E%A5%E5%8F%A3%E3%80%82%E5%85%B6%E4%B8%AD%E7%9A%84POST">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
+<pre><code>  可以同通过 curl -d &#123;&#125; http://localhost:8000/refresh 获取更新。
+</code></pre>
+</li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/5/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/7/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

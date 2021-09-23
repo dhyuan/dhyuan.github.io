@@ -1,0 +1,899 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 2 页 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-micro_service/secure_your_service_with_https" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">2021-04-01</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">创建基于HTTPS的服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="关于私钥、公钥的生成"><a href="#关于私钥、公钥的生成" class="headerlink" title="关于私钥、公钥的生成"></a>关于私钥、公钥的生成</h3><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/charlesblc/p/6130433.html">https://www.cnblogs.com/charlesblc/p/6130433.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h3 id="KeyStore-vs-OpenSSL"><a href="#KeyStore-vs-OpenSSL" class="headerlink" title="KeyStore vs OpenSSL"></a>KeyStore vs OpenSSL</h3><h3 id="KeyStore-with-keytool"><a href="#KeyStore-with-keytool" class="headerlink" title="KeyStore with keytool"></a>KeyStore with keytool</h3><p>KeyStor 有三种类型（格式）：JKS， PKCS12 。。</p>
+<h4 id="1-创建一个自签名证书和密钥"><a href="#1-创建一个自签名证书和密钥" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><pre><code>keytool -genkeypair -keystore demoAppKeyStore.jks \
+-alias demoAppServer \
+-keyalg RSA \
+-keysize 3072 \
+-validity 36500 \
+-storepass demoApp
+</code></pre>
+<h4 id="2-导出证书"><a href="#2-导出证书" class="headerlink" title="2. 导出证书"></a>2. 导出证书</h4><pre><code>keytool -export -alias demoAppServer -file demoApp.crt -keystore demoAppKeyStore.keystore
+</code></pre>
+<h4 id="1-创建一个自签名证书和密钥-1"><a href="#1-创建一个自签名证书和密钥-1" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-2"><a href="#1-创建一个自签名证书和密钥-2" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-3"><a href="#1-创建一个自签名证书和密钥-3" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><p>docker run –name nginx -v ~/devEnv/dockerSrvStorage/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx</p>
+<h3 id="什么是跨站请求伪造"><a href="#什么是跨站请求伪造" class="headerlink" title="什么是跨站请求伪造"></a>什么是跨站请求伪造</h3><p>例子：A 是受害用户，B 是银行，C 是恶意代码。C 利用浏览器里存在的有效 A 到 B 的 session(cookie)来伪造请求。再加上利用 XSS 漏洞，用户可以子在无感知的情况下被伤害。<br>Cross-Site Scripting (XSS)</p>
+<p><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained</a></p>
+<p>Reference:</p>
+<p>What is keystore: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/23202046/what-is-keystore">https://stackoverflow.com/questions/23202046/what-is-keystore</a><br>openssl vs keystore: <a target="_blank" rel="noopener" href="https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool">https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/api_gateway" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-22T13:49:17.000Z"><a href="/2021/03/22/micro_service/api_gateway/">2021-03-22</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/22/micro_service/api_gateway/">API网关</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/dfs" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-21T06:51:25.000Z"><a href="/2021/03/21/micro_service/dfs/">2021-03-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/21/micro_service/dfs/">文件管理服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这个服务基于 FastDFS 实现文件的上传、下载、删除，文件元数据维护的功能。</p>
+<p>FastDFS 官方客户端地址：<a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs-client-java">https://github.com/happyfish100/fastdfs-client-java</a><br>简单的关于 fastdfs-client-java 使用 demo：<a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1407660">https://cloud.tencent.com/developer/article/1407660</a></p>
+<p>一些关于使用 FastDFS 的文档：<a target="_blank" rel="noopener" href="https://blog.csdn.net/dingcai12003/article/details/96046404">https://blog.csdn.net/dingcai12003/article/details/96046404</a><br>有些库又做了二次封装（比如 com.github.tobato:fastdfs-client），但是感觉官方客户端库里已经有了简单的连接管理，所以小并发量使用看不到再池化的意义。</p>
+<p>项目使用 Gradle 做构建工具，在 Gradle 仓库中找不到 FastDFS 的库。因此要把 mavenLocal()设置到 repositories 里。<br>如果手工安装特定 FastDFS 库到本地 maven 仓库，可以执行如下命令：</p>
+<pre><code>git clone git@github.com:happyfish100/fastdfs-client-java.git
+cd fastdfs-client-java
+git fetch --all --tags
+git checkout tags/V1.28 -b V1.28
+mvn clean source:jar install
+</code></pre>
+<p>mkdir -p /home/devops/dockerSrvStorage/mysql<br>docker run –name mysql -e MYSQL_ROOT_PASSWORD=password -p 3306:3306 <br> –restart=always <br> -v /home/devops/dockerSrvStorage/mysql/conf.d:/etc/mysql/conf.d <br> -v /home/devops/dockerSrvStorage/mysql/logs:/logs <br> -v /home/devops/dockerSrvStorage/mysql/data/mysql:/var/lib/mysql <br> -d mysql:8.0.22 <br> –character-set-server=utf8mb4 <br> –collation-server=utf8mb4_unicode_ci</p>
+<p>官方 MySQL docker 文档：<a target="_blank" rel="noopener" href="https://hub.docker.com/_/mysql">https://hub.docker.com/_/mysql</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_FastDFS_dev_env" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-20T10:19:36.000Z"><a href="/2021/03/20/devops/setup_FastDFS_dev_env/">2021-03-20</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/20/devops/setup_FastDFS_dev_env/">在Ubuntu20上安装FastDFS环境</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>应用中一般会有文件上传、下载相关业务。这里通过使用 FastDFS 构建一个简单的分布式文件系统满足一般的需求。实际项目中分布式文件系统的选择根据业务需求、团队技术栈具体选择。</p>
+<p>安装环境依旧是利用 KVM 虚拟机完成。开发环境使用 FastDFS 的单机部署就可以。生成环境使用分布式部署提高性能及可靠性。<br>单机模式就是把 tracker 和 storage 都安装在同一台机器上，虽然 IP 相同但是可以通过使用不同 port 来在单机实习集群功能。<br>分布式部署就是在不同机器安装安装不同的 Tracker、Storage 节点。</p>
+<h3 id="1-构建-Ubuntu20-虚拟机，用于安装-FastDFS。"><a href="#1-构建-Ubuntu20-虚拟机，用于安装-FastDFS。" class="headerlink" title="1. 构建 Ubuntu20 虚拟机，用于安装 FastDFS。"></a>1. 构建 Ubuntu20 虚拟机，用于安装 FastDFS。</h3><h4 id="虚拟机设置"><a href="#虚拟机设置" class="headerlink" title="虚拟机设置"></a>虚拟机设置</h4><p>如前几篇文章一样，在 virt-infra-ansible/inventory 目录下设置 FastDFS 服务器配置。因为这是用于原型验证，所以这里硬盘配置仅仅是 20G。给每个虚拟机设置 mac 是为了对 IP 进行绑定、DNS 设置。<br>因为安装 FastDFS 需要编译环境，所以通过 virt_infra_disk_cmd 让虚拟机预先执行必要安装：</p>
+<pre><code>apt -y install git gcc g++ make automake autoconf libtool pcre2-utils libpcre2-dev libpcre3 libpcre3-dev  zlib1g zlib1g-dev openssl libssh-dev wget vim
+</code></pre>
+<p>所以</p>
+<pre><code>fastDfsServers:
+  hosts:
+    dfsServer0:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:10&quot;
+    dfsServer1:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:11&quot;
+    dfsServer2:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:12&quot;
+  vars:
+    virt_infra_state: running
+    virt_infra_distro: ubuntu
+    virt_infra_distro_image: focal-server-cloudimg-amd64.img
+    virt_infra_autostart: yes
+    ansible_python_interpreter: /usr/bin/python3
+    virt_infra_timezone: &quot;Asia/Shanghai&quot;
+    virt_infra_root_password: password
+    virt_infra_disk_size: 20
+    virt_infra_ram: 4094
+    virt_infra_ram_max: 8192
+    virt_infra_cpus: 4
+    virt_infra_cpus_max: 8
+    virt_infra_networks:
+      - name: br0
+        type: bridge
+    virt_infra_disk_cmd:
+      - apt update
+      - apt install -y net-tools
+      - apt -y install git gcc g++ make automake autoconf libtool pcre2-utils libpcre2-dev libpcre3 libpcre3-dev  zlib1g zlib1g-dev openssl libssh-dev wget vim
+</code></pre>
+<h4 id="一键创建虚拟机"><a href="#一键创建虚拟机" class="headerlink" title="一键创建虚拟机"></a>一键创建虚拟机</h4><p>依旧是按照老套路创建虚拟机。登录 KVM HOST，执行：</p>
+<pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,fastDfsServers
+</code></pre>
+<h4 id="设置-DHCP-服务绑定-mac-和-IP，设置-DNS-服务绑定-IP-和域名"><a href="#设置-DHCP-服务绑定-mac-和-IP，设置-DNS-服务绑定-IP-和域名" class="headerlink" title="设置 DHCP 服务绑定 mac 和 IP，设置 DNS 服务绑定 IP 和域名"></a>设置 DHCP 服务绑定 mac 和 IP，设置 DNS 服务绑定 IP 和域名</h4><p>因为这里是直接利用无线路由提供的 DHCP 服务，为了绑定 MAC、IP 直接登录无线网关通过 Web 页面进行。</p>
+<p>如上篇所述，我们的环境中已经安装了 CoreDNS 服务，所以我们可以为 fastDFS 服务器们设置域名。<br>因为 virt-infra-ansible 工具会在成功创建虚拟机后把 IP 写入 hosts 文件，所以可通过 KVM HOST 上的 hosts 文件查看刚刚创建出虚拟机的 IP。</p>
+<p>登录 repositoryServer，</p>
+<pre><code>cd /home/devops/dockerSrvStorage/coredns
+vi hostsfile
+</code></pre>
+<p>添加 IP 到机器名/域名的映射。</p>
+<pre><code>192.168.0.116 dfsServer0 dfsTracker
+192.168.0.104 dfsServer1 dfsStorage0
+192.168.0.117 dfsServer2 dfsStorage1
+</code></pre>
+<h3 id="2-安装-FastDFS"><a href="#2-安装-FastDFS" class="headerlink" title="2. 安装 FastDFS"></a>2. 安装 FastDFS</h3><p>参照官方安装指南 <a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs/wiki">https://github.com/happyfish100/fastdfs/wiki</a> 很容易安装。</p>
+<p>创建文件夹 /home/fastdfs 用于保存 fastdfs 管理的文件和日志。<br>利用目录 /usr/local/src 保存需要编译的源码。<br>这里 checkout v6.07 版本的 fastDFS 进行安装，其它步骤与官方文档基本一直。</p>
+<pre><code>cd /usr/local/src
+git clone https://github.com/happyfish100/fastdfs.git --depth 1
+cd fastdfs/
+git fetch --all --tags
+git checkout tags/V6.07 -b V6.07
+git pull
+./make.sh &amp;&amp; ./make.sh install
+</code></pre>
+<h3 id="3-启动-FastDFS"><a href="#3-启动-FastDFS" class="headerlink" title="3. 启动 FastDFS"></a>3. 启动 FastDFS</h3><h4 id="启动-tracke、storage-服务："><a href="#启动-tracke、storage-服务：" class="headerlink" title="启动 tracke、storage 服务："></a>启动 tracke、storage 服务：</h4><pre><code>/etc/init.d/fdfs_trackerd start
+/etc/init.d/fdfs_storaged start
+</code></pre>
+<h4 id="查看-fastDFS-服务状态："><a href="#查看-fastDFS-服务状态：" class="headerlink" title="查看 fastDFS 服务状态："></a>查看 fastDFS 服务状态：</h4><pre><code>/usr/bin/fdfs_monitor /etc/fdfs/storage.conf
+</code></pre>
+<h4 id="设置开机自启动"><a href="#设置开机自启动" class="headerlink" title="设置开机自启动"></a>设置开机自启动</h4><p>vi /lib/systemd/system/rc-local.service 并添加如下内容：</p>
+<pre><code>[Install]
+WantedBy=multi-user.target
+Alias=rc-local.servic
+</code></pre>
+<p>创建/etc/rc.local，并添加如下内容：</p>
+<pre><code>touch /etc/rc.local
+chmod +x /etc/rc.local
+
+#!/bin/sh
+
+/etc/init.d/fdfs_trackerd start
+/etc/init.d/fdfs_storaged start
+</code></pre>
+<h3 id="4-测试-fastDFS"><a href="#4-测试-fastDFS" class="headerlink" title="4. 测试 fastDFS"></a>4. 测试 fastDFS</h3><p>修改 /etc/fdfs/client.conf 中如下配置：</p>
+<pre><code>base_path=/home/fastdfs
+tracker_server=dfsServer0
+</code></pre>
+<p>测试上传</p>
+<pre><code>fdfs_upload_file /etc/fdfs/client.conf /usr/local/src/nginx-1.15.4.tar.gz
+</code></pre>
+<p>Reference:</p>
+<p>官网：<a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs/">https://github.com/happyfish100/fastdfs/</a><br>一般性介绍：<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/1c71ae024e5e">https://www.jianshu.com/p/1c71ae024e5e</a><br>FastDFS 在 Ubuntu 的安装配置: <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29133587">https://zhuanlan.zhihu.com/p/29133587</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/install_dockers_coredns_gitlab_jenkins" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T14:59:25.000Z"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">安装CoreDNS、GitLab、Jenkins</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在之前创建的 repository server 上安装下面的服务。</p>
+<h3 id="1）搭建-CoreDNS-服务"><a href="#1）搭建-CoreDNS-服务" class="headerlink" title="1）搭建 CoreDNS 服务"></a>1）搭建 CoreDNS 服务</h3><h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+</code></pre>
+<h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
+<pre><code>sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+</code></pre>
+<h4 id="在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下："><a href="#在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下：" class="headerlink" title="在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下："></a>在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下：</h4><p>192.168.0.1 是家里无线路由器的 IP 地址。我这里用的是 TL-WDR7650 千兆易展无线路由。</p>
+<pre><code># ls
+Corefile  hostsfile
+# cat Corefile
+.:53 &#123;
+    hosts /etc/coredns/hostsfile &#123;
+        fallthrough
+    &#125;
+    forward . 192.168.0.1:53
+    log
+&#125;
+</code></pre>
+<p>把之前创建的 Guest 虚拟机 IP 都加进来。</p>
+<pre><code># cat hostsfile
+devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
+192.168.0.114 repositoryServer dnsServer gitlab jenkins gitlab.telbox.cn jenkins.telbox.cn
+192.168.0.112 devopServer0
+192.168.0.113 devopServer1
+192.168.0.115 devopServer2
+
+192.168.0.106 k8s-master-0
+192.168.0.107 k8s-node-0
+192.168.0.109 k8s-node-1
+192.168.0.108 k8s-node-2
+
+192.168.0.114 basehost0
+192.168.0.111 ubuntu20Server
+</code></pre>
+<h4 id="运行-CoreDNS-镜像"><a href="#运行-CoreDNS-镜像" class="headerlink" title="运行 CoreDNS 镜像"></a>运行 CoreDNS 镜像</h4><pre><code>docker run -it -d --net=host \
+--name=coredns --restart=always \
+-v /home/devops/dockerSrvStorage/coredns:/etc/coredns/ \
+coredns/coredns:1.8.3 \
+-conf /etc/coredns/Corefile
+</code></pre>
+<p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<p>Reference:</p>
+<p>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）：<br><a target="_blank" rel="noopener" href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker：<br><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_36938307/article/details/105390004">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
+<h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
+sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
+
+sudo docker run --detach \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--name gitlab \
+--restart always \
+--volume /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.9.2-ce.0
+</code></pre>
+<p>可修改 /home/devops/dockerSrvStorage/gitlab/config 里的配置文件。如有需要，可进入 GitLab 容器进行配置。</p>
+<pre><code>sudo docker exec -it gitlab bash
+cd /opt/gitlab/embedded/service/gitlab-rails/config
+vi gitlab.yml
+</code></pre>
+<p>执行命令 gitlab-ctl reconfigure 使之生效</p>
+<pre><code>sudo docker exec gitlab gitlab-ctl reconfigure
+</code></pre>
+<p>第一次访问安装好的 GitLab 服务<a target="_blank" rel="noopener" href="http://gitlab.telbox.cn:9180/%E9%9C%80%E8%A6%81%E8%AE%BE%E7%BD%AEroot%E7%94%A8%E6%88%B7%E7%9A%84%E5%8F%A3%E4%BB%A4%E3%80%82">http://gitlab.telbox.cn:9180/需要设置root用户的口令。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/080a962c35b6">https://www.jianshu.com/p/080a962c35b6</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/63786567">https://zhuanlan.zhihu.com/p/63786567</a></p>
+<h3 id="3）Jenkins"><a href="#3）Jenkins" class="headerlink" title="3）Jenkins"></a>3）Jenkins</h3><pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins
+
+
+sudo docker run -p 9183:8080 -p 9184:50000 \
+--name jenkins -d \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+-v /home/devops/dockerSrvStorage/jdk/java-se-8u41-ri:/var/jenkins_home/tools/jdk/java-se-8u41-ri \
+-v /home/devops/dockerSrvStorage/jdk/jdk-11.0.2:/var/jenkins_home/tools/jdk/jdk-11.0.2 \
+-v /home/devops/dockerSrvStorage/apache-maven-3.6.3:/var/jenkins_home/tools/apache-maven-3.6.3 \
+jenkins/jenkins:lts
+</code></pre>
+<p>上面通过-v 的方式把 JDK 和 Maven mount 给 Jenkins 容器，之后可以通过 Jenkins Tools 配置他们给 Pipline 使用。<br>启动后，进入 docker 查看初始密码。首次访问 jenkins.telbox.cn:9183 时会用到这个密码。</p>
+<pre><code>sudo docker exec -it jenkins bash
+jenkins@e061aa64ed7b:/$ cat /var/jenkins_home/secrets/initialAdminPassword
+</code></pre>
+<p>访问 jenkins.telbox.cn:9183 输入初始密码，选择安装建议的插件。<br>插件安装完毕后，要求输入 Jenkins URL，这里输入 jenkins.telbox.cn:9183</p>
+<blockquote>
+<p>The Jenkins URL is used to provide the root URL for absolute links to various Jenkins resources. That means this value is required for proper operation of many Jenkins features including email notifications, PR status updates, and the BUILD_URL environment variable provided to build steps.<br>The proposed default value shown is not saved yet and is generated from the current request, if possible. The best practice is to set this value to the URL that users are expected to use. This will avoid confusion when sharing or viewing links.</p>
+</blockquote>
+<p>如果需要，<strong>可以给 Jenkins 配置日志</strong>：</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/data
+cat &gt; /home/devops/dockerSrvStorage/jenkins/data/log.properties &lt;&lt;EOF
+handlers=java.util.logging.ConsoleHandler
+jenkins.level=FINEST
+java.util.logging.ConsoleHandler.level=FINEST
+EOF
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-Djava.util.logging.config.file=/var/jenkins_home/log.properties&quot; -v `pwd`/data:/var/jenkins_home jenkins
+</code></pre>
+<p>如果 Jenkins 插件安装比较慢，可以使用国内插件镜像源，参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525%E3%80%82">https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/docker/blob/master/README.md">https://github.com/jenkinsci/docker/blob/master/README.md</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html">https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/use_aliyun_ubuntu_apt_source" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">设置Ubuntu Guest使用aliyun apt镜像源</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true
+</code></pre>
+<p>通过在命令行里设置参数 change_to_ali_ubuntu_source=yes 来创建虚拟机的时候进行 ali ubunt apt source 的设置。</p>
+<p>1）禁止使用 could init 设置默认的 apt sources</p>
+<pre><code>- name: Do not use cloud source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &quot;echo &#39;apt_preserve_sources_list: true&#39; &gt;&gt; /etc/cloud/cloud.cfg&quot;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>2）使用 aliyun 的 ubuntu apt source 镜像。</p>
+<pre><code>- name: Setup Aliyun Source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &#39;mv /etc/apt/sources.list /etc/apt/sources.list.bak&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>3）删除已存在的 Guest 并重新创建。这个虚拟使用 Ali 源并跟随宿主机启动时自动启动。</p>
+<pre><code>[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
+[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true --extra-vars virt_infra_autostart=yes
+</code></pre>
+<ol start="4">
+<li><p>安装 Docker 环境</p>
+<p>[devops@localhost virt-infra-ansible]$ ansible-playbook ./install_docker.yml –limit ubuntu20Server -vv –extra-vars docker_version=5:20.10.4<del>3-0</del>ubuntu-focal</p>
+</li>
+</ol>
+<p>参考：</p>
+<p>关于 virt-customize 命令<br><a target="_blank" rel="noopener" href="https://libguestfs.org/virt-customize.1.html">https://libguestfs.org/virt-customize.1.html</a><br> <a target="_blank" rel="noopener" href="https://ywnz.com/linuxjc/5680.html">https://ywnz.com/linuxjc/5680.html</a></p>
+<p>关于 Ansible yaml 中 command<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html">https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/add_an_devServer_in_kvm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一组开发服务器</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
+<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
+</code></pre>
+<h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
+<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
+<pre><code>devopServers:
+    hosts:
+        repositoryServer:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_size: 500
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+        devopsServer[0:2]:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+    vars:
+        virt_infra_root_password: password
+        virt_infra_disk_size: 80
+        virt_infra_ram: 4094
+        virt_infra_ram_max: 8192
+        virt_infra_cpus: 4
+        virt_infra_cpus_max: 8
+        virt_infra_state: running
+        virt_infra_networks:
+        - name: br0
+            type: bridge
+</code></pre>
+<h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
+</code></pre>
+<h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
+</code></pre>
+<h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
+<pre><code>- name: Add Aliyun Docker official GPG key
+become: true
+apt_key:
+url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
+state: present
+register: \_pkg_result
+until: \_pkg_result is succeeded
+when:
+
+- docker_network_access | bool
+- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
+    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
+
+- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
+become: true
+lineinfile:
+path: /etc/apt/sources.list.d/docker-ce.list
+line: &quot;deb [arch=&#123;&#123; _docker_os_arch|lower &#125;&#125;] http://mirrors.aliyun.com/docker-ce/linux/&#123;&#123; \_docker_os_dist|lower &#125;&#125; &#123;&#123; ansible_lsb.codename &#125;&#125; stable&quot;
+insertbefore: BOF
+</code></pre>
+<p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
+<pre><code>root@basehost0:~# apt-cache madison docker-ce
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+。。。 。。。
+</code></pre>
+<p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
+<pre><code>    ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
+</code></pre>
+<p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
+<pre><code>ansible-playbook ./install_docker.yml \
+--limit devopServers -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; &#125;&#125;&#39;
+</code></pre>
+<p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
+<pre><code>root@basehost0:~# docker -v
+Docker version 20.10.4, build d3cb89e
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/13/notes/spring_tech4framework/">Spring 中的常用定式</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
+<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
+<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/about_shiro_path_filter" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-10T15:23:29.000Z"><a href="/2020/12/10/notes/about_shiro_path_filter/">2020-12-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/10/notes/about_shiro_path_filter/">关于Shiro中路径匹配与注解</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Gradle-101" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-02T14:42:01.000Z"><a href="/2020/12/02/Gradle-101/">2020-12-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/02/Gradle-101/">Gradle 101</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <ol>
+<li><p>确保团队使用统一的 gradle 版本。<br> 避免 Gradle 的版本兼容性问题，项目中应使用 gradldw 命令运行。因为 gradlew 会根据 gradle-wrapper.properties 定义的 gradle 分发 dizhi 去下载 gradle 到本地。</p>
+<p> 在 build.gradle 中定义如下 task，生成两个文件：gradlew、gradlew.bat，一个目录：gradle。</p>
+<pre><code> task genWrapper(type: Wrapper)&#123;
+   gradleVersion=&#39;5.3.1&#39;
+   distributionUrl=&#39;https://services.gradle.org/distributions/gradle-5.3.1-all.zip&#39;
+   distributionBase=&#39;GRADLE_USER_HOME&#39;
+   distributionPath=&#39;wrapper/dists&#39;
+   archiveBase=&#39;GRADLE_USER_HOME&#39;
+   archivePath=&#39;wrapper/dists&#39;
+ &#125;
+</code></pre>
+<p> 对于不能访问互联网的内网，需要保证 distributionUrl 地址在私服上可用。执行 gradle genWrapper 后，把生成的内容作为项目文件提交到代码库。</p>
+<p> 这样后面的同事，checkout 出代码后遵循使用 gradlew 构建项目的规则就可以避免 gradle 版本冲突的问题了。</p>
+</li>
+<li><p>Spring Boot 2.4 gradle 插件是需要 Gradle5.6 以上 或 Gradle6.3 版本以上的，否则报错如下。这也从一个方面证明 gradle 版本兼容问题是存在的，所以很有必要在团队中使用 gradlew。</p>
+<p> An exception occurred applying plugin request [id: ‘org.springframework.boot’, version: ‘2.4.0’]</p>
+<blockquote>
+<p>Failed to apply plugin [id ‘org.springframework.boot’]<br>Spring Boot plugin requires Gradle 5 (5.6.x only) or Gradle 6 (6.3 or later). The current version is Gradle 5.3.1</p>
+</blockquote>
+</li>
+</ol>
+<p>Reference:</p>
+<p>基本元素：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/itck/p/10478382.html">https://www.cnblogs.com/itck/p/10478382.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_36850813/article/details/93996333">https://blog.csdn.net/qq_36850813/article/details/93996333</a></p>
+<p>wrapper：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html">https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/3/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
+  
+    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
+  
+    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
+  
+    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
+  
+    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
+  
+    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
+  
+    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
