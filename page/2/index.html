@@ -45,6 +45,210 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-micro_service/keywords_of_cipher" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-08T12:50:59.000Z"><a href="/2021/04/08/micro_service/keywords_of_cipher/">2021-04-08</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/08/micro_service/keywords_of_cipher/">与加密相关的一些名词</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="1-密码学"><a href="#1-密码学" class="headerlink" title="1) 密码学"></a>1) 密码学</h2><h3 id="机密性、真实性、完整性"><a href="#机密性、真实性、完整性" class="headerlink" title="机密性、真实性、完整性"></a>机密性、真实性、完整性</h3><p>plantext 明文 cipher 密钥 ciphertext 密文</p>
+<h3 id="散列函数"><a href="#散列函数" class="headerlink" title="散列函数"></a>散列函数</h3><p>将任意长度的输入转化为定长输出的算法。抗原像性、抗第二原像性、强抗碰撞性。指纹、摘要。</p>
+<h3 id="消息验证代码：MAC-HMAC-Keyed-hash-Message-Authentication-Code"><a href="#消息验证代码：MAC-HMAC-Keyed-hash-Message-Authentication-Code" class="headerlink" title="消息验证代码：MAC HMAC(Keyed-hash Message Authentication Code)"></a>消息验证代码：MAC HMAC(Keyed-hash Message Authentication Code)</h3><p>MAC：核心是带密钥的 Hash 算法。<br>HMAC：两轮 Hash，其中一个是密钥是“预共享密钥”。<br>Msg + K –&gt;MAC 算法 –&gt; MAC 随消息发送<br>参考：<a target="_blank" rel="noopener" href="https://blog.csdn.net/pz641/article/details/110876060">https://blog.csdn.net/pz641/article/details/110876060</a></p>
+<h3 id="对称加密（私钥加密）"><a href="#对称加密（私钥加密）" class="headerlink" title="对称加密（私钥加密）"></a>对称加密（私钥加密）</h3><p>对称密钥算法相关主流协议：DES、3DES、AES、RC4。<br>序列密码(Stream Cipher)、分组密码(Block Cipher)<br>RC4 属于序列密码，AES 算是最流行的分组密码，无线安全技术 WPA2 就是使用 AES。<br>分组密码：ECB、CBC。CBC 引入了初始向量 IV 让每即使相同的输入输出也不同。（IV 与明文第一块进行异或过后加密，加密后的密文作为下一个块的 IV）</p>
+<h3 id="非对称加密（公钥加密）"><a href="#非对称加密（公钥加密）" class="headerlink" title="非对称加密（公钥加密）"></a>非对称加密（公钥加密）</h3><p>公钥加密只有私钥可以解密。<br>私钥加密公钥解密。无私密性、可做数字签名。<br>RAS 使用最多的非对称加密算法。 RAS 推荐强度 2048，相当于 112 的对称加密。</p>
+<h3 id="数字签名"><a href="#数字签名" class="headerlink" title="数字签名"></a>数字签名</h3><p>MAC 是一种电子签名，但需要双方预先设定一样的加密密码。<br>RSA 情况下的数字签名。<br>发送方<br>1）求文档 Hash 值<br>2）对 结果散列 + hash 算法 + 其它元数据 进行编码<br>3）用私钥加密编码后的数据，形成签名<br>接收方<br>1）使用相同 Hash 算法计算文档散列<br>2）用公钥解密发送方的签名，并与自己计算的进行对比。<br>RAS 只是公钥加密的一种，不同的公钥加密有不同的签名流程。</p>
+<h3 id="密钥交换"><a href="#密钥交换" class="headerlink" title="密钥交换"></a>密钥交换</h3><p>密钥交换的目的是先得到 预主密钥。<br>密钥交换算法：RSA、DHE_RSA、。。。<br>RSA 不支持前向保密</p>
+<p>下图是 Diffie-Hellman 密钥交换示意图：</p>
+
+
+<h3 id="证书"><a href="#证书" class="headerlink" title="证书"></a>证书</h3><p>证书是包含公钥、订阅人信息、证书颁发者数字签名的数字文件，是存储、传递、使用公钥的容器。</p>
+<h3 id="RSA-公钥、私钥的生成"><a href="#RSA-公钥、私钥的生成" class="headerlink" title="RSA 公钥、私钥的生成"></a>RSA 公钥、私钥的生成</h3><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h2 id="2）SSL-TLS"><a href="#2）SSL-TLS" class="headerlink" title="2）SSL/TLS"></a>2）SSL/TLS</h2><p>TLS 是一种密码学协议以保证双方会话安全。TLS 是在 TCP 协议之上、HTTP 协议之下–处于表示层。<br>TLS 主要分为两层，底层的是 TLS 记录协议，主要负责使用对称密码对消息进行加密。上层的是 TLS 握手协议，主要分为握手协议，密码规格变更协议和应用数据协议 4 个部分。</p>
+<p>SSL 1.0， 2.0 1994-11 月<br>SSL 3.0 1995 年底<br>TLS 1.0 1999-1<br>TLS 1.1 2006-4<br>TLS 1.2 2008-8<br>TLS 1.3 2018-8 1）握手更快；2）淘汰了一些基元 RC4, SHA-1, DES, MD5 …<br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/133375078">https://zhuanlan.zhihu.com/p/133375078</a></p>
+<h3 id="握手流程"><a href="#握手流程" class="headerlink" title="握手流程"></a>握手流程</h3><p>有三种握手流程：对服务器进行身份验证的完整握手、用于恢复会话的简短握手、对服务器客户端进行双向验证的握手。<br>这里仅简短描述下“对服务器进行身份验证的完整握手”，如下图：</p>
+
+
+<h4 id="1）ClientHello"><a href="#1）ClientHello" class="headerlink" title="1）ClientHello"></a>1）ClientHello</h4><p>很明显，第一条消息始于 Client。客户端需要提供自己 TLS 版本、随机数、加密套件、压缩方法、扩展信息给服务端，让服务端进行选择。</p>
+<h4 id="2）ServerHello"><a href="#2）ServerHello" class="headerlink" title="2）ServerHello"></a>2）ServerHello</h4><p>这条消息是服务器根据 Client 上报的选项并结合自己的的情况把选择告诉 Client。这个消息中也包括一个随机数。注意 ClientHello、ServerHello 中的随机数不是用于生成预主密钥，而是用于防止消息伪造。</p>
+<h4 id="3）Certificate"><a href="#3）Certificate" class="headerlink" title="3）Certificate"></a>3）Certificate</h4><p>这是服务器给客户端的证书链。注意，这里是证书链而不仅仅是服务器的主证书。主证书排第一个、随后依次是中间证书，根证书无需在此链中。<br>因为客户端发送的密码套件、服务器最终选择的密码套件未必需要身份认证，同时不是所有身份认证都需要证书，所以，这个消息是可选的。</p>
+<h4 id="4）ServerKeyExchange"><a href="#4）ServerKeyExchange" class="headerlink" title="4）ServerKeyExchange"></a>4）ServerKeyExchange</h4><p>这个消息是为服务器为密钥交换向客户端提供数据。如是 DH 算法，那么这个参数就是 如上“Diffie-Hellman 密钥交换示意图”中所示的 g、p、A。<br>微观到代码，就是大致如下的定义：</p>
+<pre><code>struct &#123;
+          opaque dh_p&lt;1..2^16-1&gt;;
+          opaque dh_g&lt;1..2^16-1&gt;;
+          opaque dh_Ys&lt;1..2^16-1&gt;;
+      &#125; ServerDHParams;     /* Ephemeral DH parameters */
+</code></pre>
+<p>对于需要两次消息确定预主密钥的算法，首先由服务器发起也很容易理解。因为是 Client 首先提供选项而 Server 进行选择，那么 Server 自然是首先发出 DH 密钥交换消息就是很正常的了。<br>如果协商的密钥交换算法是 RSA 密钥交换算法，那么服务器就无需发送这条消息，而是由 Client 通过在 ClientKeyExchange 中携带一个 46 字节的随机数作为预主密钥即可。</p>
+<h4 id="5）ServerHelloDone"><a href="#5）ServerHelloDone" class="headerlink" title="5）ServerHelloDone"></a>5）ServerHelloDone</h4><p>这个消息表示 Server 这边的握手相关的消息都发送完了。</p>
+<h4 id="6）ClientKeyExchange"><a href="#6）ClientKeyExchange" class="headerlink" title="6）ClientKeyExchange"></a>6）ClientKeyExchange</h4><p>这个消息是为了 Sever 提供密钥交换的数据。<br>如果是 RSA 密钥交换算法，Client 用 46 字节的随机数作为预主密钥发送给 Server 即可。如果是 DH 算法，就是如“Diffie-Hellman 密钥交换示意图”中所示的数字 B。<br>至此，预主密钥(premaster secret)就协商完毕了。真正用于加密的 master secret 是由预主密钥经过进一步变化而生成。</p>
+<h4 id="7）ChangeCipherExchange"><a href="#7）ChangeCipherExchange" class="headerlink" title="7）ChangeCipherExchange"></a>7）ChangeCipherExchange</h4><p>这个消息表示已经生成加密密钥了，即将切换到的加密模式。</p>
+<h4 id="8）Finished"><a href="#8）Finished" class="headerlink" title="8）Finished"></a>8）Finished</h4><p>这个消息表示握手结束，消息内容即将加密。这个消息中很重要的一个字段是 verify_data, 其值是用<strong>协商得到的主密钥</strong>结合<strong>协商确定的 MAC 算法</strong>对所有<strong>按序排列的握手消息</strong>进行计算得到的散列值。这里可以体会下 CilentHello、ServerHello 这些握手消息中的随机数的作用。</p>
+<h4 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h4><p>《HTTPS 权威指南》<br>《IPSec VPN 实战指南》<br><a target="_blank" rel="noopener" href="https://tools.ietf.org/html/rfc5246">https://tools.ietf.org/html/rfc5246</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/http_nginx_to_https_upstream" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-07T12:21:32.000Z"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">2021-04-07</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">Nginx以HTTP反向代理HTTPS服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。</p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 最为反向代理向外提供服务。<br>Nginx 和 Web 应用部署在同一台机器，IP 为 10.115.6.165。Web 应用以 HTTPS 协议监听在端口 19026。<br>如果是 Windows 环境，推荐在 <a target="_blank" rel="noopener" href="http://nginx-win.ecsds.eu/">http://nginx-win.ecsds.eu/</a> 下载编译带入了更多模块的 Nginx，因为在下面我们会需要 headers more 模块中的 more_set_headers 指令。如果是 Linux 环境，也请确认 headers more 模块的 more_set_headers 指令可用。</p>
+<h3 id="Nginx-以-HTTP-的方式反向代理。"><a href="#Nginx-以-HTTP-的方式反向代理。" class="headerlink" title="Nginx 以 HTTP 的方式反向代理。"></a>Nginx 以 HTTP 的方式反向代理。</h3><p>用以下配置运行 Ngnix， 使其用 HTTP 协议在 9080 端口反向代理 19026 上的 HTTPS 服务。</p>
+<pre><code>server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+    &#125;
+&#125;
+</code></pre>
+<p>但是如果我们用浏览器访问<a target="_blank" rel="noopener" href="http://10.115.6.165:9080/databoard/login%EF%BC%8C%E5%B0%B1%E4%BC%9A%E5%8F%91%E7%8E%B0%E5%A6%82%E4%B8%8B%E5%9B%BE%E6%89%80%E7%A4%BA%E7%9A%84%E4%B8%A4%E9%97%AE%E9%A2%98%EF%BC%9A">http://10.115.6.165:9080/databoard/login，就会发现如下图所示的两问题：</a></p>
+
+
+<h4 id="1）后端服务使用-redirect-重定向导致的问题"><a href="#1）后端服务使用-redirect-重定向导致的问题" class="headerlink" title="1）后端服务使用 redirect 重定向导致的问题"></a>1）后端服务使用 redirect 重定向导致的问题</h4><p>浏览器地址栏上显示被重定向到了<a target="_blank" rel="noopener" href="https://10.115.6.165/databoard/dataCmder%E3%80%82%E8%BF%99%E6%98%AF%E5%9B%A0%E4%B8%BA%E5%90%8E%E7%AB%AFWeb%E5%BA%94%E7%94%A8%E6%89%A7%E8%A1%8C%E4%BA%86redirect%E9%87%8D%E5%AE%9A%E5%90%91%E8%AF%AD%E5%8F%A5%EF%BC%8C%E8%80%8C%E9%87%8D%E5%AE%9A%E5%90%91%E7%9A%84%E5%8D%8F%E8%AE%AE%E3%80%81%E5%9C%B0%E5%9D%80%E6%98%AF%E5%9F%BA%E4%BA%8Eweb%E5%BA%94%E7%94%A8%E4%B8%8A%E4%B8%8B%E6%96%87%E7%9A%84%EF%BC%8C%E8%80%8Cnginx%E5%B9%B6%E6%B2%A1%E6%9C%89%E5%81%9A%E7%89%B9%E5%88%AB%E7%9A%84%E5%A4%84%E7%90%86%E5%B0%B1%E8%BD%AC%E5%8F%91%E7%BB%99%E4%BA%86%E6%B5%8F%E8%A7%88%E5%99%A8%EF%BC%8C%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E7%84%B6%E4%B8%8D%E8%83%BD%E8%AE%BF%E9%97%AE%E5%88%B0%E8%BF%99%E4%B8%AA%E5%9C%B0%E5%9D%80%E3%80%82%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95%E5%A6%82%E4%B8%8B%EF%BC%9A">https://10.115.6.165/databoard/dataCmder。这是因为后端Web应用执行了redirect重定向语句，而重定向的协议、地址是基于web应用上下文的，而nginx并没有做特别的处理就转发给了浏览器，浏览器自然不能访问到这个地址。解决办法如下：</a></p>
+<pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+</code></pre>
+<h4 id="2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。"><a href="#2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。" class="headerlink" title="2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。"></a>2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。</h4><p>有 Secure 属性的 Cookie 意味着如果浏览器不是用 HTTPS 与服务建立链接，那么这个 cookie 里的值不会随请求一起向服务器发送。所以要解决这个问题就需要在 Nginx 中把 cookie 中的 Secure 属性去掉再传给浏览器。解决办法如下：</p>
+<pre><code>map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+</code></pre>
+<h4 id="完整的相关配置"><a href="#完整的相关配置" class="headerlink" title="完整的相关配置"></a>完整的相关配置</h4><pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="Nginx-以-HTTPS-的方式反向代理。"><a href="#Nginx-以-HTTPS-的方式反向代理。" class="headerlink" title="Nginx 以 HTTPS 的方式反向代理。"></a>Nginx 以 HTTPS 的方式反向代理。</h3><p>如果 nginx 是以 HTTPS 协议向外提供反向代理，那么无论使用七层代理还是四层代理配置起来都很简单，如下：</p>
+<h4 id="3）四层反向代理。"><a href="#3）四层反向代理。" class="headerlink" title="3）四层反向代理。"></a>3）四层反向代理。</h4><pre><code>stream &#123;
+    upstream databoardServer &#123;
+        hash $remote_addr consistent;
+        server 10.115.6.165:19026 weight=5;
+    &#125;
+
+    server &#123;
+        listen 9082;
+        proxy_connect_timeout 1s;
+        proxy_timeout 3s;
+        proxy_pass databoardServer;
+    &#125;
+&#125;
+</code></pre>
+<h4 id="4）七层反向代理。"><a href="#4）七层反向代理。" class="headerlink" title="4）七层反向代理。"></a>4）七层反向代理。</h4><pre><code>server &#123;
+    listen       443 ssl;
+    server_name  10.115.6.165;
+    ssl_certificate D:\\tmp\\opensslCrt\\demoAppChain.crt;
+    ssl_certificate_key D:\\tmp\\opensslCrt\\demoApp.key;
+
+    location / &#123;
+        proxy_pass https://10.115.6.165:19026;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Referer https://10.115.6.165;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="关于-Spring-Session-Cookie-Secure-配置"><a href="#关于-Spring-Session-Cookie-Secure-配置" class="headerlink" title="关于 Spring Session Cookie Secure 配置"></a>关于 Spring Session Cookie Secure 配置</h3><p>当时想直接配置 Spring Web 应用不让 Cookie 带上 Secure 属性，这样就不用在 Nginx 上处理 Cookie 了。于是直接修改配置 application.properties 如下，但是返回给 nginx 的 Cookie 还是带 Secure 属性。</p>
+<pre><code>server.session.cookie.secure=true
+</code></pre>
+<p>通过跟踪 Spring 源码发现，只要应用是运行在 HTTPS 协议下的，那么就会让生成的 Cookie 是 Secure 的。</p>
+
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-micro_service/secure_your_service_with_https" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -686,96 +890,6 @@ Docker version 20.10.4, build d3cb89e
 
 
 
-  <article id="post-notes/about_shiro_path_filter" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-12-10T15:23:29.000Z"><a href="/2020/12/10/notes/about_shiro_path_filter/">2020-12-10</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/12/10/notes/about_shiro_path_filter/">关于Shiro中路径匹配与注解</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-Gradle-101" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-12-02T14:42:01.000Z"><a href="/2020/12/02/Gradle-101/">2020-12-02</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/12/02/Gradle-101/">Gradle 101</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <ol>
-<li><p>确保团队使用统一的 gradle 版本。<br> 避免 Gradle 的版本兼容性问题，项目中应使用 gradldw 命令运行。因为 gradlew 会根据 gradle-wrapper.properties 定义的 gradle 分发 dizhi 去下载 gradle 到本地。</p>
-<p> 在 build.gradle 中定义如下 task，生成两个文件：gradlew、gradlew.bat，一个目录：gradle。</p>
-<pre><code> task genWrapper(type: Wrapper)&#123;
-   gradleVersion=&#39;5.3.1&#39;
-   distributionUrl=&#39;https://services.gradle.org/distributions/gradle-5.3.1-all.zip&#39;
-   distributionBase=&#39;GRADLE_USER_HOME&#39;
-   distributionPath=&#39;wrapper/dists&#39;
-   archiveBase=&#39;GRADLE_USER_HOME&#39;
-   archivePath=&#39;wrapper/dists&#39;
- &#125;
-</code></pre>
-<p> 对于不能访问互联网的内网，需要保证 distributionUrl 地址在私服上可用。执行 gradle genWrapper 后，把生成的内容作为项目文件提交到代码库。</p>
-<p> 这样后面的同事，checkout 出代码后遵循使用 gradlew 构建项目的规则就可以避免 gradle 版本冲突的问题了。</p>
-</li>
-<li><p>Spring Boot 2.4 gradle 插件是需要 Gradle5.6 以上 或 Gradle6.3 版本以上的，否则报错如下。这也从一个方面证明 gradle 版本兼容问题是存在的，所以很有必要在团队中使用 gradlew。</p>
-<p> An exception occurred applying plugin request [id: ‘org.springframework.boot’, version: ‘2.4.0’]</p>
-<blockquote>
-<p>Failed to apply plugin [id ‘org.springframework.boot’]<br>Spring Boot plugin requires Gradle 5 (5.6.x only) or Gradle 6 (6.3 or later). The current version is Gradle 5.3.1</p>
-</blockquote>
-</li>
-</ol>
-<p>Reference:</p>
-<p>基本元素：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/itck/p/10478382.html">https://www.cnblogs.com/itck/p/10478382.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_36850813/article/details/93996333">https://blog.csdn.net/qq_36850813/article/details/93996333</a></p>
-<p>wrapper：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html">https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -804,13 +918,7 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
   
-    <li><a href="/tags/Configuration/">Configuration</a><small>3</small></li>
-  
-    <li><a href="/tags/Consul/">Consul</a><small>1</small></li>
-  
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
-  
-    <li><a href="/tags/Debug/">Debug</a><small>1</small></li>
   
     <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
   
@@ -818,43 +926,31 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>5</small></li>
+    <li><a href="/tags/Java/">Java</a><small>6</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
-    <li><a href="/tags/MicroService/">MicroService</a><small>1</small></li>
+    <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
+  
+    <li><a href="/tags/Mongo/">Mongo</a><small>1</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>5</small></li>
-  
-    <li><a href="/tags/Reactive-Programming/">Reactive Programming</a><small>1</small></li>
-  
-    <li><a href="/tags/RxJava/">RxJava</a><small>1</small></li>
+    <li><a href="/tags/Reactive/">Reactive</a><small>7</small></li>
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
     <li><a href="/tags/Security/">Security</a><small>5</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>4</small></li>
-  
-    <li><a href="/tags/SpringCloud/">SpringCloud</a><small>3</small></li>
-  
-    <li><a href="/tags/ZooKeeper/">ZooKeeper</a><small>1</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>8</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
-    <li><a href="/tags/micro-service/">micro-service</a><small>1</small></li>
-  
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
-  
-    <li><a href="/tags/%E5%93%8D%E5%BA%94%E5%BC%8F%E7%BC%96%E7%A8%8B/">响应式编程</a><small>1</small></li>
-  
-    <li><a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/">微服务</a><small>1</small></li>
   
     <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
   

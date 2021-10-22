@@ -1,0 +1,330 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>为本地Mac开发环境设置mongo服务 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="1）安装Mac上通过brew安装Mongo 参考：https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/#std-label-install
+brew tap mongodb/brew
+brew install mongod">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="为本地Mac开发环境设置mongo服务"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-mongo/setupMongoForLocalDevEnv" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-10-22T04:25:09.997Z"><a href="/2021/10/22/mongo/setupMongoForLocalDevEnv/">2021-10-22</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">为本地Mac开发环境设置mongo服务</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1）安装"><a href="#1）安装" class="headerlink" title="1）安装"></a>1）安装</h3><p>Mac上通过brew安装Mongo 参考：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/#std-label-install">https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/#std-label-install</a></p>
+<pre><code>brew tap mongodb/brew
+brew install mongodb-community@5.0
+
+brew services start/restart/stop mongodb-community@5.0
+brew services list
+</code></pre>
+<p>通过brew安装后，MongoDB的配置文件在 /usr/local/etc/mongod.conf，可根据实际情况设置端口、认证、复制集等。</p>
+<pre><code>net:
+  port: 27117
+  bindIp: 0.0.0.0
+replication:
+  replSetName: rs0
+</code></pre>
+<h3 id="2）强制设置master复制集。"><a href="#2）强制设置master复制集。" class="headerlink" title="2）强制设置master复制集。"></a>2）强制设置master复制集。</h3><p>开始在端口为27017的情况下按照 <a target="_blank" rel="noopener" href="https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html">https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html</a> 介绍的方式把单节点的mongo服务转变为单复制集的方式运行。</p>
+<p>接着又更改了mongo服务的端口为27117，这样之前的复制集节点就不对了。<br>先加上当前27117端口的mongo服务作为一个复制集。</p>
+<pre><code>rs.add(&quot;127.0.0.1:27117&quot;)
+</code></pre>
+<p>查看复制集配置</p>
+<pre><code>rs0 [direct: primary] test&gt; cfg = rs.conf()
+&#123;
+  _id: &#39;rs0&#39;,
+  version: 4,
+  term: 30,
+  members: [
+    &#123;
+      _id: 0,
+      host: &#39;127.0.0.1:27017&#39;,
+      arbiterOnly: false,
+      buildIndexes: true,
+      hidden: false,
+      priority: 1,
+      tags: &#123;&#125;,
+      secondaryDelaySecs: Long(&quot;0&quot;),
+      votes: 1
+    &#125;,
+    &#123;
+      _id: 1,
+      host: &#39;127.0.0.1:27117&#39;,
+      arbiterOnly: false,
+      buildIndexes: true,
+      hidden: false,
+      priority: 1,
+      tags: &#123;&#125;,
+      secondaryDelaySecs: Long(&quot;0&quot;),
+      votes: 1
+    &#125;
+  ],
+  protocolVersion: Long(&quot;1&quot;),
+  writeConcernMajorityJournalDefault: true,
+  settings: &#123;
+    chainingAllowed: true,
+    heartbeatIntervalMillis: 2000,
+    heartbeatTimeoutSecs: 10,
+    electionTimeoutMillis: 10000,
+    catchUpTimeoutMillis: -1,
+    catchUpTakeoverDelayMillis: 30000,
+    getLastErrorModes: &#123;&#125;,
+    getLastErrorDefaults: &#123; w: 1, wtimeout: 0 &#125;,
+    replicaSetId: ObjectId(&quot;616d08c744db747bb7e580b8&quot;)
+  &#125;
+&#125;
+</code></pre>
+<p>删除第一节点，</p>
+<pre><code>cfg.members.splice(0,1)
+</code></pre>
+<p>强制执行重新配置</p>
+<pre><code>rs.reconfig(cfg, &#123;force : true&#125;)
+</code></pre>
+<h3 id="3-设置密码登录"><a href="#3-设置密码登录" class="headerlink" title="3) 设置密码登录"></a>3) 设置密码登录</h3><p>创建超级用户、普通用户：</p>
+<pre><code>db.createUser(
+  &#123;
+    user: &quot;root&quot;,
+    pwd: &quot;password&quot;, 
+    roles: [
+      &#123; role: &quot;root&quot;, db: &quot;admin&quot; &#125;
+    ]
+  &#125;
+)
+
+db.createUser(
+  &#123;
+    user: &quot;testuser&quot;,
+    pwd: &quot;123&quot;, 
+    roles: [
+      &#123; role: &quot;readWrite&quot;, db: &quot;test&quot; &#125;
+    ]
+  &#125;
+)
+</code></pre>
+<p>生产mongodb私钥<br>Reference：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/">https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/</a></p>
+<pre><code>openssl rand -base64 756 &gt; KEY_PATH/mongo_server.key
+</code></pre>
+<p>修改配置</p>
+<pre><code>security:
+  keyFile: KEY_PATH/mongo_server.key
+  authorization: enabled
+</code></pre>
+<p>重启mongo</p>
+<pre><code>brew services restart mongodb-community
+</code></pre>
+<p>通过用户名密码登录</p>
+<pre><code>mongosh --port 27117 -u testuser -p 123 --authenticationDatabase  test 
+</code></pre>
+<h3 id="4）Mac环境设置-maxfile-limit"><a href="#4）Mac环境设置-maxfile-limit" class="headerlink" title="4）Mac环境设置 maxfile limit"></a>4）Mac环境设置 maxfile limit</h3><p>查看当前设置：</p>
+<pre><code>launchctl limit maxfiles
+</code></pre>
+<p>如果soft limit是256，则执行下面命令扩大。否则mongo server可用的线程将受限。</p>
+<pre><code>sudo launchctl limit maxfiles 65536 200000
+</code></pre>
+<p>因为机器重启后以上更改会失效，所以还需要添加以上命令到开机脚本中。因为使用到了sudo，可使用 visudo 修改设置免密码。</p>
+<pre><code>%admin          ALL = (ALL) NOPASSWD: ALL
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Mongo/">Mongo</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/10/22/mongo/setupMongoForLocalDevEnv/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>6</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
+  
+    <li><a href="/tags/Mongo/">Mongo</a><small>1</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>7</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>5</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>8</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2021 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
