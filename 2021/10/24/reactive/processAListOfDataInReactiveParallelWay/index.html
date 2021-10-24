@@ -77,12 +77,12 @@ int batchSize = 500;
 
 Flux&lt;DataItem&gt; dataItems = ...
 </code></pre>
-<p>下面分别串行和并行的方式展示一下Reactor API的使用。</p>
+<p>下面分别以串行和并行的方式展示一下Reactor API的使用。</p>
 <h3 id="1）攒够-batchSize-个数据后进行处理。"><a href="#1）攒够-batchSize-个数据后进行处理。" class="headerlink" title="1）攒够 batchSize 个数据后进行处理。"></a>1）攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems.buffer(batchSize)
     .flatMap(dataProcessor::batchProcess)
     .collectList();
 </code></pre>
-<h3 id="2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。"><a href="#2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。" class="headerlink" title="2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。"></a>2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; pwr = dataItems
+<h3 id="2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。"><a href="#2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。" class="headerlink" title="2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。"></a>2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems
     .parallel(10)
     .runOn(Schedulers.fromExecutor(Executors.newFixedThreadPool(10)))
     .groups()
