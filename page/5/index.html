@@ -45,6 +45,167 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-Concurrency-in-LeetCode" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-04-10T10:03:53.000Z"><a href="/2020/04/10/Concurrency-in-LeetCode/">2020-04-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/10/Concurrency-in-LeetCode/">用Semaphore解决LeetCode并发练习题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p>
+<p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p>
+<p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p>
+<p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p>
+<p>利用下面的知识点应该就足够团灭这几道题了。</p>
+<ol>
+<li><p>线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p>
+</li>
+<li><p>调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p>
+</li>
+<li><p>因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p>
+</li>
+</ol>
+<p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p>
+<p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p>
+<p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p>
+<p>LeetCode 1114, 多线程按序打印1，2，3。</p>
+<pre><code>public class FooBySemaphore &#123;
+
+    public FooBySemaphore() &#123;&#125;
+
+    // 先打印 one， 所以这个初始化为放行。
+    private Semaphore firstPermission = new Semaphore(1);
+    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’
+    private Semaphore secondPermission = new Semaphore(0);
+    private Semaphore thirdPermission = new Semaphore(0);
+
+    public void first(Runnable printFirst) throws InterruptedException &#123;
+        firstPermission.acquire();
+        printFirst.run();
+        secondPermission.release(); // 放行第二个线程
+    &#125;
+
+    public void second(Runnable printSecond) throws InterruptedException &#123;
+        secondPermission.acquire();
+        printSecond.run();
+        thirdPermission.release(); // 放行第三个线程
+    &#125;
+
+    public void third(Runnable printThird) throws InterruptedException &#123;
+        thirdPermission.acquire();
+        printThird.run();
+        firstPermission.release(); // 放行第一个线程
+    &#125;
+&#125;
+</code></pre>
+<p>LeetCode 1117,  多线程生成水分子。</p>
+<pre><code>public class H2OBySemaphore &#123;
+    /**
+     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。
+     *
+     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。
+     * 生产出2个氢原子后oSemaphore的信号数量就是2。
+     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。
+     *
+     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。
+     */
+    public H2OBySemaphore() &#123;
+    &#125;
+
+    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。
+    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。
+    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException &#123;
+        hPermission.acquire();
+        releaseHydrogen.run();
+        oPermission.release();
+    &#125;
+
+    public void oxygen(Runnable releaseOxygen) throws InterruptedException &#123;
+        oPermission.acquire(2);
+
+        releaseOxygen.run();
+        hPermission.release(2);
+    &#125;
+&#125;
+</code></pre>
+<p>LeetCode 1226, 哲学家就餐问题。</p>
+<pre><code>public class DiningPhilosophers &#123;
+
+    private Semaphore[] forksPermission = new Semaphore[5];
+
+    public DiningPhilosophers() &#123;
+        for (int i = 0; i &lt; 5; i ++) &#123;
+            forksPermission[i] = new Semaphore(1);
+        &#125;
+    &#125;
+
+    // call the run() method of any runnable to execute its code
+    public void wantsToEat(int philosopher,
+                           Runnable pickLeftFork,
+                           Runnable pickRightFork,
+                           Runnable eat,
+                           Runnable putLeftFork,
+                           Runnable putRightFork) throws InterruptedException &#123;
+
+        int leftFork = philosopher;
+        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5
+        int rightFork = (philosopher + 4) % 5;
+        while (true) &#123;
+            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。
+            if (forksPermission[leftFork].tryAcquire()) &#123; 
+                // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。
+                // 拿到左叉，尝试拿右叉。
+                if (forksPermission[rightFork].tryAcquire()) &#123;
+                    // 左叉，右叉都拿到了。开吃！ 
+                    pickLeftFork.run();
+                    pickRightFork.run();
+                    
+                    eat.run();
+
+                    putLeftFork.run();
+                    forksPermission[leftFork].release();
+                    putRightFork.run();
+                    forksPermission[rightFork].release();
+                    
+                    break; // 吃完退出(线程)
+                &#125; else &#123;
+                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。
+                    forksPermission[leftFork].release();
+                    Thread.sleep(1); //_ 为什么必须sleep？
+                &#125;
+            &#125; else &#123;
+                // 没抢到左叉，歇歇继续试。
+                Thread.sleep(1);  //_ 为什么必须sleep？
+            &#125;
+        &#125;
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-Nonblocking-comes-from-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -429,50 +590,6 @@ Get 1
 
 
 
-  <article id="post-Monoid" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2018-09-12T12:43:08.000Z"><a href="/2018/09/12/Monoid/">2018-09-12</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2018/09/12/Monoid/">Monoid</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; &#123;
-    T Empty
-&#125;
-
-class (Semigroup a) &lt;= Monoid a where
-    empty :: a
-</code></pre>
-<h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&#39;t change the meaning of a monoidal value.
-a &lt;&gt; empty == a
-empty &lt;&gt; a == a
-</code></pre>
-<h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -499,7 +616,7 @@ empty &lt;&gt; a == a
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
@@ -509,7 +626,7 @@ empty &lt;&gt; a == a
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>6</small></li>
+    <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
   
@@ -517,11 +634,11 @@ empty &lt;&gt; a == a
   
     <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
   
-    <li><a href="/tags/Mongo/">Mongo</a><small>1</small></li>
+    <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>7</small></li>
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   

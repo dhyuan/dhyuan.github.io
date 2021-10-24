@@ -45,6 +45,50 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-Monoid" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2018-09-12T12:43:08.000Z"><a href="/2018/09/12/Monoid/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Monoid/">Monoid</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="Monoid"><a href="#Monoid" class="headerlink" title="Monoid"></a>Monoid</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature"></a>Type signature</h4><pre><code>public interface Monoid&lt;T&gt; : SemiGroup&lt;T&gt; &#123;
+    T Empty
+&#125;
+
+class (Semigroup a) &lt;= Monoid a where
+    empty :: a
+</code></pre>
+<h4 id="Monoid-Laws"><a href="#Monoid-Laws" class="headerlink" title="Monoid Laws:"></a>Monoid Laws:</h4><pre><code>The empty value doesn&#39;t change the meaning of a monoidal value.
+a &lt;&gt; empty == a
+empty &lt;&gt; a == a
+</code></pre>
+<h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p>Semigroup/Monoid are domain modeling tools.</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-Semigroup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -623,67 +667,6 @@ configuration/apps
 
 
 
-  <article id="post-To-learn-To-know-To-use" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2016-09-01T13:50:26.000Z"><a href="/2016/09/01/To-learn-To-know-To-use/">2016-09-01</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/01/To-learn-To-know-To-use/">To learn, To know, To use</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="Spring-Cloud"><a href="#Spring-Cloud" class="headerlink" title="Spring Cloud"></a>Spring Cloud</h3><p>互联网技术发展到现在，更多的是“分布式计算技术＋业务领域”的实现。可以把Spring Cloud理解成一个：开发分布式应用的工具包。</p>
-<p>针对开发一个分布式系统中常用到的模式，Spring Cloud基于Spring Boot技术向开发者提供了简单易用的API。工具包中包含以下工具：</p>
-<ul>
-<li>Configuration Management<ul>
-<li><a href="https://dhyuan.github.io/2016/08/17/spring-cloud-config-git-backend/">用Git存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/06/spring-cloud-zookeeper-config/">用ZooKeeper存储配置信息</a></li>
-<li><a href="https://dhyuan.github.io/2016/09/07/spring-cloud-consul-config/">用Consul存储配置信息</a></li>
-<li>配置服务的设计与实践。</li>
-</ul>
-</li>
-<li>service discovery</li>
-<li>circuit breakers</li>
-<li>intelligent routing</li>
-<li>micro-proxy</li>
-<li>control bus</li>
-<li>one-time tokens</li>
-<li>global locks</li>
-<li>Leadership election<ul>
-<li>利用ZooKeeper、Curator实现leader选举</li>
-<li>利用leadership election实现“单例服务”</li>
-</ul>
-</li>
-<li>distributed sessions</li>
-<li>cluster state</li>
-</ul>
-<h3 id="Reactive-Programming"><a href="#Reactive-Programming" class="headerlink" title="Reactive Programming"></a>Reactive Programming</h3><ul>
-<li>RxJava</li>
-<li>Akka</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -710,7 +693,7 @@ configuration/apps
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
@@ -720,7 +703,7 @@ configuration/apps
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>6</small></li>
+    <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
   
@@ -728,11 +711,11 @@ configuration/apps
   
     <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
   
-    <li><a href="/tags/Mongo/">Mongo</a><small>1</small></li>
+    <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>7</small></li>
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   

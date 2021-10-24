@@ -45,6 +45,107 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/install_docker_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-27T02:50:05.000Z"><a href="/2020/09/27/devops/install_docker_by_ansible/">2020-09-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/27/devops/install_docker_by_ansible/">使用Ansible自动安装Docker</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/
+git clone git@github.com:dhyuan/virt-infra-ansible.git
+
+cd ~/devenv_bootstrap/virt-infra-ansible/roles
+git clone https://github.com/dhyuan/ansible-role-virt-infra.git
+cd ansible-role-virt-infra
+git checkout -b devenv
+git branch --set-upstream-to origin/devenv
+git pull
+</code></pre>
+<h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.yml
+vi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml
+</code></pre>
+<p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p>
+<h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes
+</code></pre>
+<h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=running
+</code></pre>
+<h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=shutdown
+</code></pre>
+<h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p>
+<pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=undefined
+</code></pre>
+<h2 id="为安装-K8S-更新虚拟机"><a href="#为安装-K8S-更新虚拟机" class="headerlink" title="为安装 K8S 更新虚拟机"></a>为安装 K8S 更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><pre><code>ansible-playbook --ask-become-pass --inventory ./inventory ansible/update-vms.yaml
+</code></pre>
+<h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \
+--roles-path ~/.ansible/roles/ \
+git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
+
+#
+ansible-galaxy list
+</code></pre>
+<p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p>
+<h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml
+---
+- hosts: all,!kvmhost
+  vars:
+    docker_version: 19.03.8
+    docker_remove_pre_ce: false
+    docker_users: [devops]
+    docker_daemon_config:
+      exec-opts: [&quot;native.cgroupdriver=systemd&quot;],
+      registry-mirrors:
+        [
+          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,
+          &quot;http://registry.docker-cn.com&quot;,
+          &quot;http://docker.mirrors.ustc.edu.cn&quot;,
+          &quot;http://hub-mirror.c.163.com&quot;,
+        ]
+      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]
+
+  roles:
+    - role: ansible-role-docker-ce
+[devops@192 virt-infra-ansible]$
+</code></pre>
+<p>其中，exec-opts: [“native.cgroupdriver=systemd”], 是为了避免以后使用 kubeadm 安装 k8s 集群时警告：</p>
+<pre><code>[WARNING IsDockerSystemdCheck]: detected &quot;cgroupfs&quot; as the Docker cgroup driver. The recommended driver is &quot;systemd&quot;. Please follow the guide at https://kubernetes.io/docs/setup/cri/
+</code></pre>
+<h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \
+--limit k8s_masters,k8s_nodes -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;&#125;&#125;&#39;
+</code></pre>
+<h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/setup_vpn_on_centos7" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -689,167 +790,6 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#
 
 
 
-  <article id="post-Concurrency-in-LeetCode" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-04-10T10:03:53.000Z"><a href="/2020/04/10/Concurrency-in-LeetCode/">2020-04-10</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/04/10/Concurrency-in-LeetCode/">用Semaphore解决LeetCode并发练习题</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p>
-<p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p>
-<p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p>
-<p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p>
-<p>利用下面的知识点应该就足够团灭这几道题了。</p>
-<ol>
-<li><p>线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p>
-</li>
-<li><p>调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p>
-</li>
-<li><p>因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p>
-</li>
-</ol>
-<p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p>
-<p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p>
-<p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p>
-<p>LeetCode 1114, 多线程按序打印1，2，3。</p>
-<pre><code>public class FooBySemaphore &#123;
-
-    public FooBySemaphore() &#123;&#125;
-
-    // 先打印 one， 所以这个初始化为放行。
-    private Semaphore firstPermission = new Semaphore(1);
-    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’
-    private Semaphore secondPermission = new Semaphore(0);
-    private Semaphore thirdPermission = new Semaphore(0);
-
-    public void first(Runnable printFirst) throws InterruptedException &#123;
-        firstPermission.acquire();
-        printFirst.run();
-        secondPermission.release(); // 放行第二个线程
-    &#125;
-
-    public void second(Runnable printSecond) throws InterruptedException &#123;
-        secondPermission.acquire();
-        printSecond.run();
-        thirdPermission.release(); // 放行第三个线程
-    &#125;
-
-    public void third(Runnable printThird) throws InterruptedException &#123;
-        thirdPermission.acquire();
-        printThird.run();
-        firstPermission.release(); // 放行第一个线程
-    &#125;
-&#125;
-</code></pre>
-<p>LeetCode 1117,  多线程生成水分子。</p>
-<pre><code>public class H2OBySemaphore &#123;
-    /**
-     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。
-     *
-     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。
-     * 生产出2个氢原子后oSemaphore的信号数量就是2。
-     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。
-     *
-     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。
-     */
-    public H2OBySemaphore() &#123;
-    &#125;
-
-    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。
-    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。
-    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException &#123;
-        hPermission.acquire();
-        releaseHydrogen.run();
-        oPermission.release();
-    &#125;
-
-    public void oxygen(Runnable releaseOxygen) throws InterruptedException &#123;
-        oPermission.acquire(2);
-
-        releaseOxygen.run();
-        hPermission.release(2);
-    &#125;
-&#125;
-</code></pre>
-<p>LeetCode 1226, 哲学家就餐问题。</p>
-<pre><code>public class DiningPhilosophers &#123;
-
-    private Semaphore[] forksPermission = new Semaphore[5];
-
-    public DiningPhilosophers() &#123;
-        for (int i = 0; i &lt; 5; i ++) &#123;
-            forksPermission[i] = new Semaphore(1);
-        &#125;
-    &#125;
-
-    // call the run() method of any runnable to execute its code
-    public void wantsToEat(int philosopher,
-                           Runnable pickLeftFork,
-                           Runnable pickRightFork,
-                           Runnable eat,
-                           Runnable putLeftFork,
-                           Runnable putRightFork) throws InterruptedException &#123;
-
-        int leftFork = philosopher;
-        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5
-        int rightFork = (philosopher + 4) % 5;
-        while (true) &#123;
-            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。
-            if (forksPermission[leftFork].tryAcquire()) &#123; 
-                // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。
-                // 拿到左叉，尝试拿右叉。
-                if (forksPermission[rightFork].tryAcquire()) &#123;
-                    // 左叉，右叉都拿到了。开吃！ 
-                    pickLeftFork.run();
-                    pickRightFork.run();
-                    
-                    eat.run();
-
-                    putLeftFork.run();
-                    forksPermission[leftFork].release();
-                    putRightFork.run();
-                    forksPermission[rightFork].release();
-                    
-                    break; // 吃完退出(线程)
-                &#125; else &#123;
-                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。
-                    forksPermission[leftFork].release();
-                    Thread.sleep(1); //_ 为什么必须sleep？
-                &#125;
-            &#125; else &#123;
-                // 没抢到左叉，歇歇继续试。
-                Thread.sleep(1);  //_ 为什么必须sleep？
-            &#125;
-        &#125;
-    &#125;
-&#125;
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -876,7 +816,7 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/Concurrency/">Concurrency</a><small>5</small></li>
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
@@ -886,7 +826,7 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>6</small></li>
+    <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
   
@@ -894,11 +834,11 @@ location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#
   
     <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
   
-    <li><a href="/tags/Mongo/">Mongo</a><small>1</small></li>
+    <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
   
-    <li><a href="/tags/Reactive/">Reactive</a><small>7</small></li>
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
