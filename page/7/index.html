@@ -45,6 +45,67 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring-cloud-zookeeper-config" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2016-09-06T14:36:21.000Z"><a href="/2016/09/06/spring-cloud-zookeeper-config/">2016-09-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2016/09/06/spring-cloud-zookeeper-config/">Spring Cloud Config 之 ZooKeeper</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-zookeeper/spring-cloud-zookeeper.html#spring-cloud-zookeeper-config">使用ZooKeeper作为配置信息的Repository</a></p>
+<p>Spring Cloud Config Server默认使用Git作为配置信息的存储地。zookeeper本身的namespace机制也很适合作为分布式配置信息的存储地。加上zookeeper提供的watcher接口，很容易实现配置信息变化的通知。当前版本(1.0.2)Spring-cloud-zookeeper还不支持对配置信息变化的通知。</p>
+<p>配置信息默认地存储在path ’config‘中，后面跟application name + profile name。<br>下面是对于应用testApp来说，配置信息查找路径的优先级。注意，application不是应用名，而是全局的一个存放缺省配置（或是全局配置）的地方。</p>
+<p>例一：</p>
+<pre><code>config/testApp,dev
+config/testApp
+config/application,dev
+config/application
+</code></pre>
+<p>配置信息的根路径config和默认配置子路径名application都是可配置的。比如，通过下面的bootstrap.yml。</p>
+<pre><code>spring:
+  cloud:
+    zookeeper:
+      config:
+        enabled: true
+        root: configuration
+        defaultContext: apps
+        profileSeparator: &#39;::&#39;
+</code></pre>
+<p>这样，例一，就应变成下面这样：</p>
+<pre><code>configuration/testApp,dev
+configuration/testApp
+configuration/apps,dev
+configuration/apps
+</code></pre>
+<blockquote>
+<p>依赖:</p>
+<p>org.springframework.cloud:spring-cloud-starter-zookeeper-config</p>
+</blockquote>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-To-learn-To-know-To-use" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -309,9 +370,13 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/design/">design</a><small>1</small></li>
   
+    <li><a href="/tags/network/">network</a><small>1</small></li>
+  
     <li><a href="/tags/spring/">spring</a><small>1</small></li>
   
     <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
   
   </ul>
 </div>
