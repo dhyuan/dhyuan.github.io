@@ -78,7 +78,50 @@ brew services list
 replication:
   replSetName: rs0
 </code></pre>
-<h3 id="2）强制设置master复制集。"><a href="#2）强制设置master复制集。" class="headerlink" title="2）强制设置master复制集。"></a>2）强制设置master复制集。</h3><p>开始在端口为27017的情况下按照 <a target="_blank" rel="noopener" href="https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html">https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html</a> 介绍的方式把单节点的mongo服务转变为单复制集的方式运行。</p>
+<h3 id="2-设置密码登录"><a href="#2-设置密码登录" class="headerlink" title="2) 设置密码登录"></a>2) 设置密码登录</h3><p>创建超级用户、普通用户：<br>    use admin<br>    db.createUser(<br>      {<br>        user: “root”,<br>        pwd: “password”,<br>        roles: [<br>          { role: “root”, db: “admin” }<br>        ]<br>      }<br>    )</p>
+<pre><code>// 创建用户test，对数据库testDB1、testDB2读写的权限，其authorizaiton的DB是testDB1。
+use testDB1
+db.createUser(
+  &#123;
+    user: &quot;testuser&quot;,
+    pwd: &quot;123&quot;, 
+    roles: [
+      &#123; role: &quot;readWrite&quot;, db: &quot;testDB&quot; &#125;,
+      &#123; role: &quot;readWrite&quot;, db: &quot;testDB2&quot; &#125;
+    ]
+  &#125;
+)
+</code></pre>
+<p>给 root 用户设置clusterManager角色，这样才可以使用rs.initiate()、rs.conf()与复制集相关的命令。</p>
+<pre><code>use admin
+db.grantRolesToUser(
+  &quot;root&quot;,
+  [ &quot;clusterManager&quot; ]
+)
+</code></pre>
+<p>这个dbAdminAnyDatabase 角色似乎很‘方便’。</p>
+<pre><code>db.grantRolesToUser(&quot;yourUser&quot;, [&#123;&quot;role&quot;: &quot;dbAdminAnyDatabase&quot;, &quot;db&quot;: &quot;admin&quot;&#125;])
+</code></pre>
+<h3 id="3）设置复制集。"><a href="#3）设置复制集。" class="headerlink" title="3）设置复制集。"></a>3）设置复制集。</h3><p>复制集需要安全通行。首先生成mongodb私钥<br>Reference：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/">https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/</a></p>
+<pre><code>openssl rand -base64 756 &gt; KEY_PATH/mongo_server.key
+</code></pre>
+<p>修改配置设置keyFile：</p>
+<pre><code>security:
+  keyFile: KEY_PATH/mongo_server.key
+  authorization: enabled
+</code></pre>
+<p>强制设置本地节点复制集名称。</p>
+<pre><code>replication:
+  replSetName: rs0
+</code></pre>
+<p>重启mongo</p>
+<pre><code>brew services restart mongodb-community
+</code></pre>
+<p>进入mongosh，执行rs.initiate()初始化数据集：</p>
+<pre><code>rs.initiate()
+rs.conf()
+</code></pre>
+<h3 id="4）强制设置master复制集。"><a href="#4）强制设置master复制集。" class="headerlink" title="4）强制设置master复制集。"></a>4）强制设置master复制集。</h3><p>遇到的问题及解决：开始在端口为27017的情况下按照 <a target="_blank" rel="noopener" href="https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html">https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html</a> 介绍的方式把单节点的mongo服务转变为单复制集的方式运行。</p>
 <p>接着又更改了mongo服务的端口为27117，这样之前的复制集节点就不对了。<br>先加上当前27117端口的mongo服务作为一个复制集。</p>
 <pre><code>rs.add(&quot;127.0.0.1:27117&quot;)
 </code></pre>
@@ -133,42 +176,10 @@ replication:
 <p>强制执行重新配置</p>
 <pre><code>rs.reconfig(cfg, &#123;force : true&#125;)
 </code></pre>
-<h3 id="3-设置密码登录"><a href="#3-设置密码登录" class="headerlink" title="3) 设置密码登录"></a>3) 设置密码登录</h3><p>创建超级用户、普通用户：</p>
-<pre><code>db.createUser(
-  &#123;
-    user: &quot;root&quot;,
-    pwd: &quot;password&quot;, 
-    roles: [
-      &#123; role: &quot;root&quot;, db: &quot;admin&quot; &#125;
-    ]
-  &#125;
-)
-
-db.createUser(
-  &#123;
-    user: &quot;testuser&quot;,
-    pwd: &quot;123&quot;, 
-    roles: [
-      &#123; role: &quot;readWrite&quot;, db: &quot;test&quot; &#125;
-    ]
-  &#125;
-)
-</code></pre>
-<p>生产mongodb私钥<br>Reference：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/">https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/</a></p>
-<pre><code>openssl rand -base64 756 &gt; KEY_PATH/mongo_server.key
-</code></pre>
-<p>修改配置</p>
-<pre><code>security:
-  keyFile: KEY_PATH/mongo_server.key
-  authorization: enabled
-</code></pre>
-<p>重启mongo</p>
-<pre><code>brew services restart mongodb-community
-</code></pre>
-<p>通过用户名密码登录</p>
+<h3 id="5）设置复制集。"><a href="#5）设置复制集。" class="headerlink" title="5）设置复制集。"></a>5）设置复制集。</h3><p>通过用户名密码登录</p>
 <pre><code>mongosh --port 27117 -u testuser -p 123 --authenticationDatabase  test 
 </code></pre>
-<h3 id="4）Mac环境设置-maxfile-limit"><a href="#4）Mac环境设置-maxfile-limit" class="headerlink" title="4）Mac环境设置 maxfile limit"></a>4）Mac环境设置 maxfile limit</h3><p>查看当前设置：</p>
+<h3 id="6）Mac环境设置-maxfile-limit"><a href="#6）Mac环境设置-maxfile-limit" class="headerlink" title="6）Mac环境设置 maxfile limit"></a>6）Mac环境设置 maxfile limit</h3><p>查看当前设置：</p>
 <pre><code>launchctl limit maxfiles
 </code></pre>
 <p>如果soft limit是256，则执行下面命令扩大。否则mongo server可用的线程将受限。</p>
@@ -176,6 +187,23 @@ db.createUser(
 </code></pre>
 <p>因为机器重启后以上更改会失效，所以还需要添加以上命令到开机脚本中。因为使用到了sudo，可使用 visudo 修改设置免密码。</p>
 <pre><code>%admin          ALL = (ALL) NOPASSWD: ALL
+</code></pre>
+<h3 id="7）mongo-conf"><a href="#7）mongo-conf" class="headerlink" title="7）mongo.conf"></a>7）mongo.conf</h3><p>mongo.conf 大致如此：<br>如果需要设置MongoDB无需认证登录的话，需要authrozation、keyFile这两个字段同时注释掉。·</p>
+<pre><code>systemLog:
+  destination: file
+  path: /usr/local/var/log/mongodb/mongo.log
+  logAppend: true
+storage:
+  dbPath: /usr/local/var/mongodb
+net:
+  bindIp: 127.0.0.1
+  port: 27017
+  maxIncomingConnections: 4096
+security:
+  keyFile: /YOURPATH/mongo_server.key
+  authorization: enabled
+replication:
+  replSetName: rs0
 </code></pre>
 
       
@@ -301,7 +329,7 @@ db.createUser(
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-  &copy; 2021 Dahui
+  &copy; 2022 Dahui
   
 </div>
 <div class="clearfix"></div></footer>
