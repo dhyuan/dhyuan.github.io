@@ -45,6 +45,47 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-STTP的基本使用" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-02-22T14:11:32.000Z"><a href="/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">2020-02-22</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">STTP的基本使用(1)：Request、Response</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>试试看 get 一下新技能：STTP with AKKA。</p>
+<p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p>
+<p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理着连接池、处理 response 的线程池，根据 backend 的情况还支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 的返回值则是 Task[Resonse[T]]。</p>
+<p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/basics.html">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
+<p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/streaming.html">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
+<p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
+
+
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-JMM" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -576,70 +617,6 @@ echo 200000 &gt; /proc/sys/kernel/pid_max
 
 
 
-  <article id="post-spring-cloud-consul-config" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2016-09-07T15:10:29.000Z"><a href="/2016/09/07/spring-cloud-consul-config/">2016-09-07</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/09/07/spring-cloud-consul-config/">spring cloud config 之 consul</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-consul/spring-cloud-consul.html#spring-cloud-consul-config">使用Consul作为配置信息的Repository</a></p>
-<p>类似ZooKeeper，Consul服务本事提供了Key/Value存储功能，所以很自然的通过Spring Cloud Consul Config就能完成Config Server and Client的功能。实际上，可以理解成配置信息从保存在git文件系统，变成了保存在Consul里。</p>
-<p>1）激活Spring Cloud Consul Config，只需依赖spring-cloud-consul-config。</p>
-<pre><code>org.springframework.cloud:spring-cloud-consul-config
-</code></pre>
-<p>2）在bootstrap.yml（或bootstrap.property）中配置spring cloud consul config。</p>
-<pre><code>spring:
-  cloud:
-    consul:
-      config:
-        enabled: true
-        prefix: configuration
-        defaultContext: apps
-        profileSeparator: &#39;::&#39;
-</code></pre>
-<p>3）如果你认为把原来保存在property／yml文件中的properties作为value保存在以data（作为key）下更方便些，可用通过设定format可以实现。</p>
-<pre><code>spring:
-  cloud:
-    consul:
-      config:
-        format: YAML
-
-
-config/testApp,dev/data
-config/testApp/data
-config/application,dev/data
-config/application/data
-</code></pre>
-<p>可以通过下面的设置，修改健data的值</p>
-<pre><code>spring.cloud.consul.config.data-key
-</code></pre>
-<p>4）git2consul<br>consul社区的开源项目<a target="_blank" rel="noopener" href="https://github.com/Cimpress-MCP/git2consul">git2consul</a>可以把存在git目录里的文件导入到consule中不同的key中。缺省地，文件名就是key的名字。详细用法参见[]<a target="_blank" rel="noopener" href="https://github.com/Cimpress-MCP/git2consul](https://github.com/Cimpress-MCP/git2consul)%E3%80%82">https://github.com/Cimpress-MCP/git2consul](https://github.com/Cimpress-MCP/git2consul)。</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -670,7 +647,7 @@ config/application/data
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>22</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>23</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
