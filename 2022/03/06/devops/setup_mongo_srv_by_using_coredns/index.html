@@ -66,7 +66,7 @@
 <h3 id="MongoDB"><a href="#MongoDB" class="headerlink" title="MongoDB"></a>MongoDB</h3><p>MongDB这部分无需特殊配置，只要把MongoDB在本地以复制集（名为rs0）安装并运行起来就好。</p>
 <h3 id="运行CoreDNS"><a href="#运行CoreDNS" class="headerlink" title="运行CoreDNS"></a>运行CoreDNS</h3><p>运行CoreDNS容器，并把本地～/dockerSrvStorage/dockerEnv/coredns 映射为coredns容器里的/root目录。<br>配置CoreDNS使用容器里的/root/Corefile（对应于本地的～/dockerSrvStorage/dockerEnv/coredns/Corefile）作为配置文件。</p>
 <p>  docker run -d –name coredns –restart=always <br>      –volume=～/dockerSrvStorage/dockerEnv/coredns/:/root/ <br>      -p 53:53/udp coredns/coredns <br>      -conf /root/Corefile</p>
-<h3 id="配制CoreDNS"><a href="#配制CoreDNS" class="headerlink" title="配制CoreDNS"></a>配制CoreDNS</h3><p>Corefile内容如下。其中定义了一个zone ‘local.env’，对应的DNS记录文件使用/root/local.env。因为上一步已经把本地的～/dockerSrvStorage/dockerEnv/coredns 映射为了容器里的/roo目录，所以在本地的这个目录创建local.env这个文件就可以了。</p>
+<h3 id="配制CoreDNS"><a href="#配制CoreDNS" class="headerlink" title="配制CoreDNS"></a>配制CoreDNS</h3><p>Corefile内容如下。其中定义了一个dns zone ‘local.env’，对应的DNS记录文件使用/root/local.env。因为上一步已经把本地的～/dockerSrvStorage/dockerEnv/coredns 映射为了容器里的/roo目录，所以在本地的这个目录创建local.env这个文件就可以了。</p>
 <p>Corefile：</p>
 <pre><code>.:53 &#123;
     forward . 8.8.8.8 114.114.114.114
@@ -80,7 +80,7 @@ local.env:53 &#123;
     errors
 &#125;
 </code></pre>
-<p>local.env<br>下面的配置表示本地机器域名设置为dev.local.evn，并且机器名mongo.local.env、mongo.local.env、mongo.local.env都是dev.local.env这个机器的别名。<br>假设本地运行了两个以replicaset（名字是rs0）方式运行的mongo实例，分别侦听在端口27017，27117上。下面的配置就可以提供两个mongosrv连接。<br>mongo+srv://DB1.mongo.local.env     mongo+srv://DB2.mongo.local.env</p>
+<p>local.env<br>下面的配置表示本地机器域名设置为dev.local.env，机器名mongo.local.env是dev.local.env这个机器的别名。<br>假设本地运行了一个数据库DB1以两replicaset（名字是rs0）方式运行的mongo实例，分别侦听在端口27017，27117上。下面的配置就可以提供一个mongosrv连接。<br>mongo+srv://DB1.mongo.local.env。</p>
 <pre><code>@    3600 IN    SOA dns.local.env. dhyuan.google.com. (
         2022030456 ; serial
         7200       ; refresh (2 hours)
@@ -97,9 +97,6 @@ zk.local.env.     IN  CNAME   dev.local.env.
 _mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27017 mongo.local.env.
 _mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27117 mongo.local.env.
 DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot;
-
-_mongodb._TCP.DB2.mongo.local.env. 86400 IN SRV   0        0      27017 mongo.local.env.
-DB2.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB2&quot;
 </code></pre>
 <h3 id="更改本地-etc-resolv-conf"><a href="#更改本地-etc-resolv-conf" class="headerlink" title="更改本地/etc/resolv.conf"></a>更改本地/etc/resolv.conf</h3><p>把’nameserver 127.0.0.1’ 加在文件末尾，让本地的CoreDns参与解析。</p>
 <h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>dig -t srv DB1.mongo.local.env</p>
