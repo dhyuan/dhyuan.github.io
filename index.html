@@ -62,9 +62,7 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <p>利用docker搭建如下拓扑结构的的实验环境。相关代码可以在 <a target="_blank" rel="noopener" href="https://github.com/dhyuan/dockerEnv/tree/main/nginx">https://github.com/dhyuan/dockerEnv/tree/main/nginx</a> 获得。</p>
-
-
-
+<p><a href="./nginx-workshop-environment/topology.jpg">Topology</a></p>
 <h3 id="1-网路"><a href="#1-网路" class="headerlink" title="1) 网路"></a>1) 网路</h3><p>首先创建一个网络’nginx-net’，把所有的相关的容器放在这个网络里以方便容器之间的访问。<br>这个网络地址范围172.50.0.0/16。相关脚本 createNetwork.sh。</p>
 <pre><code>docker network create --subnet=172.50.0.0/16 nginx-net
 </code></pre>
@@ -99,7 +97,7 @@ curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/inde
 <h3 id="5）-Demo"><a href="#5）-Demo" class="headerlink" title="5） Demo"></a>5） Demo</h3><p>下图显示了一个测试获取真实用户IP的场景。</p>
 <p>为了查看HTTP header里的X_REAL_IP字段，在‘log_format main’里加上了 <strong>“  | $http_x_real_ip”</strong> ,这样在access.log就就可以看到nginx接收到的HEADER X_REAL_IP的值。</p>
 <p>从图里 nginxC 的access.log 中可以看到，nginxC收到的X_REAL_IP是ngixA的IP。如果我们希望这里的X_REAL_IP记录的是真正web client的IP就需要把nginxB中的指令 “proxy_set_header X-Real-IP $remote_addr;” 注释掉。这样，ngixC中收到的X_REAL_IP就是 nginxA中看到的$remote_addr，及ngixA看到的client的IP了。</p>
-
+<img src="/2022/05/29/devops/nginx-workshop-environment/05/29/devops/nginx-workshop-environment/05/29/devops/nginx-workshop-environment/Nginx-X-FORWARDED-FOR.drawio.png" class title="X-FORWARDED_FOR_demo">
 
 
       
