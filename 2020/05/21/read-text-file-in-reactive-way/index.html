@@ -63,7 +63,7 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <p>在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。<br>Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。<br>stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.fromStream 提供了方便的接口，直接把 stream 转为 flux。考虑到对文件这种资源使用之后都要有 close 这种操作，那么直接使用 Flux.using 就再合适不过了，免去了手动释放资源这种模版式的代码。</p>
-<p>private static Flux<String> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</p>
+<p>private static Flux<String> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</String></p>
 <p>Reference：<br><a target="_blank" rel="noopener" href="https://simonbasle.github.io/2017/10/file-reading-in-reactor/">https://simonbasle.github.io/2017/10/file-reading-in-reactor/</a><br>这篇文章里有关于的 window 各种用法的解释：<a target="_blank" rel="noopener" href="https://blog.51cto.com/liukang/2094073%E3%80%82">https://blog.51cto.com/liukang/2094073。</a><br>通过 Jackson 流式解析 Json：<a target="_blank" rel="noopener" href="https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/">https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/</a></p>
 <p>Flux 的 create 和 generate 的区别。</p>
 <p>Mokito <a target="_blank" rel="noopener" href="https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit">https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit</a></p>

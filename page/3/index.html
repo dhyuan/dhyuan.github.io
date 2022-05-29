@@ -411,10 +411,10 @@ Docker version 20.10.4, build d3cb89e
     <div class="e-content entry" itemprop="articleBody">
       
         <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
-<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</T></p>
 <p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
 <h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
-<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id><a href="#" class="headerlink" title></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
       
     </div>
     <footer>
@@ -656,7 +656,7 @@ ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &
 </blockquote>
 <p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不必知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-events">https://www.baeldung.com/spring-events</a><br><a target="_blank" rel="noopener" href="https://reflectoring.io/spring-boot-application-events-explained/">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
 <p><strong>响应式流 = 观察者 + 迭代器</strong></p>
-<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，只能是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<E> {<br>E next();<br>boolean hasNext();<br>}</p>
+<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，只能是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<E> {<br>E next();<br>boolean hasNext();<br>}</E></p>
 <p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p>
 <pre><code>public interface RxObserver&lt;T&gt; &#123;
   void onNext(T next);

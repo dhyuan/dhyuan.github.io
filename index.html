@@ -245,7 +245,7 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</p>
+        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</DataItem></p>
 <pre><code>public interface DataProcessor &#123;
   Mono&lt;String&gt; batchProcess(List&lt;DataItem&gt; dataItems);
   ... ...
