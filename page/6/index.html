@@ -107,7 +107,7 @@
 <p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/basics.html">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
 <p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/streaming.html">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
 <p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
-<p><img src="/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
+<p><img src="./STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
 <p>Reference：<br><a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
 
       
@@ -283,11 +283,11 @@ touch db/index
 openssl rand -hex 16 &gt; db/serial
 echo 1001 &gt; db/crlnumber
 </code></pre>
-<h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3>
+<h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a>
 
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-	ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure>
 
-<h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3>
+<h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a>
 
 <pre><code># 这一步同时生产私钥和csr
 openssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key
@@ -548,7 +548,7 @@ val connection4 = driver1.connection(List(&quot;localhost&quot;), options = conO
 </code></pre>
 <p>在__dependencyManagement下的声明不会引入实际的依赖__，它仅仅__用来约束dependencies__下面的依赖使用。<br>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p>
 <p><strong>5) 图例</strong></p>
-<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。<br><img src="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/SpringBootCloud_pomSmaple.png" alt="一个pom的例子"></p>
+<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。<br><img src="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/SpringBootCloud_pomSmaple.png" alt="一个pom的例子"></p>
 
       
     </div>

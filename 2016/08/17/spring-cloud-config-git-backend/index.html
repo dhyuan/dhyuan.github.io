@@ -76,8 +76,8 @@ SpringConfigClient_GitBackend.png
 spring.cloud.config.uri＝http://localhost:8888
 </code></pre>
 <p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。</p>
-<p><img src="/2016/08/17/spring-cloud-config-git-backend/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" alt="application name、profile、label的使用"></p>
-<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" alt="多个profile中重复定义"></p>
+<p><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" alt="application name、profile、label的使用"></p>
+<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" alt="多个profile中重复定义"></p>
 <ul>
 <li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
 </li>

@@ -64,7 +64,7 @@ public interface DataProcessor &amp;#123;
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</DataItem></p>
+        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</p>
 <pre><code>public interface DataProcessor &#123;
   Mono&lt;String&gt; batchProcess(List&lt;DataItem&gt; dataItems);
   ... ...

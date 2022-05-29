@@ -64,10 +64,10 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
-<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</T></p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
 <p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
 <h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
-<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id><a href="#" class="headerlink" title></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
       
     </div>
     <footer>

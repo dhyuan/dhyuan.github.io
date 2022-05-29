@@ -726,7 +726,7 @@ public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt
         <p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p>
 <p>反应式宣言英文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/zh-CN">https://www.reactivemanifesto.org/zh-CN</a></p>
 <p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应着某个解决方案的思想原则。</p>
-<p><img src="/2020/10/05/reactive/about_reactive_manifesto/10/05/reactive/about_reactive_manifesto/reactive-traits.png" alt="反应式"></p>
+<p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" alt="反应式"></p>
 <p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p>
 <p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p>
 <blockquote>
