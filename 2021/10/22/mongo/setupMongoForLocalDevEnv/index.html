@@ -78,8 +78,19 @@ brew services list
 replication:
   replSetName: rs0
 </code></pre>
-<h3 id="2-设置密码登录"><a href="#2-设置密码登录" class="headerlink" title="2) 设置密码登录"></a>2) 设置密码登录</h3><p>创建超级用户、普通用户：<br>    use admin<br>    db.createUser(<br>      {<br>        user: “root”,<br>        pwd: “password”,<br>        roles: [<br>          { role: “root”, db: “admin” }<br>        ]<br>      }<br>    )</p>
-<pre><code>// 创建用户test，对数据库testDB1、testDB2读写的权限，其authorizaiton的DB是testDB1。
+<h3 id="2-设置密码登录"><a href="#2-设置密码登录" class="headerlink" title="2) 设置密码登录"></a>2) 设置密码登录</h3><p>创建超级用户、普通用户：<br>    mongosh</p>
+<pre><code>use admin
+db.createUser(
+  &#123;
+    user: &quot;root&quot;,
+    pwd: &quot;password&quot;, 
+    roles: [
+      &#123; role: &quot;root&quot;, db: &quot;admin&quot; &#125;
+    ]
+  &#125;
+)
+
+// 创建用户test，对数据库testDB1、testDB2读写的权限，其authorizaiton的DB是testDB1。
 use testDB1
 db.createUser(
   &#123;
@@ -283,7 +294,7 @@ replication:
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>23</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>24</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -300,6 +311,8 @@ replication:
     <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>1</small></li>
   
     <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
   
