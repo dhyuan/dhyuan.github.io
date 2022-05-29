@@ -69,7 +69,7 @@
 <p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/basics.html">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
 <p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/streaming.html">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
 <p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
-<p><img src="./STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
+<p><img src="STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
 <p>Reference：<br><a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
 
       
