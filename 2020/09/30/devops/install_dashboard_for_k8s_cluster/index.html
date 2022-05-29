@@ -74,8 +74,7 @@ vi recommended.yml
     nodePort: 30443
 type: NodePort
 </code></pre>
-
-
+<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_node_port.png" alt="Dashboard Home Page"></p>
 <h3 id="安装-Dashboard"><a href="#安装-Dashboard" class="headerlink" title="安装 Dashboard"></a>安装 Dashboard</h3><pre><code>kubectl apply -f recommended.yaml
 kubectl get pods -n kubernetes-dashboard
 </code></pre>
@@ -89,7 +88,7 @@ kubectl create clusterrolebinding devops --clusterrole=cluster-admin --serviceac
 kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | awk &#39;/devops/&#123;print $1&#125;&#39;)
 </code></pre>
 <p>访问 <a target="_blank" rel="noopener" href="http://master_node_ip:30443/">http://master_node_ip:30443</a> 并用 devops 的 token 登录。</p>
-
+<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_home_page.png" alt="kubelet up"></p>
 
       
     </div>

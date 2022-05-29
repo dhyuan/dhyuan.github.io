@@ -97,14 +97,11 @@ sudo systemctl start systemd-networkd.service
 
 <h3 id="3）创建网桥、虚拟机，设置虚拟机桥接网卡。"><a href="#3）创建网桥、虚拟机，设置虚拟机桥接网卡。" class="headerlink" title="3）创建网桥、虚拟机，设置虚拟机桥接网卡。"></a>3）创建网桥、虚拟机，设置虚拟机桥接网卡。</h3><p>实验环境使用 Ubuntu20 Desktop 做宿主机，感觉用 nm-connection-editor 创建网桥、配置网桥出口也很方便、顺利。具体步骤可参考<a target="_blank" rel="noopener" href="http://www.zrway.com/news/8366.html%E3%80%82">http://www.zrway.com/news/8366.html。</a></p>
 <p>下图是通过 nm-connection-editor 创建出网桥，并把物理网卡插到这个网桥上。注意，把网卡作为网桥的 salver 设备之后，需要通过 GUI 删除这个网络网卡。</p>
-
-
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/create_bridge.png" alt="创建网桥"></p>
 <p>通过 virt-manager 创建出虚拟机后，需要设置虚拟机的网卡。这里有个 QEMU 前端设备、后端后端设备（backend network）的概念。所谓前端设备就是 Guest 虚拟机看到的设备，后端设备、后端网络就是在 Host 宿主机上的设备、网络。下图实际上大致对应这样的命令： qemu -net nic,model=e1000 -net bridge,br=bridge1 …</p>
-
-
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/set_net_device_in_guestvm.png" alt="设置网桥"></p>
 <p>下图是/etc/netplan 目录里的配置文件。</p>
-
-
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/netplan_setting_in_guestvm.png"></p>
 <p>参考:<br>netplan: <a target="_blank" rel="noopener" href="https://ubuntu.com/blog/ubuntu-bionic-netplan">https://ubuntu.com/blog/ubuntu-bionic-netplan</a><br>图形化管理工具： <a target="_blank" rel="noopener" href="https://ubuntu.com/core/docs/networkmanager">https://ubuntu.com/core/docs/networkmanager</a><br>网络管理服务: <a target="_blank" rel="noopener" href="https://www.configserverfirewall.com/ubuntu-linux/ubuntu-network-manager/">https://www.configserverfirewall.com/ubuntu-linux/ubuntu-network-manager/</a><br>创建网桥： <a target="_blank" rel="noopener" href="http://www.zrway.com/news/8366.html">http://www.zrway.com/news/8366.html</a></p>
 
       

@@ -107,8 +107,7 @@
 <p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/basics.html">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
 <p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/streaming.html">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
 <p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
-
-
+<p><img src="/2020/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/02/22/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
 <p>Reference：<br><a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
 
       
@@ -143,7 +142,7 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p>
-
+<p><img src="/2020/02/17/JMM/02/17/JMM/JMM.png"></p>
 
       
     </div>
@@ -549,11 +548,7 @@ val connection4 = driver1.connection(List(&quot;localhost&quot;), options = conO
 </code></pre>
 <p>在__dependencyManagement下的声明不会引入实际的依赖__，它仅仅__用来约束dependencies__下面的依赖使用。<br>虽然这个BOM概念很赞，但是不要幻想有什么通用的BOM。每个项目都有它自己的BOM文件用来管理用到的库依赖。</p>
 <p><strong>5) 图例</strong></p>
-<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。</p>
-
-
-
-
+<p>下图用来说明一下从start.spring.io网站，生产的模版项目中，pom.xml对SpringBoot，SpringCloud作为BOM的使用。一般地，我们应该把这这些BOM定义在作为parent使用的pom里进行集中地、统一地管理。<br><img src="/2016/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/09/19/%E5%9C%A8%E9%81%97%E7%95%99%E9%A1%B9%E7%9B%AE%E4%B8%AD%E4%BD%BF%E7%94%A8-Spring-Boot-and-Cloud/SpringBootCloud_pomSmaple.png" alt="一个pom的例子"></p>
 
       
     </div>
