@@ -7,7 +7,7 @@
   <meta name="author" content="Dahui">
   
   <meta name="description" content="简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。
-背景有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 最为反向代理向外">
+背景有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 作为反向代理向外">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -64,7 +64,7 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <p>简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。</p>
-<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 最为反向代理向外提供服务。<br>Nginx 和 Web 应用部署在同一台机器，IP 为 10.115.6.165。Web 应用以 HTTPS 协议监听在端口 19026。<br>如果是 Windows 环境，推荐在 <a target="_blank" rel="noopener" href="http://nginx-win.ecsds.eu/">http://nginx-win.ecsds.eu/</a> 下载编译带入了更多模块的 Nginx，因为在下面我们会需要 headers more 模块中的 more_set_headers 指令。如果是 Linux 环境，也请确认 headers more 模块的 more_set_headers 指令可用。</p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 作为反向代理向外提供服务。<br>Nginx 和 Web 应用部署在同一台机器，IP 为 10.115.6.165。Web 应用以 HTTPS 协议监听在端口 19026。<br>如果是 Windows 环境，推荐在 <a target="_blank" rel="noopener" href="http://nginx-win.ecsds.eu/">http://nginx-win.ecsds.eu/</a> 下载编译带入了更多模块的 Nginx，因为在下面我们会需要 headers more 模块中的 more_set_headers 指令。如果是 Linux 环境，也请确认 headers more 模块的 more_set_headers 指令可用。</p>
 <h3 id="Nginx-以-HTTP-的方式反向代理。"><a href="#Nginx-以-HTTP-的方式反向代理。" class="headerlink" title="Nginx 以 HTTP 的方式反向代理。"></a>Nginx 以 HTTP 的方式反向代理。</h3><p>用以下配置运行 Ngnix， 使其用 HTTP 协议在 9080 端口反向代理 19026 上的 HTTPS 服务。</p>
 <pre><code>server &#123;
     listen       9080;
@@ -261,7 +261,7 @@ server &#123;
   
     <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
-    <li><a href="/tags/MongoDB/">MongoDB</a><small>1</small></li>
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>2</small></li>
   
     <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
   
@@ -271,7 +271,7 @@ server &#123;
   
     <li><a href="/tags/Security/">Security</a><small>5</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>8</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
