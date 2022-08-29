@@ -1,0 +1,257 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>在本地运行 Apereo CAS | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。略过基础概念，直接记录一下本地运行的步骤。
+没必要下载源码修改代码、配置然后build出自己的">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="在本地运行 Apereo CAS"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-08-29T06:40:14.610Z"><a href="/2022/08/29/notes/Run-up-Apereo-CAS-locally/">2022-08-29</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">在本地运行 Apereo CAS</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a><br>略过基础概念，直接记录一下本地运行的步骤。</p>
+<p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
+<h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
+git checkout -b 6.5 origin/6.5
+</code></pre>
+<p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
+<h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
+<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行回显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
+<pre><code>CAS tasks
+---------
+casVersion - Display the current CAS version
+copyCasConfiguration - Copy the CAS configuration from this project to /etc/cas/config
+createKeystore - Create CAS keystore
+createTheme - Create theme directory structure in the overlay
+... ...
+</code></pre>
+<p>其中 createKeystore 用于生成https所用的证书。<br><code>sudo ./gradlew createKeystore</code></p>
+<p>如果需要修改keystore的密码，可以执行：<br><code>keytool -storepasswd -keystore /etc/cas/thekeystore</code></p>
+<p>生成https需要的PK和证书后，需要把CA导入到JDK的的ca根证书库中。</p>
+<pre><code>cd /etc/cas
+sudo keytool -import -alias cas_cert -storepass changeit -file cas.crt -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts
+</code></pre>
+<p>查看ca keystore<br><code>sudo keytools -list -storepass changeit  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts</code></p>
+<p>从ca keystore中删除cascert<br><code>sudo keytool -delete  -alias cas_cert  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts  -storepass changeit</code></p>
+<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以收工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
+<p>默认的内置的用户名密码是 casuser/Mellon，可以通过修改/etc/cas/config/cas.properties <code>cas.authn.accept.users=casuser::password</code> 进行定义。</p>
+<h3 id="5）Build-and-Run"><a href="#5）Build-and-Run" class="headerlink" title="5）Build and Run"></a>5）Build and Run</h3><pre><code>./gradlew clean build
+java -jar ./build/libs/cas.war
+</code></pre>
+<p><em>Reference:</em></p>
+<p><a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/index.html">https://apereo.github.io/cas/6.5.x/index.html</a></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5">https://github.com/apereo/cas-overlay-template/tree/6.5</a></p>
+<p><a target="_blank" rel="noopener" href="https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52">https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Security/">Security</a>, <a href="/tags/CAS/">CAS</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2022/08/29/notes/Run-up-Apereo-CAS-locally/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/CAS/">CAS</a><small>1</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>24</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>7</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
+  
+    <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>2</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>6</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2022 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
