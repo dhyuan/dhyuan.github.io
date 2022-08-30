@@ -1,0 +1,266 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Apereo CAS 之 管理界面 | Dahui’s 开发笔记</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="类似cas-server，先下载cas-management-overlay代码，这里使用6.5分支。
+$ git clone https://github.com/apereo/cas-management-overlay cas-management   
+$ cd cas-management">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Apereo CAS 之 管理界面"/>
+  <meta property="og:site_name" content="Dahui’s 开发笔记"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">Dahui’s 开发笔记</a></h1>
+  <h2><a href="/">码农笔记</a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/cas/Apereo-CAS-Management-UI" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-08-30T06:23:12.806Z"><a href="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/">2022-08-30</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Apereo CAS 之 管理界面</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>类似cas-server，先下载cas-management-overlay代码，这里使用6.5分支。</p>
+<pre><code>$ git clone https://github.com/apereo/cas-management-overlay cas-management   
+$ cd cas-management   
+$ git checkout -b 6.5 origin/6.5
+</code></pre>
+<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server最为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
+<p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
+<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage</a></p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
+</code></pre>
+<h3 id="2）告诉cas-server-在哪里可以找到定义client-service的json文件"><a href="#2）告诉cas-server-在哪里可以找到定义client-service的json文件" class="headerlink" title="2）告诉cas-server 在哪里可以找到定义client/service的json文件"></a>2）告诉cas-server 在哪里可以找到定义client/service的json文件</h3><p>在文件 etc/cas/config/cas.properties 中加入如下配置：<br><code>cas.service-registry.json.location=classpath:/services</code></p>
+<p>在cas-server 项目的 src/resources 目录下创建一个名为casManagement-2000.json的文体。文件名的格式是 clientName + clientId.json，具体请阅读官方文档。</p>
+<pre><code>&#123;
+  &quot;@class&quot; : &quot;org.apereo.cas.services.RegexRegisteredService&quot;,
+  &quot;serviceId&quot; : &quot;^(https|imaps)://.*&quot;,
+  &quot;name&quot; : &quot;casManagement&quot;,
+  &quot;id&quot; : 2000,
+  &quot;logoutType&quot; : &quot;BACK_CHANNEL&quot;,
+  &quot;logoutUrl&quot; : &quot;https://localhost:8444/cas-management/logout&quot;
+&#125;
+</code></pre>
+<h3 id="3）配置cas-management"><a href="#3）配置cas-management" class="headerlink" title="3）配置cas-management"></a>3）配置cas-management</h3><p>上面两步是配置cas-server以把cas-manager作为它的client。现在，配置cas-management。<br>编辑 cas-management 项目里的 etc/case/config/management.properties 文件，内容如下。</p>
+<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
+<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
+<pre><code>cas.server.name=https://localhost:8443
+cas.server.prefix=$&#123;cas.server.name&#125;/cas
+
+server.port=8444
+mgmt.server-name=https://localhost:8444
+mgmt.admin-roles[0]=ROLE_ADMIN
+mgmt.user-properties-file=file:/etc/cas/config/users.json
+
+logging.config=file:/etc/cas/config/log4j2-management.xml
+
+server.ssl.key-store=file:/etc/cas/thekeystore
+server.ssl.key-store-password=changeit
+
+# Let the cas-management to know where to find/save the registed services
+cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/services
+</code></pre>
+<h3 id="4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management"><a href="#4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management" class="headerlink" title="4） 同时运行cas-server，cas-management后，访问 https://localhost:8444/cas-management/"></a>4） 同时运行cas-server，cas-management后，访问 <a target="_blank" rel="noopener" href="https://localhost:8444/cas-management/">https://localhost:8444/cas-management/</a></h3><p><img src="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/apereo_cas_mgmt_ui.jpg" alt="CAS-Management-UI"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>, <a href="/tags/Security/">Security</a>, <a href="/tags/CAS/">CAS</a>
+  </div>
+
+        
+  <div class="addthis addthis_toolbox addthis_default_style">
+    
+      <a class="addthis_button_facebook_like" fb:like:layout="button_count"></a>
+    
+    
+      <a class="addthis_button_tweet"></a>
+    
+    
+      <a class="addthis_button_google_plusone" g:plusone:size="medium"></a>
+    
+    
+      <a class="addthis_button_pinterest_pinit" pi:pinit:layout="horizontal"></a>
+    
+    <a class="addthis_counter addthis_pill_style"></a>
+  </div>
+  <script src="//s7.addthis.com/js/300/addthis_widget.js"></script>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=123456789012345";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2022/08/30/notes/cas/Apereo-CAS-Management-UI/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
+  
+    <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>7</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
+  
+    <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>2</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>8</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/design/">design</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>1</small></li>
+  
+    <li><a href="/tags/spring/">spring</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>11</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2022 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

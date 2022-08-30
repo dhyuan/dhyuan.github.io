@@ -45,6 +45,54 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-micro_service/secure_your_service_with_https" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">2021-04-01</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">创建基于HTTPS的服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="关于私钥、公钥的生成"><a href="#关于私钥、公钥的生成" class="headerlink" title="关于私钥、公钥的生成"></a>关于私钥、公钥的生成</h3><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/charlesblc/p/6130433.html">https://www.cnblogs.com/charlesblc/p/6130433.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h3 id="KeyStore-vs-OpenSSL"><a href="#KeyStore-vs-OpenSSL" class="headerlink" title="KeyStore vs OpenSSL"></a>KeyStore vs OpenSSL</h3><h3 id="KeyStore-with-keytool"><a href="#KeyStore-with-keytool" class="headerlink" title="KeyStore with keytool"></a>KeyStore with keytool</h3><p>KeyStor 有三种类型（格式）：JKS， PKCS12 。。</p>
+<h4 id="1-创建一个自签名证书和密钥"><a href="#1-创建一个自签名证书和密钥" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><pre><code>keytool -genkeypair -keystore demoAppKeyStore.jks \
+-alias demoAppServer \
+-keyalg RSA \
+-keysize 3072 \
+-validity 36500 \
+-storepass demoApp
+</code></pre>
+<h4 id="2-导出证书"><a href="#2-导出证书" class="headerlink" title="2. 导出证书"></a>2. 导出证书</h4><pre><code>keytool -export -alias demoAppServer -file demoApp.crt -keystore demoAppKeyStore.keystore
+</code></pre>
+<h4 id="1-创建一个自签名证书和密钥-1"><a href="#1-创建一个自签名证书和密钥-1" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-2"><a href="#1-创建一个自签名证书和密钥-2" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-3"><a href="#1-创建一个自签名证书和密钥-3" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><p>docker run –name nginx -v ~/devEnv/dockerSrvStorage/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx</p>
+<h3 id="什么是跨站请求伪造"><a href="#什么是跨站请求伪造" class="headerlink" title="什么是跨站请求伪造"></a>什么是跨站请求伪造</h3><p>例子：A 是受害用户，B 是银行，C 是恶意代码。C 利用浏览器里存在的有效 A 到 B 的 session(cookie)来伪造请求。再加上利用 XSS 漏洞，用户可以子在无感知的情况下被伤害。<br>Cross-Site Scripting (XSS)</p>
+<p><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained</a></p>
+<p>Reference:</p>
+<p>What is keystore: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/23202046/what-is-keystore">https://stackoverflow.com/questions/23202046/what-is-keystore</a><br>openssl vs keystore: <a target="_blank" rel="noopener" href="https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool">https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-micro_service/api_gateway" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -728,66 +776,6 @@ Docker version 20.10.4, build d3cb89e
 
 
 
-  <article id="post-开发环境setup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-11-28T07:47:43.000Z"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">2020-11-28</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">开发环境setup</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdk
-brew search /adoptopenjdk
-brew cask install adoptopenjdk8
-</code></pre>
-<h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrew
-git remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git
-</code></pre>
-<h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p>
-<pre><code>  wsl --shutdown
-</code></pre>
-<p>3）迁移</p>
-<pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tar
-wsl --unregister docker-desktop-data
-wsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2
-</code></pre>
-<h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22
-docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
- -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \
- -v /home/mysql/logs:/logs \
- -v /home/mysql/data/mysql:/var/lib/mysql \
- -d mysql:8.0.22
-</code></pre>
-<h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
-ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &#39;123456&#39;;
-</code></pre>
-<h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p>docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p>
-<p>–appendonly yes ： 开启 redis 持久化<br>–requirepass “password” ： 密码</p>
-<p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -814,13 +802,13 @@ ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>2</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>26</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -844,7 +832,7 @@ ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>7</small></li>
+    <li><a href="/tags/Security/">Security</a><small>8</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   

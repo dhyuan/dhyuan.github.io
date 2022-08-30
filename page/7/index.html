@@ -45,6 +45,61 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-android-emulator-operations" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2018-08-27T13:59:10.000Z"><a href="/2018/08/27/android-emulator-operations/">2018-08-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/08/27/android-emulator-operations/">修改Android模拟器中的文件</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本地开发机运行着server向跑在模拟器中的app提供rest api服务。</p>
+<p><strong>1）模拟器中的127.0.0.1是指模拟器自己本机。</strong></p>
+<p><strong>2）模拟器中使用10.0.2.2来访问开发机。</strong></p>
+<p><strong>3）如果在本地tomcat启用了虚拟主机，可以修改模拟器中的/etc/hosts来指向域名。</strong></p>
+<pre><code>// 列出安装的模拟器
+emulator -list-avds
+
+// 以可写模式启动模拟器
+emulator -avd Your_Emulator_Name -writable-system
+adb root
+adb remount
+
+// 把模拟器上的文件pull到本地
+adb pull /etc/hosts newHosts
+
+// 添加 &quot;10.0.2.2    your_domain&quot;
+vi newHosts             
+
+adb push newHosts /etc/hosts
+
+// 进入模拟器的shell
+adb shell
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-Reactive-Scala-Driver-for-MongoDB" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -609,52 +664,13 @@ spring.cloud.config.uri＝http://localhost:8888
 
 
 
-  <article id="post-Spring常用注解" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2016-08-13T15:42:21.000Z"><a href="/2016/08/13/Spring%E5%B8%B8%E7%94%A8%E6%B3%A8%E8%A7%A3/">2016-08-13</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/08/13/Spring%E5%B8%B8%E7%94%A8%E6%B3%A8%E8%A7%A3/">Spring常用注解</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="Annotations-related-with-the-configuration"><a href="#Annotations-related-with-the-configuration" class="headerlink" title="Annotations related with the configuration"></a>Annotations related with the configuration</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@PropertySources @PropertySource</span><br><span class="line">@Bean</span><br><span class="line">@Autowired @Qualifier</span><br><span class="line">@Resource</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="SpringBoot"><a href="#SpringBoot" class="headerlink" title="SpringBoot"></a>SpringBoot</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">@SpringBootApplication</span><br></pre></td></tr></table></figure>
-<p>约等于下面三个注解的合体：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">@Configuration</span><br><span class="line">@EnableAutoConfiguration</span><br><span class="line">@ComponentScan</span><br></pre></td></tr></table></figure>
-
-<p>@EnableScheduling 实际上就是通过@Import将scheduling相关的bean加载到IoC容器而已。<br>@EnableAutoConfiguration 类似于@EnableScheduling，只不过是通过@Import(EnableAutoConfigurationImportSelector.class)把在META-INF/spring.factories里定义为EnableAutoConfiguration的value的类当做标注为@Configuration的java类统一加载到了IoC容器里。。。。有些绕。。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
     <a href="/page/6/" class="alignleft prev">上一页</a>
   
+  
+    <a href="/page/8/" class="alignright next">下一页</a>
   
   <div class="clearfix"></div>
 </nav></div></div>
@@ -674,13 +690,13 @@ spring.cloud.config.uri＝http://localhost:8888
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>2</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>26</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -704,7 +720,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>7</small></li>
+    <li><a href="/tags/Security/">Security</a><small>8</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   

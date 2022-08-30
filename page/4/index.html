@@ -45,6 +45,66 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-开发环境setup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-11-28T07:47:43.000Z"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">2020-11-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">开发环境setup</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdk
+brew search /adoptopenjdk
+brew cask install adoptopenjdk8
+</code></pre>
+<h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrew
+git remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git
+</code></pre>
+<h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p>
+<pre><code>  wsl --shutdown
+</code></pre>
+<p>3）迁移</p>
+<pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tar
+wsl --unregister docker-desktop-data
+wsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2
+</code></pre>
+<h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
+ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \
+ -v /home/mysql/logs:/logs \
+ -v /home/mysql/data/mysql:/var/lib/mysql \
+ -d mysql:8.0.22
+</code></pre>
+<h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
+ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &#39;123456&#39;;
+</code></pre>
+<h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p>docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p>
+<p>–appendonly yes ： 开启 redis 持久化<br>–requirepass “password” ： 密码</p>
+<p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-reactive/popular_reactive_libs" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -766,107 +826,6 @@ virbr0        8000.5254002a0526    yes        virbr0-nic
 
 
 
-  <article id="post-devops/route_local_table" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-19T17:07:42.000Z"><a href="/2020/09/20/devops/route_local_table/">2020-09-20</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/20/devops/route_local_table/">ping veth不通的原因</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。<br>原因都在 ip route show table local 输出里。 直接上步骤：</p>
-<pre><code>[dahui@192 ~]$ route -v
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
-default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
-192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
-[dahui@192 ~]$
-
-# 创建veth对。
-sudo ip link add veth0 type veth peer name veth1
-
-# 给veth设置IP地址
-sudo ip addr add 192.168.2.10/24 dev veth0
-sudo ip addr add 192.168.2.20/24 dev veth1
-
-# 激活接口
-sudo ip link set veth0 up
-sudo ip link set veth1 up
-
-
-# 直连路由被自动添加了路由表
-[dahui@192 ~]$ route -v
-Kernel IP routing table
-Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
-default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
-192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
-192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth0
-192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth1
-[dahui@192 ~]$
-
-
-# 创建一个linux网桥 br0
-sudo ip link add name br0 type bridge
-sudo ip link set br0 up
-
-# 把veth0接到br0，veth0有ip的情况下虽然能接收来自协议栈的数据但是reponse只能走br0了。
-sudo ip link set dev veth0 master br0
-
-# veth0 拥有IP已经没有意义，把这个IP给br0
-sudo ip addr del 192.168.2.10/24 dev veth0
-sudo ip addr add 192.168.2.10/24 dev br0
-
-# 期待通过 br0接口ping  veth2能成功。 但是失败了。
-[dahui@192 ~]$  ping -c 1 -I br0 192.168.2.20
-PING 192.168.2.20 (192.168.2.20) from 192.168.2.10 br0: 56(84) bytes of data.
-
---- 192.168.2.20 ping statistics ---
-1 packets transmitted, 0 received, 100% packet loss, time 0ms
-
-[dahui@192 ~]$
-</code></pre>
-<p>下面是由系统维护的 local 路由表：</p>
-<pre><code>[dahui@192 ~]$ ip route show table local
-broadcast 127.0.0.0 dev lo proto kernel scope link src 127.0.0.1
-local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1
-local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1
-broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1
-broadcast 192.168.1.0 dev em1 proto kernel scope link src 192.168.1.10
-local 192.168.1.10 dev em1 proto kernel scope host src 192.168.1.10
-broadcast 192.168.1.255 dev em1 proto kernel scope link src 192.168.1.10
-broadcast 192.168.2.0 dev veth1 proto kernel scope link src 192.168.2.20
-broadcast 192.168.2.0 dev br0 proto kernel scope link src 192.168.2.10
-local 192.168.2.10 dev br0 proto kernel scope host src 192.168.2.10
-local 192.168.2.20 dev veth1 proto kernel scope host src 192.168.2.20
-broadcast 192.168.2.255 dev veth1 proto kernel scope link src 192.168.2.20
-broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
-[dahui@192 ~]$
-</code></pre>
-<p>Reference：<br><a target="_blank" rel="noopener" href="https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat">https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -893,13 +852,13 @@ broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>2</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>26</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -923,7 +882,7 @@ broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>7</small></li>
+    <li><a href="/tags/Security/">Security</a><small>8</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   

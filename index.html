@@ -45,6 +45,79 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/cas/Apereo-CAS-Management-UI" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-08-30T06:23:12.806Z"><a href="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/">2022-08-30</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/">Apereo CAS 之 管理界面</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>类似cas-server，先下载cas-management-overlay代码，这里使用6.5分支。</p>
+<pre><code>$ git clone https://github.com/apereo/cas-management-overlay cas-management   
+$ cd cas-management   
+$ git checkout -b 6.5 origin/6.5
+</code></pre>
+<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server最为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
+<p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
+<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage</a></p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
+</code></pre>
+<h3 id="2）告诉cas-server-在哪里可以找到定义client-service的json文件"><a href="#2）告诉cas-server-在哪里可以找到定义client-service的json文件" class="headerlink" title="2）告诉cas-server 在哪里可以找到定义client/service的json文件"></a>2）告诉cas-server 在哪里可以找到定义client/service的json文件</h3><p>在文件 etc/cas/config/cas.properties 中加入如下配置：<br><code>cas.service-registry.json.location=classpath:/services</code></p>
+<p>在cas-server 项目的 src/resources 目录下创建一个名为casManagement-2000.json的文体。文件名的格式是 clientName + clientId.json，具体请阅读官方文档。</p>
+<pre><code>&#123;
+  &quot;@class&quot; : &quot;org.apereo.cas.services.RegexRegisteredService&quot;,
+  &quot;serviceId&quot; : &quot;^(https|imaps)://.*&quot;,
+  &quot;name&quot; : &quot;casManagement&quot;,
+  &quot;id&quot; : 2000,
+  &quot;logoutType&quot; : &quot;BACK_CHANNEL&quot;,
+  &quot;logoutUrl&quot; : &quot;https://localhost:8444/cas-management/logout&quot;
+&#125;
+</code></pre>
+<h3 id="3）配置cas-management"><a href="#3）配置cas-management" class="headerlink" title="3）配置cas-management"></a>3）配置cas-management</h3><p>上面两步是配置cas-server以把cas-manager作为它的client。现在，配置cas-management。<br>编辑 cas-management 项目里的 etc/case/config/management.properties 文件，内容如下。</p>
+<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
+<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
+<pre><code>cas.server.name=https://localhost:8443
+cas.server.prefix=$&#123;cas.server.name&#125;/cas
+
+server.port=8444
+mgmt.server-name=https://localhost:8444
+mgmt.admin-roles[0]=ROLE_ADMIN
+mgmt.user-properties-file=file:/etc/cas/config/users.json
+
+logging.config=file:/etc/cas/config/log4j2-management.xml
+
+server.ssl.key-store=file:/etc/cas/thekeystore
+server.ssl.key-store-password=changeit
+
+# Let the cas-management to know where to find/save the registed services
+cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/services
+</code></pre>
+<h3 id="4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management"><a href="#4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management" class="headerlink" title="4） 同时运行cas-server，cas-management后，访问 https://localhost:8444/cas-management/"></a>4） 同时运行cas-server，cas-management后，访问 <a target="_blank" rel="noopener" href="https://localhost:8444/cas-management/">https://localhost:8444/cas-management/</a></h3><p><img src="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/apereo_cas_mgmt_ui.jpg" alt="CAS-Management-UI"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-notes/cas/Apereo-CAS-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -55,7 +128,7 @@
       
       
   
-    <h1 class="title"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS User Authentication</a></h1>
+    <h1 class="title"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS 之 用户认证</a></h1>
   
 
     </header>
@@ -742,150 +815,6 @@ public class UserDaoTest &#123;
 
 
 
-  <article id="post-devops/oracle12c_docker" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-07-23T06:37:27.000Z"><a href="/2021/07/23/devops/oracle12c_docker/">2021-07-23</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/07/23/devops/oracle12c_docker/">使用Oracle 12c容器服务创建数据库</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="1-启动Oracle服务容器"><a href="#1-启动Oracle服务容器" class="headerlink" title="1) 启动Oracle服务容器"></a>1) 启动Oracle服务容器</h3><pre><code>docker run -d --name oracle -p1521:1521 -v OracleDBData:/ORCL store/oracle/database-enterprise:12.2.0.1-slim
-</code></pre>
-<p>参考：<a target="_blank" rel="noopener" href="https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83">https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83</a></p>
-<p>通过docker inspect oracle 可以看到被映射在 /var/lib/docker/volumes/OracleDBData</p>
-<pre><code>&quot;Mounts&quot;: [
-    &#123;
-        &quot;Type&quot;: &quot;volume&quot;,
-        &quot;Name&quot;: &quot;OracleDBData&quot;,
-        &quot;Source&quot;: &quot;/var/lib/docker/volumes/OracleDBData/_data&quot;,
-        &quot;Destination&quot;: &quot;/ORCL&quot;,
-        &quot;Driver&quot;: &quot;local&quot;,
-        &quot;Mode&quot;: &quot;z&quot;,
-        &quot;RW&quot;: true,
-        &quot;Propagation&quot;: &quot;&quot;
-    &#125;
-],
-</code></pre>
-<h3 id="2）进入Oracle，执行sqlplus。"><a href="#2）进入Oracle，执行sqlplus。" class="headerlink" title="2）进入Oracle，执行sqlplus。"></a>2）进入Oracle，执行sqlplus。</h3><p>oracle 12c 是多租户数据库，有个核心概念CDB，PDB需要理解。进入容器oracle：<br>参考： <a target="_blank" rel="noopener" href="https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236">https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236</a></p>
-<pre><code>docker exec -it oracle bash
-
-sqlplus / as sysdba
-
-show user
-show con_name
-show pdbs
-</code></pre>
-<p>查看当前用户连接到的数据库是CDB还是PDB。</p>
-<pre><code>SELECT NAME, CDB, CON_ID FROM V$DATABASE;
-</code></pre>
-<h3 id="3）创建PDB"><a href="#3）创建PDB" class="headerlink" title="3）创建PDB"></a>3）创建PDB</h3><p>创建PDB之前需要设置 FILE_NAME_CONVERT 或者 db_create_file_dest<br>参考：<a target="_blank" rel="noopener" href="https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/">https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/</a><br>     <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000038344836">https://segmentfault.com/a/1190000038344836</a><br>     <a target="_blank" rel="noopener" href="https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c">https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c</a></p>
-<p>检查PDB$SEED database文件的位置：</p>
-<pre><code>SQL&gt; alter session set container=PDB$SEED;
-
-Session altered.
-
-SQL&gt; select FILE_NAME from dba_data_files;
-
-FILE_NAME
---------------------------------------------------------------------------------
-/u02/app/oracle/oradata/ORCL/pdbseed/system01.dbf
-/u02/app/oracle/oradata/ORCL/pdbseed/sysaux01.dbf
-/u02/app/oracle/oradata/ORCL/pdbseed/xdb01.dbf
-
-SQL&gt;
-</code></pre>
-<p>因为创建PDB时需要连接在CDB$ROOT，所以先检查当前连接。如果不是，则切换到CDB。</p>
-<pre><code>SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
-
-SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
---------------------------------------------------------------------------------
-PDB$SEED
-
-SQL&gt;  alter session set container = CDB$ROOT;
-
-Session altered.
-
-SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
-
-SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
---------------------------------------------------------------------------------
-CDB$ROOT
-</code></pre>
-<p>创建一个PDB: YDPDB 用户：ydhbqb</p>
-<pre><code>    SQL&gt; CREATE PLUGGABLE DATABASE YDPDB ADMIN USER ydhbqb IDENTIFIED BY ydhbqb0531 FILE_NAME_CONVERT=(&#39;/u02/app/oracle/oradata/ORCL/pdbseed/&#39;,&#39;/u02/app/oracle/oradata/ORCL/pdbseed/YDPDB/&#39;);
-</code></pre>
-<p>赋予sysdba权限：</p>
-<pre><code>SQL&gt;  grant SYSDBA to ydhbqb;
-
-Grant succeeded.
-   
-
-Pluggable database created.
-
-SQL&gt; show pdbs;
-
-    CON_ID CON_NAME              OPEN MODE  RESTRICTED
----------- ------------------------------ ---------- ----------
-    2 PDB$SEED              READ ONLY  NO
-    3 ORCLPDB1              READ WRITE NO
-    4 YDPDB              MOUNTED
-SQL&gt; 
-
-SQL&gt; alter pluggable database YDPDB open;
-
-Pluggable database altered.
-
-SQL&gt; show pdbs;
-
-    CON_ID CON_NAME              OPEN MODE  RESTRICTED
----------- ------------------------------ ---------- ----------
-    2 PDB$SEED              READ ONLY  NO
-    3 ORCLPDB1              READ WRITE NO
-    4 YDPDB                  READ WRITE NO
-SQL&gt; 
-</code></pre>
-<p>让Oracle记住这个状态：</p>
-<pre><code>alter pluggable database YDPDB save state;
-</code></pre>
-<p>关闭PDB</p>
-<pre><code>alter pluggable database YDPDBclose immediate;
-</code></pre>
-<p>查看错误信息</p>
-<pre><code>select * from PDB_PLUG_IN_VIOLATIONS;
-</code></pre>
-<h3 id="4）-连接到PDB。"><a href="#4）-连接到PDB。" class="headerlink" title="4） 连接到PDB。"></a>4） 连接到PDB。</h3><h4 id="1）-用sqlplus连接到PDB。"><a href="#1）-用sqlplus连接到PDB。" class="headerlink" title="1） 用sqlplus连接到PDB。"></a>1） 用sqlplus连接到PDB。</h4><pre><code>sqlplus ydhbqb/ydhbqb0531@localhost:1521/ydpdb.localdomain
-</code></pre>
-<h4 id="2）-Spring-DS"><a href="#2）-Spring-DS" class="headerlink" title="2） Spring DS"></a>2） Spring DS</h4><pre><code>spring:
-    datasource:
-        url:  jdbc:oracle:thin:@localhost:1521/ydpdb.localdomain
-        username: ydhbqb
-        password: ydhbqb0531
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -910,13 +839,13 @@ SQL&gt;
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>2</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>26</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -940,7 +869,7 @@ SQL&gt;
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>7</small></li>
+    <li><a href="/tags/Security/">Security</a><small>8</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   
