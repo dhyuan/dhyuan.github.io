@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   
-  <title>在本地运行 Apereo CAS | Dahui’s 开发笔记</title>
+  <title>Apereo CAS 之 在本地运行 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。略过基础概念，直接记录一下本地运行的步骤。
-没必要下载源码修改代码、配置然后build出自己的">
+  <meta name="description" content="Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。
+本以为按照Apereo CAS的官方安装指南能够很容易把cas server在本地跑起来，但">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="在本地运行 Apereo CAS"/>
+  <meta property="og:title" content="Apereo CAS 之 在本地运行"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -47,23 +47,24 @@
 <div class="clearfix"></div>
 </header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/cas/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-29T06:40:14.610Z"><a href="/2022/08/29/notes/Run-up-Apereo-CAS-locally/">2022-08-29</a></time>
+        <time class="dt-published" datetime="2022-08-29T06:40:14.610Z"><a href="/2022/08/29/notes/cas/Run-up-Apereo-CAS-locally/">2022-08-29</a></time>
       
       
   
-    <h1 class="p-name title" itemprop="headline name">在本地运行 Apereo CAS</h1>
+    <h1 class="p-name title" itemprop="headline name">Apereo CAS 之 在本地运行</h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a><br>略过基础概念，直接记录一下本地运行的步骤。</p>
+        <p>Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
+<p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
 <p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
 <h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
 git checkout -b 6.5 origin/6.5
@@ -87,11 +88,26 @@ sudo keytool -import -alias cas_cert -storepass changeit -file cas.crt -keystore
 </code></pre>
 <p>查看ca keystore<br><code>sudo keytools -list -storepass changeit  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts</code></p>
 <p>从ca keystore中删除cascert<br><code>sudo keytool -delete  -alias cas_cert  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts  -storepass changeit</code></p>
-<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以收工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
+<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以手工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
 <p>默认的内置的用户名密码是 casuser/Mellon，可以通过修改/etc/cas/config/cas.properties <code>cas.authn.accept.users=casuser::password</code> 进行定义。</p>
+<p>配置登录用户在Apereo里属于<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">CAS Authentication 的范畴</a>。</p>
 <h3 id="5）Build-and-Run"><a href="#5）Build-and-Run" class="headerlink" title="5）Build and Run"></a>5）Build and Run</h3><pre><code>./gradlew clean build
 java -jar ./build/libs/cas.war
 </code></pre>
+<p>在浏览器中访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas">https://localhost:8443/cas</a> 进入CAS系统。</p>
+<h3 id="6"><a href="#6" class="headerlink" title="6)"></a>6)</h3><p>如果在日志里发现提示<code>The generated key MUST be added to CAS settings</code>， 则可按照提示把cas.tgc.crypto.encryption.key，cas.tgc.crypto.signing.key 加入到etc/cas/config/cas.properties 文件。</p>
+<pre><code>    2022-08-29 23:29:34,160 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for encryption is not defined for [Ticket-granting Cookie]; CAS will attempt to auto-generate the encryption key&gt;
+    2022-08-29 23:29:34,168 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated encryption key [rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I] of size [256] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
+
+            cas.tgc.crypto.encryption.key=rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I
+
+    &gt;
+    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for signing is not defined for [Ticket-granting Cookie]. CAS will attempt to auto-generate the signing key&gt;
+    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated signing key [cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg] of size [512] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
+
+            cas.tgc.crypto.signing.key=cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg
+</code></pre>
+<hr>
 <p><em>Reference:</em></p>
 <p><a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/index.html">https://apereo.github.io/cas/6.5.x/index.html</a></p>
 <p><a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5">https://github.com/apereo/cas-overlay-template/tree/6.5</a></p>
@@ -105,7 +121,7 @@ java -jar ./build/libs/cas.war
         
   
   <div class="tags">
-    <a href="/tags/Security/">Security</a>, <a href="/tags/CAS/">CAS</a>
+    <a href="/tags/DevOps/">DevOps</a>, <a href="/tags/Security/">Security</a>, <a href="/tags/CAS/">CAS</a>
   </div>
 
         
@@ -148,7 +164,7 @@ java -jar ./build/libs/cas.war
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2022/08/29/notes/Run-up-Apereo-CAS-locally/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2022/08/29/notes/cas/Run-up-Apereo-CAS-locally/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
@@ -170,13 +186,13 @@ java -jar ./build/libs/cas.war
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>1</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>2</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
     <li><a href="/tags/DDD/">DDD</a><small>1</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>24</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>26</small></li>
   
     <li><a href="/tags/Docker/">Docker</a><small>1</small></li>
   
@@ -200,7 +216,7 @@ java -jar ./build/libs/cas.war
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>6</small></li>
+    <li><a href="/tags/Security/">Security</a><small>7</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   
