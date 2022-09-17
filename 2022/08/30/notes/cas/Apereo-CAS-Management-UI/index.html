@@ -71,7 +71,7 @@ $ git checkout -b 6.5 origin/6.5
 </code></pre>
 <p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server作为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
 <p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
-<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage</a></p>
+<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage</a></p>
 <pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
 </code></pre>
 <h3 id="2）告诉cas-server-在哪里可以找到定义client-service的json文件"><a href="#2）告诉cas-server-在哪里可以找到定义client-service的json文件" class="headerlink" title="2）告诉cas-server 在哪里可以找到定义client/service的json文件"></a>2）告诉cas-server 在哪里可以找到定义client/service的json文件</h3><p>在文件 etc/cas/config/cas.properties 中加入如下配置：<br><code>cas.service-registry.json.location=classpath:/services</code></p>
