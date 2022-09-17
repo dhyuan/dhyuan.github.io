@@ -45,6 +45,45 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-Nonblocking-comes-from-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-04-02T07:39:09.000Z"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">2020-04-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">锁这个词太有意思了，有几个意思？</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？</p>
+<p>并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。<br>从更一般的、更笼统的意义上讲锁跟synchronizer其实一个意思，都可以看作是协调线程、控制线程的对象。这里所谓的更一般是说，我们可以把CountDownLatch、Semphore这些不带Locak字眼的Synchronizer也化分到锁这个概念里。</p>
+<p>这样把概念统一到锁上之后，我们就可以把锁/Synchronizer分成耳熟能详的两类了：悲观锁、乐观锁。<br>对于乐观锁正如数据库事务解决方案里提到的乐观锁的概念，核心就是与观察旧值是否有变化而决定是否成功修改。<br>所以乐观锁想成基于“compare and set”的算法更好。更进一步把锁想成算法就好，具体的门锁那种感觉有点二狭隘了。<br>从最根本的提供“锁“算法实现的CPU指令上讲：对于乐观锁是CAS(LL, SC)提供了最核心的支持，对于悲观锁(对应到OS的互斥量，java的thread都一一映射到OS的thread)是lock指令前缀。除了这些CPU指令还有混存一致性协议这样的技术一起向上层提供了实现各种Syncrhonizer(悲观锁/乐观锁)的最基础支持。更详细内容可以参考文末的引用链接。</p>
+<p>基于CAS实现的乐观锁其实不牵扯到什么类似mutex这样<strong>具体的锁</strong>，把它当作一种synchronizer就好(怎么有点儿金刚经的感觉)。我们可以利用CAS指令实现了非阻塞的多线程协调工作的各种算法。比如，列用CAS实现非阻塞计数器、非阻塞栈、非阻塞队列。JDK中的ConcurrentLinkedQueue就是利用原子化域更新器实现的支持并发(多线程)操作的非阻塞数据结构。</p>
+<p>基于CAS cpu指令的有ABA问题。而load-linked/store-condition这样的cpu指令可以避免ABA问题。<br>从API的角度，可以用AtomicMarkableReference, AtomicStampedReference避免CAS下的ABA。<br><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/ABA_problem%E3%80%82">https://en.wikipedia.org/wiki/ABA_problem。</a></p>
+<p>References:<br>《Java并发编程实践》<br><a target="_blank" rel="noopener" href="https://www.ibm.com/developerworks/cn/java/j-jtp04186/">https://www.ibm.com/developerworks/cn/java/j-jtp04186/</a></p>
+<p>0、<a target="_blank" rel="noopener" href="https://blog.csdn.net/Saintyyu/article/details/94493694">https://blog.csdn.net/Saintyyu/article/details/94493694</a><br>1、<a target="_blank" rel="noopener" href="https://blog.csdn.net/zacklin/article/details/7445442">https://blog.csdn.net/zacklin/article/details/7445442</a> 原子操作与 x86 上的 lock 指令前缀<br>2、<a target="_blank" rel="noopener" href="https://www.cnblogs.com/xrq730/p/7048693.html">https://www.cnblogs.com/xrq730/p/7048693.html</a> 就是要你懂Java中volatile关键字实现原理<br>3、<a target="_blank" rel="noopener" href="https://blog.csdn.net/u011244446/article/details/52574369">https://blog.csdn.net/u011244446/article/details/52574369</a> Linux 互斥锁、原子操作实现原理<br>4、<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/6745203ae1fe">https://www.jianshu.com/p/6745203ae1fe</a> 关于volatile、MESI、内存屏障、#Lock<br>5、<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/61490effab35">https://www.jianshu.com/p/61490effab35</a> 操作系统中锁的原理<br>6、<a target="_blank" rel="noopener" href="https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html">https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html</a> Linux中同步互斥机制研究之原子操作<br>7、<a target="_blank" rel="noopener" href="https://blog.csdn.net/Saintyyu/article/details/100838503">https://blog.csdn.net/Saintyyu/article/details/100838503</a> cas vs mutex</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-About-Lock-and-Synchronizer" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -433,59 +472,6 @@ empty &lt;&gt; a == a
 
 
 
-  <article id="post-Semigroup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2018/09/12/Semigroup/">Semigroup</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
-public interface SemiGroup&lt;T&gt; &#123;
-    T Append(T thingToAppend);
-&#125;
-
-// 用Haskell定义：
-class SemiGroup a where
-    append :: a-&gt; a -&gt; a
-
-// Haskell实现的String with append：
-instance Semigroup String where
-    append a b = a ++ b
-</code></pre>
-<p>__Law__s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
-<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
-<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
-
-(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
-</code></pre>
-<h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
-<p><strong>2）Incremental</strong></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -534,7 +520,7 @@ instance Semigroup String where
   
     <li><a href="/tags/Mongo/">Mongo</a><small>2</small></li>
   
-    <li><a href="/tags/MongoDB/">MongoDB</a><small>2</small></li>
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>3</small></li>
   
     <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
   

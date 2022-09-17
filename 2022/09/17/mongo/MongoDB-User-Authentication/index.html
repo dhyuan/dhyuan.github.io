@@ -3,15 +3,18 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Spring 中的常用定式 | Dahui’s 开发笔记</title>
+  <title>MongoDB的用户管理 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="统一异常处理对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。
-就 Rest API 应用来说，一般把">
+  <meta name="description" content="如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。
+security:
+  authorization: enabled
+
+/usr/local/opt/mongodb-community/bin/mo">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
-  <meta property="og:title" content="Spring 中的常用定式"/>
+  <meta property="og:title" content="MongoDB的用户管理"/>
   <meta property="og:site_name" content="Dahui’s 开发笔记"/>
 
   
@@ -47,27 +50,68 @@
 <div class="clearfix"></div>
 </header>
   <div id="content" class="inner">
-    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
+        <time class="dt-published" datetime="2022-09-17T09:34:56.793Z"><a href="/2022/09/17/mongo/MongoDB-User-Authentication/">2022-09-17</a></time>
       
       
   
-    <h1 class="p-name title" itemprop="headline name">Spring 中的常用定式</h1>
+    <h1 class="p-name title" itemprop="headline name">MongoDB的用户管理</h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
-<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
-<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
-<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
-<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+        <p>如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。</p>
+<pre><code>security:
+  authorization: enabled
+</code></pre>
+<p>/usr/local/opt/mongodb-community/bin/mongod –config /usr/local/etc/mongod.conf</p>
+<p>如果你忘记的root用户或者其它管理员用户的密码，那么可以先以无权限控制的方式启动MongoDB：</p>
+<pre><code>mongod --port 27017 --dbpath /usr/local/var/mongodb
+</code></pre>
+<p>再连接到MongoDB：</p>
+<pre><code>mongo --port 27017
+</code></pre>
+<p>根据需要可以更改用户密码或者创建新用户：</p>
+<pre><code>db.changeUserPassword(&quot;root&quot;, passwordPrompt())
+db.changeUserPassword(&quot;root&quot;, &quot;password&quot;)
+
+db.createUser(&#123;
+    &quot;user&quot;: &quot;dahui&quot;,
+    &quot;pwd&quot;: &quot;password&quot;,
+    &quot;roles&quot;:
+    [
+        &#123;
+            &quot;role&quot;: &quot;userAdminAnyDatabase&quot;,
+            &quot;db&quot;: &quot;admin&quot;
+        &#125;,
+        &quot;readWriteAnyDatabase&quot;
+    ]
+&#125;);
+</code></pre>
+<p>添加完这种带有 userAdminAnyDatabase 角色的用户后，关闭MongoDB server：</p>
+<pre><code>db.adminCommand( &#123; shutdown: 1 &#125; )
+</code></pre>
+<p>再以有权限控制的方式重新启动MongoDB Server。（/usr/local/etc/mongod.conf 中设置了 authorization: enabled）</p>
+<pre><code>mongod --config /usr/local/etc/mongod.conf
+或
+mongod --auth --port 27017 --dbpath /var/lib/mongodb
+</code></pre>
+<p>这样使用拥有 userAdminAnyDatabase 角色的用户登录后，就可以通过使用use DB_NAME 的方式给不同的DB添加用户了。</p>
+<pre><code>mongosh --port 27017 -u admin -p password --authenticationDatabase admin
+
+mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&quot;
+</code></pre>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/">https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/reference/method/js-user-management/">https://www.mongodb.com/docs/manual/reference/method/js-user-management/</a></p>
+
       
     </div>
     <footer>
@@ -76,7 +120,7 @@
         
   
   <div class="tags">
-    <a href="/tags/Spring/">Spring</a>
+    <a href="/tags/MongoDB/">MongoDB</a>
   </div>
 
         
@@ -119,7 +163,7 @@
   }(document, 'script', 'facebook-jssdk'));
 </script>
 
-<div class="fb-comments" data-href="https://dhyuan.github.io/2020/12/13/notes/spring_tech4framework/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+<div class="fb-comments" data-href="https://dhyuan.github.io/2022/09/17/mongo/MongoDB-User-Authentication/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
       
   
 </section>
