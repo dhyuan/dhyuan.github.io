@@ -45,6 +45,66 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-reactive/processAListOfDataInReactiveParallelWay" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-10-24T07:48:07.564Z"><a href="/2021/10/24/reactive/processAListOfDataInReactiveParallelWay/">2021-10-24</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/10/24/reactive/processAListOfDataInReactiveParallelWay/">响应式并发批处理</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</p>
+<pre><code>public interface DataProcessor &#123;
+  Mono&lt;String&gt; batchProcess(List&lt;DataItem&gt; dataItems);
+  ... ...
+&#125;
+
+
+DataProcessor dataProcessor = ...;
+
+int batchSize = 500;
+
+Flux&lt;DataItem&gt; dataItems = ...
+</code></pre>
+<p>下面分别以串行和并行的方式展示一下Reactor API的使用。</p>
+<h3 id="1）攒够-batchSize-个数据后进行处理。"><a href="#1）攒够-batchSize-个数据后进行处理。" class="headerlink" title="1）攒够 batchSize 个数据后进行处理。"></a>1）攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems.buffer(batchSize)
+    .flatMap(dataProcessor::batchProcess)
+    .collectList();
+</code></pre>
+<h3 id="2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。"><a href="#2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。" class="headerlink" title="2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。"></a>2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems
+    .parallel(10)
+    .runOn(Schedulers.fromExecutor(Executors.newFixedThreadPool(10)))
+    .groups()
+    .flatMap(g -&gt; g.buffer(batchSize).flatMap(dataProcessor::batchProcess))
+    .collectList();
+</code></pre>
+<p>这里runOn接收的参数可以是Schedulers不同策略的实现，具有不同适用范围，比如适合计算密集型的ParallelScheduler、单线程的SingleScheduler。这里使用的是Executors FixedThreadPool。</p>
+<p>可以想象如果我们自己实现这样一个处理逻辑的复杂度，而通过reactor api，仅仅几行代码就完成了这么复杂高效的处理。</p>
+<h3 id="3）使用-reactive-mongo-driver需要的线程。"><a href="#3）使用-reactive-mongo-driver需要的线程。" class="headerlink" title="3）使用 reactive mongo driver需要的线程。"></a>3）使用 reactive mongo driver需要的线程。</h3><p>Spring默认到monog的链接池最大为100，但是实际上在使用reactive方式访问时使用20～10个左右的线程就足够了。因此对mongog的连接串最好明确使用适合自己情况的连接数以避免连接浪费或不够。<br>测试了一个70万条、大概250M数据的批量插入，发现无论使用串行还是并行，数据库插入时间都差不多（36s～26s）。而连接池最大连接设为200、100、50、20、10对数据库插入的性能也没有太大影响，200个线程时反而有一点下降。这个情况从mongo响应式驱动的角度去解释是完全可以理解的，如果使用传统驱动，恐怕所需的线程就不是这个量级的了。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-mongo/setupMongoForLocalDevEnv" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -1044,46 +1104,6 @@ public class WebSecurityConfig extends
 
 
 
-  <article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">2021-04-13</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">响应式流的生命周期</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>这里所说的响应式流的生命周期是说我们从定义响应式流到触发这个流的处理所经历的不同阶段。<br>总的来说，就是三个阶段。组装时、订阅时、运行时。</p>
-<h2 id="组装时"><a href="#组装时" class="headerlink" title="组装时"></a>组装时</h2><p>这个阶段就是我们建立处理模型的阶段。基本上是解决了下面 3 个方面的问题。</p>
-<h3 id="1）定义这个-reactive-stream-的数据来源是什么。Publisher"><a href="#1）定义这个-reactive-stream-的数据来源是什么。Publisher" class="headerlink" title="1）定义这个 reactive stream 的数据来源是什么。Publisher"></a>1）定义这个 reactive stream 的数据来源是什么。Publisher</h3><p>这个阶段我们通过使用诸如 just(), range(), fromArray(), push(), create(), generate()等方法来设置数据源头。</p>
-<h3 id="2）这个数据流的最终订阅者是谁？Subscriber"><a href="#2）这个数据流的最终订阅者是谁？Subscriber" class="headerlink" title="2）这个数据流的最终订阅者是谁？Subscriber"></a>2）这个数据流的最终订阅者是谁？Subscriber</h3><p>我们在最下游 publisher 上通过调用 subscribe()方法把 subscriber 从下游到上游依次传递到最上游的包含数据源的 publisher。</p>
-<h3 id="3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator"><a href="#3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator" class="headerlink" title="3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator"></a>3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator</h3><p>以上两个调用解决了数据来源于哪里、被谁最终接收的问题。但是在数据从上游被传递到下游的过程中，我们往往需要对数据做各种处理。这个阶段就各种 operator 大显身手的地方，比如 map(), flatMap(), filter(), reduce(), scan(), concatMap(), usingWhen()… …<br>实际上每经历一个 operator，就生成了一个新的中间级别的 publisher，这就是 reactive stream 的不可变性。</p>
-<p>组装时基本就是我们写出的代码定义出的静态逻辑这部分。<br>程序运行起来，才会进入下面的两个阶段：订阅时、运行时，所以说这两个阶段是程序的动态表现。</p>
-<h2 id="订阅时"><a href="#订阅时" class="headerlink" title="订阅时"></a>订阅时</h2><p>通过组装时我们定义了什么数据(publisher)经过怎样的处理(operator)最后传递给谁(subscriber)。而订阅时这个阶段，解决的问题是把调用下游 publisher 时传入的 subscriber 依次传递给上游的的 publisher。可以想象 Project Reactor 在传递 subscriber 的时候是依次进行封装之后传递的而不会是直接把下游的 subscriber 传递上去，因为以 operator 串联起来的各个 publisher 都需要“自己”的 subscriber。可以体会下这里“Subscriber 链”的概念。<br>这个传递过程很重要，因为 subscriber 中的 onSubscribe(Subscription s)提供了上游 publisher 把 Subscription 传递给下游 Subscriber 的机制。<br>因为 Subscriber 只有通过 subsciption 的 request 方法才能启动数据的流动。</p>
-<h2 id="运行时"><a href="#运行时" class="headerlink" title="运行时"></a>运行时</h2><p>经过组装时、订阅时，数据流已经“一触即发”。我们只有通过上游传递给我们的 Subscription 调用 request()方法就可以触发数据的流动了。<br>通过（在 Subscirberd 的 onSubscription(), onNext()被回调时）向 Subscription 的 request()传入不同的数字，我们分别可以实现拉模型、推模型、拉-推模型。<br>响应式流的运行时所强调的就是这种 Publisher 和 Subscriber 之间的信号交换。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -1110,7 +1130,7 @@ public class WebSecurityConfig extends
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>3</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>4</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
@@ -1138,7 +1158,7 @@ public class WebSecurityConfig extends
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>8</small></li>
+    <li><a href="/tags/Security/">Security</a><small>9</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   
