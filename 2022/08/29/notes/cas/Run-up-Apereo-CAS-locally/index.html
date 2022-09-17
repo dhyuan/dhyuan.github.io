@@ -6,8 +6,8 @@
   <title>Apereo CAS 之 在本地运行 | Dahui’s 开发笔记</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。
-本以为按照Apereo CAS的官方安装指南能够很容易把cas server在本地跑起来，但">
+  <meta name="description" content="Apereo CAS，是CAS协议official reference implementation，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。
+本以为按照">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -63,7 +63,7 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
+        <p>Apereo CAS，是CAS协议<code>official reference implementation</code>，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
 <p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
 <p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
 <h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
@@ -71,7 +71,7 @@ git checkout -b 6.5 origin/6.5
 </code></pre>
 <p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
 <h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
-<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行回显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
+<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行会显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
 <pre><code>CAS tasks
 ---------
 casVersion - Display the current CAS version

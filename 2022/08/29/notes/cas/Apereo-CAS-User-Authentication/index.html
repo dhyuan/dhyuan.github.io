@@ -64,7 +64,10 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录cas。我们可以通过etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的authentication的校验。</p>
-<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤：</p>
+<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到build.gradle文件。</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
+    
+</code></pre>
 <h3 id="1）在MongoDb中保存用户信息"><a href="#1）在MongoDb中保存用户信息" class="headerlink" title="1）在MongoDb中保存用户信息"></a>1）在MongoDb中保存用户信息</h3><p>获得密码’md5password’的MD5值，并保存到collection。<br>    $ md5 -s ‘md5password’<br>    MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
 <pre><code>db.cas_user.insert(&#123;
     &quot;username&quot;: &quot;casuser&quot;,

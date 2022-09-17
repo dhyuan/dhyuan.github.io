@@ -173,7 +173,7 @@ holdFor(Duration.ofSeconds(30)),
 $ cd cas-management   
 $ git checkout -b 6.5 origin/6.5
 </code></pre>
-<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server最为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
+<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server作为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
 <p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
 <h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.2.x/services/Service-Management.html#storage</a></p>
 <pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
@@ -190,8 +190,6 @@ $ git checkout -b 6.5 origin/6.5
 &#125;
 </code></pre>
 <h3 id="3）配置cas-management"><a href="#3）配置cas-management" class="headerlink" title="3）配置cas-management"></a>3）配置cas-management</h3><p>上面两步是配置cas-server以把cas-manager作为它的client。现在，配置cas-management。<br>编辑 cas-management 项目里的 etc/case/config/management.properties 文件，内容如下。</p>
-<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
-<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
 <pre><code>cas.server.name=https://localhost:8443
 cas.server.prefix=$&#123;cas.server.name&#125;/cas
 
@@ -208,6 +206,8 @@ server.ssl.key-store-password=changeit
 # Let the cas-management to know where to find/save the registed services
 cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/services
 </code></pre>
+<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
+<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
 <h3 id="4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management"><a href="#4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management" class="headerlink" title="4） 同时运行cas-server，cas-management后，访问 https://localhost:8444/cas-management/"></a>4） 同时运行cas-server，cas-management后，访问 <a target="_blank" rel="noopener" href="https://localhost:8444/cas-management/">https://localhost:8444/cas-management/</a></h3><p><img src="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/apereo_cas_mgmt_ui.jpg" alt="CAS-Management-UI"></p>
 
       
@@ -242,7 +242,10 @@ cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/serv
     <div class="e-content entry" itemprop="articleBody">
       
         <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录cas。我们可以通过etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的authentication的校验。</p>
-<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤：</p>
+<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到build.gradle文件。</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
+    
+</code></pre>
 <h3 id="1）在MongoDb中保存用户信息"><a href="#1）在MongoDb中保存用户信息" class="headerlink" title="1）在MongoDb中保存用户信息"></a>1）在MongoDb中保存用户信息</h3><p>获得密码’md5password’的MD5值，并保存到collection。<br>    $ md5 -s ‘md5password’<br>    MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
 <pre><code>db.cas_user.insert(&#123;
     &quot;username&quot;: &quot;casuser&quot;,
@@ -308,7 +311,7 @@ $ spring encodepassword bcpassword
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>Apereo CAS 差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
+        <p>Apereo CAS，是CAS协议<code>official reference implementation</code>，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
 <p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
 <p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
 <h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
@@ -316,7 +319,7 @@ git checkout -b 6.5 origin/6.5
 </code></pre>
 <p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
 <h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
-<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行回显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
+<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行会显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
 <pre><code>CAS tasks
 ---------
 casVersion - Display the current CAS version
