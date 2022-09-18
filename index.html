@@ -45,6 +45,83 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/cas/enable-OAuth-support-for-Apereo-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-09-17T13:19:55.680Z"><a href="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/">2022-09-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/">Apereo CAS 之 支持OAuth2</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Apereo CAS 通过使用bridge模式来支持多个协议：CAS、SAML2、OAuth2、OpenID Connect等。<br>CAS可部署软件包中已经包含了可以使用SAML2、OAuth2等协议的plugin/bridges/modules，这些plugins模块都是和CAS通信。 可参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html%E3%80%82">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html。</a> </p>
+<p><code>The right-hand side of that equation is always CAS when you consider, as an example, the following authentication flow with an OAuth2-enabled client application:</code></p>
+<ol>
+<li>The CAS deployment has turned on the OAuth2 plugin.</li>
+<li>An OAuth2 authorization request is submitted to the relevant CAS endpoint.</li>
+<li>The OAuth2 plugin verifies the request and translates it to a CAS authentication request!</li>
+<li>The authentication request is routed to the relevant CAS login endpoint.</li>
+<li>User authenticates and CAS routes the flow back to the OAuth2 plugin, having issued a service ticket for the plugin.</li>
+<li>The OAuth2 plugin attempts to validate that ticket to retrieve the necessary user profile and attributes.</li>
+<li>The OAuth2 plugin then proceeds to issue the right OAuth2 response by translating and transforming the profile and validated assertions into what the client application may need.</li>
+</ol>
+<h3 id="1-添加依赖库"><a href="#1-添加依赖库" class="headerlink" title="1. 添加依赖库"></a>1. 添加依赖库</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-oauth-webflow&quot;
+</code></pre>
+<h3 id="2-Enable-Actuator-Endpoints-（Optional）"><a href="#2-Enable-Actuator-Endpoints-（Optional）" class="headerlink" title="2. Enable Actuator Endpoints （Optional）"></a>2. Enable Actuator Endpoints （Optional）</h3><p>添加依赖，并设置开放oauthd的actuator端点。</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-reports&quot;
+
+management.endpoint.oauthTokens.enabled=true
+management.endpoints.web.exposure.include=oauthTokens
+cas.monitor.endpoints.endpoint.oauthTokens.access=PERMIT
+</code></pre>
+<p>通过访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas/actuator/">https://localhost:8443/cas/actuator/</a> 应该可以看到OAuth相关endpoints。</p>
+<h3 id="3-定义一个OAuth-Client"><a href="#3-定义一个OAuth-Client" class="headerlink" title="3. 定义一个OAuth Client"></a>3. 定义一个OAuth Client</h3><p>可以通过设置</p>
+<pre><code>cas.service-registry.json.location=classpath:/services
+cas.service-registry.core.init-from-json=true
+</code></pre>
+<p>在 cas-overlay-template的 resources/services 下定义文件 OAuth2DemoClient-2001.json 包含以下内容来把这个OAuth2 Client ‘OAuth2DemoClient’ 自动导入到MongoDB 的 cas_serviceregistry collection。</p>
+<pre><code>&#123;
+  &quot;@class&quot; : &quot;org.apereo.cas.support.oauth.services.OAuthRegisteredService&quot;,
+  &quot;clientId&quot;: &quot;oauth2DemoClientID&quot;,
+  &quot;clientSecret&quot;: &quot;clientSecret&quot;,
+  &quot;serviceId&quot; : &quot;^(https|imaps)://&lt;redirect-uri&gt;.*&quot;,
+  &quot;name&quot; : &quot;OAuth2DemoClient&quot;,
+  &quot;id&quot; : 2001,
+  &quot;supportedGrantTypes&quot;: [ &quot;java.util.HashSet&quot;, [ &quot;password&quot;, &quot;authorization_code&quot;, &quot;client_credentials&quot;, &quot;refresh_token&quot;] ],
+  &quot;supportedResponseTypes&quot;: [ &quot;java.util.HashSet&quot;, [ &quot;token&quot;, &quot;code&quot;, &quot;device_code&quot;] ]
+&#125;
+</code></pre>
+<p>grant是获得AccessToken的方式/方法，这篇文章对此进行了详细介绍：<a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/%E3%80%82">https://alexbilbie.com/guide-to-oauth-2-grants/。</a></p>
+<h3 id="4-重启、查看"><a href="#4-重启、查看" class="headerlink" title="4. 重启、查看"></a>4. 重启、查看</h3><p>运行 <code>./gradlew clean copyCasConfiguration build run </code> 后，查看 <code>db.getCollection(&#39;cas_serviceregistry&#39;).find(&#123;&#125;)</code> 应该可以看到id为2001的 OAutho client定义。</p>
+<p>通过CAS Management UI也可以看到刚刚添加的‘OAuth2DemoClient’：<br><img src="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/OAuth2Client_view.jpg" alt="An OAuth Client/Service"></p>
+<p>至此，我们以及把Apereo CAS配置成支持OAuth2协议。</p>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/">https://alexbilbie.com/guide-to-oauth-2-grants/</a><br>[3]: <a target="_blank" rel="noopener" href="https://dacurry-tns.github.io/deploying-apereo-cas/building_server_service-registry_configure-the-service-registry.html">https://dacurry-tns.github.io/deploying-apereo-cas/building_server_service-registry_configure-the-service-registry.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-notes/cas/Apereo-CAS-Service-Registry-Storage" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -711,48 +788,6 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
 
 
 
-  <article id="post-network/tcp_close-wait_time-wait" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-11-20T09:38:01.064Z"><a href="/2021/11/20/network/tcp_close-wait_time-wait/">2021-11-20</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/11/20/network/tcp_close-wait_time-wait/">关于TCP的好文章</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="关于挥手中的close-wait-time-wait。"><a href="#关于挥手中的close-wait-time-wait。" class="headerlink" title="关于挥手中的close-wait, time-wait。"></a>关于挥手中的close-wait, time-wait。</h4><ul>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI4MjA4ODU0Ng==&mid=402163560&idx=1&sn=5269044286ce1d142cca1b5fed3efab1&3rd=MzA3MDU4NTYzMw==&scene=6#rd">又见CLOSE_WAIT</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903734300901390">线上大量CLOSE_WAIT的原因深入分析</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9988354.html">TCP连接的TIME_WAIT和CLOSE_WAIT 状态解说</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/Jt2ss3SsE_iGJp5oW8QDSw">高性能网络 | 你所不知道的TIME_WAIT和CLOSE_WAIT</a></p>
-</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -777,7 +812,7 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/CAS/">CAS</a><small>4</small></li>
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
@@ -805,7 +840,7 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>9</small></li>
+    <li><a href="/tags/Security/">Security</a><small>10</small></li>
   
     <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
   
