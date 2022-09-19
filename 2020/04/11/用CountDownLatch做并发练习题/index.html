@@ -3,15 +3,16 @@
 <head>
   <meta charset="utf-8">
   
-  <title>用CountDownLatch做并发练习题 | 日常开发的一些笔记</title>
+  <title>用CountDownLatch做并发练习题 | 浅流</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="学无止境，别掉进去。。。">
+  <meta name="description" content="拿CountDownLatch对比着Semaphore来学习会简单很多。CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说
+1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
   <meta property="og:title" content="用CountDownLatch做并发练习题"/>
-  <meta property="og:site_name" content="日常开发的一些笔记"/>
+  <meta property="og:site_name" content="浅流"/>
 
   
     <meta property="og:image" content=""/>
@@ -30,8 +31,8 @@
 
 <body>
   <header id="header" class="inner"><div class="alignleft">
-  <h1><a href="/">日常开发的一些笔记</a></h1>
-  <h2><a href="/">记录一下表示也曾弄过。。。</a></h2>
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
 </div>
 <nav id="main-nav" class="alignright">
   <ul>
