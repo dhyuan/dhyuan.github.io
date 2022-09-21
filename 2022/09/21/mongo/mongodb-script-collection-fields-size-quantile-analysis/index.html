@@ -6,7 +6,7 @@
   <title>MongoDB脚本：集合中字段数据大小的分位数统计 | 浅流</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="查询某个collection 的文档大小分布日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等。如果想获得某个collection相关的各种存储统计信息，可以使用 collStats。参见：https://www.mongodb.co">
+  <meta name="description" content="查询某个collection 的文档大小分布日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -62,11 +62,12 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等。<br>如果想获得某个collection相关的各种存储统计信息，可以使用 <strong>collStats</strong>。参见：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats%E3%80%82">https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats。</a></p>
+        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
+<p>如果想获得某个collection相关的各种存储统计信息，可以使用 <strong>collStats</strong>。参见：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats%E3%80%82">https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats。</a></p>
 <p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
-<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。</p>
+<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
 <pre><code>//最大的Top10和百分比分布。
-db.account.aggregate([
+db.COLLECTION.aggregate([
   &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
   &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
   &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
