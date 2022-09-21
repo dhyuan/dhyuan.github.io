@@ -45,6 +45,73 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-09-21T06:18:40.464Z"><a href="/2022/09/21/mongo/mongodb-script-collection-fields-size-quantile-analysis/">2022-09-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/09/21/mongo/mongodb-script-collection-fields-size-quantile-analysis/">MongoDB脚本：集合中字段数据大小的分位数统计</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等。<br>如果想获得某个collection相关的各种存储统计信息，可以使用 <strong>collStats</strong>。参见：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats%E3%80%82">https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats。</a></p>
+<p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
+<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。</p>
+<pre><code>//最大的Top10和百分比分布。
+db.account.aggregate([
+  &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
+  &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
+  &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
+  &#123; $sort: &#123; documentSize: 1 &#125; &#125;,
+  &#123; $group: &#123; &#39;_id&#39;: null, &#39;value&#39;: &#123; &#39;$push&#39;: &#39;$documentSize&#39; &#125; &#125; &#125;,
+  &#123; $project: &#123; _id: 0, 
+      &quot;Top1&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-1, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top2&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-2, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top3&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-4, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top4&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-5, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top5&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-6, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top6&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top7&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top8&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-8, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top9&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-9, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top10&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-10, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99-9%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.999, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.99, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;95%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.95, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;90%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.90, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;50%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.50, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;25%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.25, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+    &#125; &#125;,
+  ]);
+  
+</code></pre>
+<br/>
+------
+
+<p>_References:<br>[1]: <a target="_blank" rel="noopener" href="https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/">https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/</a><br>[2]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb">https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb</a><br>[3]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.2/reference/command/collStats/">https://www.mongodb.com/docs/v4.2/reference/command/collStats/</a><br>[4]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-binarysize/">https://database.guide/mongodb-binarysize/</a><br>[5]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-object-bsonsize/">https://database.guide/mongodb-object-bsonsize/</a><br>[6]: <a target="_blank" rel="noopener" href="https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/">https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/aggregation/">https://www.mongodb.com/docs/manual/aggregation/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-notes/cas/enable-OAuth-support-for-Apereo-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -715,79 +782,6 @@ curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/inde
 
 
 
-  <article id="post-devops/setup_mongo_srv_by_using_coredns" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-03-06T03:00:56.353Z"><a href="/2022/03/06/devops/setup_mongo_srv_by_using_coredns/">2022-03-06</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/03/06/devops/setup_mongo_srv_by_using_coredns/">利用CoreDNS设置mongo支持SRV连接</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>MongoDB 从3.6开始，就支持mongo+srv “DNS Seed List Connection Format”这种格式的连接串。<br>对客户端来说它可以隐藏后端mongo服务节点的变化，其显而易见的好处就是后端mongo节点的变化无需修改客户端连接参数，也就无需进行应用的重新部署。其工作原理主要是利用DNS对SRV/TXT记录的支持。因此为了使用mongo+srv，我们需要一个DNS服务器并在其中设置指向mongo后端节点的SRV记录。<br>这里以docker的方式运行CoreDNS来作为本地DNS服务器使用本地环境演示一下如何配置以支持mongo srv。</p>
-<h3 id="MongoDB"><a href="#MongoDB" class="headerlink" title="MongoDB"></a>MongoDB</h3><p>MongDB这部分无需特殊配置，只要把MongoDB在本地以复制集（名为rs0）安装并运行起来就好。</p>
-<h3 id="运行CoreDNS"><a href="#运行CoreDNS" class="headerlink" title="运行CoreDNS"></a>运行CoreDNS</h3><p>运行CoreDNS容器，并把本地～/dockerSrvStorage/dockerEnv/coredns 映射为coredns容器里的/root目录。<br>配置CoreDNS使用容器里的/root/Corefile（对应于本地的～/dockerSrvStorage/dockerEnv/coredns/Corefile）作为配置文件。</p>
-<p>  docker run -d –name coredns –restart=always <br>      –volume=～/dockerSrvStorage/dockerEnv/coredns/:/root/ <br>      -p 53:53/udp coredns/coredns <br>      -conf /root/Corefile</p>
-<h3 id="配制CoreDNS"><a href="#配制CoreDNS" class="headerlink" title="配制CoreDNS"></a>配制CoreDNS</h3><p>Corefile内容如下。其中定义了一个dns zone ‘local.env’，对应的DNS记录文件使用/root/local.env。因为上一步已经把本地的～/dockerSrvStorage/dockerEnv/coredns 映射为了容器里的/roo目录，所以在本地的这个目录创建local.env这个文件就可以了。</p>
-<p>Corefile：</p>
-<pre><code>.:53 &#123;
-    forward . 8.8.8.8 114.114.114.114
-    log
-    errors
-&#125;
-
-local.env:53 &#123;
-    file /root/local.env
-    log
-    errors
-&#125;
-</code></pre>
-<p>local.env<br>下面的配置表示本地机器域名设置为dev.local.env，机器名mongo.local.env是dev.local.env这个机器的别名。<br>假设本地运行了一个数据库DB1以两replicaset（名字是rs0）方式运行的mongo实例，分别侦听在端口27017，27117上。下面的配置就可以提供一个mongosrv连接。<br>mongo+srv://DB1.mongo.local.env。</p>
-<pre><code>@    3600 IN    SOA dns.local.env. dhyuan.google.com. (
-        2022030456 ; serial
-        7200       ; refresh (2 hours)
-        3600       ; retry (1 hour)
-        1209600    ; expire (2 weeks)
-        3600       ; minimum (1 hour)
-        )
-
-dev.local.env.    IN  A   127.0.0.1
-mongo.local.env.  IN  CNAME   dev.local.env.
-redis.local.env.  IN  CNAME   dev.local.env.
-zk.local.env.     IN  CNAME   dev.local.env.
-
-_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27017 mongo.local.env.
-_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27117 mongo.local.env.
-DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot;
-</code></pre>
-<h3 id="更改本地-etc-resolv-conf"><a href="#更改本地-etc-resolv-conf" class="headerlink" title="更改本地/etc/resolv.conf"></a>更改本地/etc/resolv.conf</h3><p>把’nameserver 127.0.0.1’ 加在文件末尾，让本地的CoreDns参与解析。</p>
-<h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>dig -t srv DB1.mongo.local.env</p>
-<p>也可以通过文章<a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a> 中 Reading SRV and TXT Records部分提供的python解析srv的代码验证。</p>
-<p>pip3 install srvlookup<br>pip3 install dnspython<br>python3 mongodb_srv_records.py DB1.mongo.local.env</p>
-<p>Reference:<br>    <a target="_blank" rel="noopener" href="https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0">https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0</a><br>    <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc2052">https://datatracker.ietf.org/doc/html/rfc2052</a><br>    <a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/reference/connection-string/">https://docs.mongodb.com/manual/reference/connection-string/</a><br>    <a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a><br>    <a target="_blank" rel="noopener" href="https://coredns.io/manual/toc/">https://coredns.io/manual/toc/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -826,7 +820,7 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
   
     <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
   
-    <li><a href="/tags/MongoDB/">MongoDB</a><small>5</small></li>
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
   
     <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
   
