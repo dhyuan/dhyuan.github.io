@@ -63,7 +63,7 @@
     <div class="e-content entry" itemprop="articleBody">
       
         <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
-<p>如果想获得某个collection相关的各种存储统计信息，可以使用 <strong>collStats</strong>。参见：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats%E3%80%82">https://www.mongodb.com/docs/v4.4/reference/operator/aggregation/collStats/#mongodb-pipeline-pipe.-collStats。</a></p>
+<p>如果想获得某个collection相关的各种存储统计信息，可以使用 **<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/method/db.collection.stats/">stats</a>、<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/collStats/">collStats</a>**。</p>
 <p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
 <p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
 <pre><code>//最大的Top10和百分比分布。
@@ -93,6 +93,46 @@ db.COLLECTION.aggregate([
     &#125; &#125;,
   ]);
   
+</code></pre>
+<p>对MongoDB 4.2以上版本，可以使用上述aggrigation 语法进行统计。对4.2及其以下版本，需要使用forEach语句迭代进行计算。<br>对于不支持Object.bsonsize的Mongo shell可以使用 BSON.calculateObjectSize 进行替代。</p>
+<pre><code>// const BSON = require(&quot;bson&quot;);
+var fieldsSize = []
+var totalSize = 0
+db.COLLECTION.find(&#123; &quot;status&quot;: &#39;A&#39; &#125;, &#123; FIELD_A: 1, FIELD_B: 1&#125;).forEach(function(doc)
+&#123;
+  var size = Object.bsonsize(doc)
+//   var size = BSON.calculateObjectSize(doc)
+  totalSize += size
+  fieldsSize.push(size)
+&#125;);
+var sortedData = fieldsSize.sort(function(a, b)&#123;return a-b&#125;);
+var statistic = &#123;
+    &quot;Note&quot;: &quot;The Collection Fields(FIELD_A, FIELD_B) Size Statistic Reuslt&quot;,    
+    &quot;numbOfDocs&quot;: sortedData.length,
+    &quot;totalSize&quot;: (totalSize / 1024) + &quot;KB    &quot; +  (totalSize / (1024 * 1024)) + &quot; MB&quot;,
+    &quot;AVG:&quot;: Math.round(totalSize / sortedData.length),
+    &quot;MIN&quot;: sortedData[0],
+    &quot;TOP1&quot;: sortedData[sortedData.length - 1],
+    &quot;TOP2&quot;: sortedData[sortedData.length - 2],
+    &quot;TOP3&quot;: sortedData[sortedData.length - 3],
+    &quot;TOP4&quot;: sortedData[sortedData.length - 4],
+    &quot;TOP5&quot;: sortedData[sortedData.length - 5],
+    &quot;TOP6&quot;: sortedData[sortedData.length - 6],
+    &quot;TOP7&quot;: sortedData[sortedData.length - 7],
+    &quot;TOP8&quot;: sortedData[sortedData.length - 8],
+    &quot;TOP9&quot;: sortedData[sortedData.length - 9],
+    &quot;TOP10&quot;: sortedData[sortedData.length - 10],
+    &quot;99.9%&quot;: sortedData[Math.floor(sortedData.length * 0.999)],
+    &quot;99%&quot;: sortedData[Math.floor(sortedData.length * 0.99)],
+    &quot;95%&quot;: sortedData[Math.floor(sortedData.length * 0.95)],
+    &quot;90%&quot;: sortedData[Math.floor(sortedData.length * 0.90)],
+    &quot;75%&quot;: sortedData[Math.floor(sortedData.length * 0.75)],
+    &quot;50%&quot;: sortedData[Math.floor(sortedData.length * 0.5)],
+    &quot;25%&quot;: sortedData[Math.floor(sortedData.length * 0.25)],
+    &quot;10%&quot;: sortedData[Math.floor(sortedData.length * 0.10)]
+&#125;;
+
+print(statistic)
 </code></pre>
 <br/>
 ------
