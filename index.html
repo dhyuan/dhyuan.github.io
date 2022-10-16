@@ -45,6 +45,153 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/Create-an-AWS-EFS-resource-an-its-access-points" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-10-16T14:49:44.797Z"><a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/">2022-10-16</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/">创建 AWS EFS</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p><a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">https://www.eksworkshop.com/beginner/190_efs/launching-efs/</a> 是关于创建EFS的一个workshop，本文基本是基于此workshop的记录和扩展。</p>
+<p>要创建一个EFS资源，大致有以下几个步骤：<br>  要在哪个VPC上创建 –&gt; 这个VPC上子网的CIDR<br>  创建一个SG –&gt; 设置这个SG的ingress rule: 对子网开放NFS的2049<br>  创建EFS，根据需求设置不同的参数比如是否加密、备份、performance mode、throughput-mode 等。<br>  找到VPC上的public subnet，在这些public subnet上创建Moint Target。  </p>
+<p>  有了 mount targets，这个NFS就已经可以对外提供服务了。<br>  如果需要对mount的网络文件系统的目录设置特定的user、group属性，那么可以通过在这个NFS上创建 Access Points 完成。  </p>
+<p>因为EFS是可以跨region在这个region的所有AZ中可用的一个NFS，所以需要 VPC ID 应该是比较容易理解的。</p>
+<p>下面介绍一下如何通过 aws cli 创建EFS及其Access Points，完整的脚本可以在这里下载 <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_efs.sh">create_efs.sh</a>, <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_access_points.sh">create_access_points.sh</a>。  </p>
+<h3 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h3><p>这些变量定义了我们当前的aws环境以及要创建的资源名称等信息。</p>
+<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=saml
+AWS_REGION=us-west-2
+CLUSTER_NAME=dev3-ebs-eks1
+</code></pre>
+<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+EFS_NAME=dev3-ebs-eks1-perf-test-efs
+</code></pre>
+<h3 id="1）获取-VPC-ID"><a href="#1）获取-VPC-ID" class="headerlink" title="1）获取 VPC ID"></a>1）获取 VPC ID</h3><p>因为这里创建出来的EFS要供 EKS 的pod使用，所以VPC的获取是根据eks cluster得到的。</p>
+<pre><code>VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME \
+        --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+echo &quot;The $CLUSTER_NAME includes the VPC $VPC_ID&quot;
+</code></pre>
+<h3 id="2）获取VPC下的-CIDR"><a href="#2）获取VPC下的-CIDR" class="headerlink" title="2）获取VPC下的 CIDR"></a>2）获取VPC下的 CIDR</h3><pre><code>CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION \
+            --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+echo &quot;The CIDR blocks in the $VPC_ID : $CIDR_BLOCK&quot;
+</code></pre>
+<h3 id="3）在VPC上创建Security-Group"><a href="#3）在VPC上创建Security-Group" class="headerlink" title="3）在VPC上创建Security Group"></a>3）在VPC上创建Security Group</h3><pre><code>MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION \
+                    --group-name $MOUNT_TARGET_GROUP_NAME \
+                    --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; \
+                    --vpc-id $VPC_ID \
+                    | jq --raw-output &#39;.GroupId&#39;)
+</code></pre>
+<h3 id="4）设置去安全组的ingres对2049端口开放"><a href="#4）设置去安全组的ingres对2049端口开放" class="headerlink" title="4）设置去安全组的ingres对2049端口开放"></a>4）设置去安全组的ingres对2049端口开放</h3><pre><code>aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION \
+  --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+</code></pre>
+<h3 id="5）创建-EFS"><a href="#5）创建-EFS" class="headerlink" title="5）创建 EFS"></a>5）创建 EFS</h3><p><code>aws efs create-file-system</code> 命令本身并没有选项用于设置资源名称，而是通过 Tag key=Name 首先的。这里要注意Name单词的大小写，使用小写的name并不能设置 efs name。<br>通过使用creation-token 来做到创建操作的等幂性。如果你的系统希望efs资源的name是唯一的，那么的选择使用efs的名称作为creation-token是个不错的选择。  </p>
+<pre><code>FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting \
+  --tags Key=Name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+echo &quot;The EFS $FILE_SYSTEM_ID is created.&quot;
+</code></pre>
+<p>查看某个efs：</p>
+<pre><code>aws efs describe-file-systems --file-system-id $FILE_SYSTEM_ID
+</code></pre>
+<p>EFS资源已经创建出来了，要让它能被使用就需要把它mount到VPC的 public subnets 上。<br>一个subnet是public的还是private的，并不是通过subnet对象的某个属性标识的，而是要看路由表里这个subnet有没有通向0.0.0.0的internet gateway。下面的几个步骤就用于找到 public subnet 并把EFS mount到这些 public subnets。</p>
+<h3 id="6-得到-eks-里的-subnetIds"><a href="#6-得到-eks-里的-subnetIds" class="headerlink" title="6) 得到 eks 里的 subnetIds"></a>6) 得到 eks 里的 subnetIds</h3><pre><code>eksSubnetIds=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION \
+                --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; \
+                --output text))
+echo &quot;The eks cluster $CLUSTER_NAME VPC $VPC_ID includes the subnets: $eksSubnetIds&quot;
+</code></pre>
+<h3 id="7-找到-internet-gateway"><a href="#7-找到-internet-gateway" class="headerlink" title="7) 找到 internet gateway"></a>7) 找到 internet gateway</h3><pre><code>IGW_ID=$(aws ec2 describe-internet-gateways  --profile $AWS_PROFILE --region $AWS_REGION \
+        --filters Name=attachment.vpc-id,Values=$&#123;VPC_ID&#125; \
+        --query &quot;InternetGateways[].InternetGatewayId&quot; \
+        | jq -r &#39;.[0]&#39;)
+echo &quot;The internet gateway in the VPC $VPC_ID is $IGW_ID&quot;
+if [ &quot;null&quot; = &quot;$IGW_ID&quot; ] ; then
+  echo &quot;Can&#39;t find public IGW in VPN, exit ...&quot;
+fi
+</code></pre>
+<h3 id="8-找到-public-subnets"><a href="#8-找到-public-subnets" class="headerlink" title="8) 找到 public subnets"></a>8) 找到 public subnets</h3><pre><code>for subnetId in $&#123;eksSubnetIds[@]&#125;
+  do
+      echo &quot;Check the subnet &quot; $subnetId
+      # 根据subnet相关的route-table信息，得到这个subnet的igw。
+      IGW_IN_ROUTS=$(aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
+                    --filter Name=association.subnet-id,Values=$subnetId \
+                    --query &quot;RouteTables[].Routes[]&quot; \
+                    | jq -r &#39;.[] | select(.DestinationCidrBlock==&quot;0.0.0.0/0&quot;) | .GatewayId&#39;)
+      if [ -z $IGW_IN_ROUTS -o &quot;null&quot; = $IGW_IN_ROUTS ] ;  then
+        echo &quot;The subnet $subnetId is a private subnet.&quot;
+      else
+        echo &quot;The subnet $subnetId is a public subnet. $IGW_ID $IGW_IN_ROUTS&quot; 
+        if [ &quot;$IGW_ID&quot; = &quot;$IGW_IN_ROUTS&quot; ] ; then
+          echo &quot;Creating the mount target in the subnet $subnetId.&quot;
+          aws efs create-mount-target --profile $AWS_PROFILE --region $AWS_REGION \
+                                      --file-system-id $FILE_SYSTEM_ID \
+                                      --subnet-id $subnetId \
+                                      --security-groups $MOUNT_TARGET_GROUP_ID
+        elif [ &quot;null&quot; != &quot;$IGW_IN_ROUTS&quot; ] ; then
+            echo &quot;WARNING: The IGW id in routes does not equal with the one in VPC!&quot;
+        fi
+      fi
+  done
+</code></pre>
+<h3 id="10-创建-Access-Point"><a href="#10-创建-Access-Point" class="headerlink" title="10) 创建 Access Point"></a>10) 创建 Access Point</h3><p>到这里这个NFS已经可以在这个VPC里提供服务了。如果你的目录需要更精细的用户、组的设置，可以通过下面的命令创建 Access Point 来做更精细的控制。</p>
+<pre><code>ACCESS_POING_NAME=perf_test_db
+FILE_SYSTEM_ID=fs-082697b352a3230d1
+AP_USER=&#39;&#123;&quot;Uid&quot;: 70, &quot;Gid&quot;: 70, &quot;SecondaryGids&quot;: [70]&#125;&#39;
+AP_ROOT_DIR=&#39;/perf_test/db,CreationInfo=&#123;OwnerUid=70,OwnerGid=70,Permissions=0755&#125;&#39;
+
+aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
+--tags Key=name,Value=$ACCESS_POING_NAME \
+--client-token &quot;$ACCESS_POING_NAME&quot; \
+--file-system-id $FILE_SYSTEM_ID \
+--posix-user $AP_USER \
+--root-directory Path=$AP_ROOT_DIR
+</code></pre>
+<p>下面显示的是在eks中通过StorageClass自动分配EFS资源的场景下，如何如何设置相关属性。 参考 <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a> 查看完整的parameter列表。</p>
+<pre><code>kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+mountOptions:
+  - tls
+  - iam
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-012345678901010
+  directoryPerms: &quot;700&quot;
+  gidRangeStart: &quot;1000&quot;
+  gidRangeEnd: &quot;2000&quot;
+  basePath: &quot;/dynamic_provisioning&quot;
+</code></pre>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using.html">https://docs.aws.amazon.com/efs/latest/ug/creating-using.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html</a><br>[4]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html</a><br>[5]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli">https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli</a><br>[6]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet">https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/linux/jq-command-json">https://www.baeldung.com/linux/jq-command-json</a><br>[8]: <a target="_blank" rel="noopener" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/">https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/</a><br>[9]: <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -754,75 +901,6 @@ for(StackTraceElement st : causes)&#123;
 
 
 
-  <article id="post-devops/nginx-workshop-environment" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-05-29T00:58:24.301Z"><a href="/2022/05/29/devops/nginx-workshop-environment/">2022-05-29</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/05/29/devops/nginx-workshop-environment/">利用docker在本地搭建nginx环境</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>利用docker搭建如下拓扑结构的的实验环境。相关代码可以在 <a target="_blank" rel="noopener" href="https://github.com/dhyuan/dockerEnv/tree/main/nginx">https://github.com/dhyuan/dockerEnv/tree/main/nginx</a> 获得。</p>
-<p><img src="/2022/05/29/devops/nginx-workshop-environment/topology.jpg" alt="Topology"></p>
-<h3 id="1-网路"><a href="#1-网路" class="headerlink" title="1) 网路"></a>1) 网路</h3><p>首先创建一个网络’nginx-net’，把所有的相关的容器放在这个网络里以方便容器之间的访问。<br>这个网络地址范围172.50.0.0/16。相关脚本 createNetwork.sh。</p>
-<pre><code>docker network create --subnet=172.50.0.0/16 nginx-net
-</code></pre>
-<h3 id="2-创建并运行Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’"><a href="#2-创建并运行Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’" class="headerlink" title="2) 创建并运行Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’."></a>2) 创建并运行Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’.</h3><p>并把个容器的IP固定下来防止容器重启后IP变化以影响日志观察。<br>把相关配置影射到本地方便修改。相关脚本 startNginx.sh。</p>
-<p>下面是配置nginx容器 nginxA。</p>
-<pre><code>docker run --name nginxA \
---network nginx-net --ip 172.50.0.11 \
--v ~/dockerEnv/nginx/nginxA/html:/usr/share/nginx/html:ro \
--v ~/dockerEnv/nginx/nginxA/config/conf.d:/etc/nginx/conf.d \
--v ~/dockerEnv/nginx/nginxA/config/nginx.conf:/etc/nginx/nginx.conf:ro \
--v ~/dockerEnv/nginx/nginxA/log:/var/log/nginx \
--p 18080:9090 \
--d nginx:1.22.0
-</code></pre>
-<p>Nginx镜像不包含ping，curl这样的常用工具，可以自行安装。</p>
-<pre><code>docker exec -it nginxA sh
-apt-get update
-apt-get install iputils-ping curl
-</code></pre>
-<h3 id="3-创建一个容器作为client"><a href="#3-创建一个容器作为client" class="headerlink" title="3) 创建一个容器作为client"></a>3) 创建一个容器作为client</h3><p>因为nginx容器都在自己的网络nginx-net里，为了方便测试通过创建一个Alpine容器作为客户端环境。Alpine容器以-it交互模式运行。</p>
-<pre><code>docker run --name nclient100 --network nginx-net --ip 172.50.0.100 -it alpine:3.16.0
-</code></pre>
-<p>Alpine镜像没有curl命令，可以通过apk安装。</p>
-<pre><code>apk add curl
-</code></pre>
-<p>可以在console发送curl命令进行测试。</p>
-<pre><code>curl http://nginxA:9090/testProxy/index.html
-curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/index.html
-</code></pre>
-<h3 id="4-Play-around"><a href="#4-Play-around" class="headerlink" title="4) Play around"></a>4) Play around</h3><p>因为ngix容器的配置、日志、html目录都映射到了本地，所以可以本地的这些内容进行测试、验证。<br>可以根据自己的需要修改nginxA(B|C)/config/confd/9090.conf 里的__”location /testProxy”__ 来进行相关nginx相关参数的验证。</p>
-<p>查看各容器的IP，可运行 ./showInfo.sh<br>清除各容器的nginx日志，可运行 ./cleanlog.sh<br>修改nginx的配置后进行语法检查，可运行 ./testCfg.sh<br>变更了nginx的配置使之生效，可运行 ./reload.sh</p>
-<h3 id="5）-Demo"><a href="#5）-Demo" class="headerlink" title="5） Demo"></a>5） Demo</h3><p>下图显示了一个测试获取真实用户IP的场景。</p>
-<p>为了查看HTTP header里的X_REAL_IP字段，在‘log_format main’里加上了 <strong>“  | $http_x_real_ip”</strong> ,这样在access.log就就可以看到nginx接收到的HEADER X_REAL_IP的值。</p>
-<p>从图里 nginxC 的access.log 中可以看到，nginxC收到的X_REAL_IP是ngixA的IP。如果我们希望这里的X_REAL_IP记录的是真正web client的IP就需要把nginxB中的指令 “proxy_set_header X-Real-IP $remote_addr;” 注释掉。这样，ngixC中收到的X_REAL_IP就是 nginxA中看到的$remote_addr，及ngixA看到的client的IP了。</p>
-<p><img src="/2022/05/29/devops/nginx-workshop-environment/Nginx-X-FORWARDED-FOR.drawio.png" alt="X-FORWARDED_FOR_demo"></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -847,15 +925,19 @@ curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/inde
   <h3 class="title">标签</h3>
   <ul class="entry">
   
+    <li><a href="/tags/AWS/">AWS</a><small>1</small></li>
+  
     <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>27</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>28</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
     <li><a href="/tags/Java/">Java</a><small>7</small></li>
+  
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
