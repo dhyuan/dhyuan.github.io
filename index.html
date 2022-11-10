@@ -45,6 +45,58 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-micro_service/glimpse-of-saga" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-10T13:05:04.743Z"><a href="/2022/11/10/micro_service/glimpse-of-saga/">2022-11-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/10/micro_service/glimpse-of-saga/">glimpse of saga</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>项目中遇到多个微服务调用需要考虑和处理某个环节失败时的处理。虽然这里不需要很强的事务概念，但是需要对失败的动作进行重试等操作。这里的重试本质上就是rollback的另一种形式，在saga里算是“forward recovery”。<br>借机又翻看了一下相关的文章，贴到了文末。</p>
+<h3 id="Saga-vs-TCC"><a href="#Saga-vs-TCC" class="headerlink" title="Saga vs TCC"></a>Saga vs TCC</h3><ol>
+<li>Saga相比TCC的缺点是缺少预留动作，所以某些情况补偿的实现比较麻烦甚至无法撤销只能补救。不过没有预留动作也意味着不必担心资源释放的问题。</li>
+<li>TCC最少通信次数为2n，Saga为n（n=sub-transaction的数量）。</li>
+<li>第三方服务没需要提供有Try接口。<br>总体感觉下来SAGA更适合微服务的多数场景。</li>
+</ol>
+<h3 id="Simple-Saga"><a href="#Simple-Saga" class="headerlink" title="Simple Saga"></a>Simple Saga</h3><p>解决这类问题当然可以直接引入一些已存在的saga框架，不过这里存在学习、部署等成本。如果只是小范围的解决问题，或许可以使用下面的形式。<br><img src="/2022/11/10/micro_service/glimpse-of-saga/poc.jpg" alt="示意图"><br>上面示意图针对的场景是：服务的执行都需要较长时间、并且是异步调用。<br>如果各个服务执行时间都不长，一个调用链下来小于几百毫秒，那么直接使用reactive style的编码也应该可以。<br>因为各服务执行时间较长，所以不能使用同步调用。这里耗时指的是对于有UI的程序至少影响到到UI前的用户，如果是后台应用那么至少阻塞的时长影响到系统的资源可用性。<br>即使服务执行时间短，同步调用也会使调用链的availability降低，所以微服务的场景下使用异步调用有天然的好处。  </p>
+<p>从这个示意图其实可以看作是Chris演讲中提到的最最原始的模式。可以把callback看作是saga事务参与方发送消息到message broker。而调用链的第一个节点就充当了saga的协调者。<br>各个微服务的updateStatus端点就是message的listner，只不过这里直接通过callback实现而没有利用消息队列。<br>最开始的endpoint负责生成一个transactionId并依次传递给每个下游服务，每个下游服务通过callback把自己的状态更新给上游。</p>
+<ol>
+<li><p>getStatus() 端点提供给UI获取当前状态。<br><img src="/2022/11/10/micro_service/glimpse-of-saga/ui_option.png" alt="UI上的状态显示"></p>
+</li>
+<li><p>transCheckAndAmend(trans_n) 每个服务暴露的业务方法都需要提供一个补偿方法。<br><img src="/2022/11/10/micro_service/glimpse-of-saga/tc.png" alt="Compensating transactions"></p>
+</li>
+<li><p>服务的入口方法其实充当了协调者, 更像orchestration的，而不是choreography的。</p>
+</li>
+<li><p>Timer 是个后台定时器不停的检查服务状态，如果状态不成功就调用compensating endpoint.</p>
+</li>
+</ol>
+<p><em>Reference:</em><br>[1]: Saga的经典论文 <a target="_blank" rel="noopener" href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf</a><br>[2]: 《Microservice Pattern》”Chapter4, Managing transactions with sagas”<br>[3]: Chris Richardson 在2017年的演讲：<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=YPbGW3Fnmbc">https://www.youtube.com/watch?v=YPbGW3Fnmbc</a>   </p>
+<p>一些中文网文：<br>[3] 分布式事务：Saga模式 <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/e4b662407c66">https://www.jianshu.com/p/e4b662407c66</a><br>[4] 七种分布式事务的解决方案 <a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1806989">https://cloud.tencent.com/developer/article/1806989</a><br>[5] 分布式事务六种解决方案 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/183753774">https://zhuanlan.zhihu.com/p/183753774</a>   </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/Create-an-AWS-EFS-resource-an-its-access-points" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -874,86 +926,6 @@ $ spring encodepassword bcpassword
 
 
 
-  <article id="post-notes/cas/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-29T06:40:14.610Z"><a href="/2022/08/29/notes/cas/Run-up-Apereo-CAS-locally/">2022-08-29</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/08/29/notes/cas/Run-up-Apereo-CAS-locally/">Apereo CAS 之 在本地运行</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>Apereo CAS，是CAS协议<code>official reference implementation</code>，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
-<p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
-<p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
-<h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
-git checkout -b 6.5 origin/6.5
-</code></pre>
-<p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
-<h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
-<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行会显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
-<pre><code>CAS tasks
----------
-casVersion - Display the current CAS version
-copyCasConfiguration - Copy the CAS configuration from this project to /etc/cas/config
-createKeystore - Create CAS keystore
-createTheme - Create theme directory structure in the overlay
-... ...
-</code></pre>
-<p>其中 createKeystore 用于生成https所用的证书。<br><code>sudo ./gradlew createKeystore</code></p>
-<p>如果需要修改keystore的密码，可以执行：<br><code>keytool -storepasswd -keystore /etc/cas/thekeystore</code></p>
-<p>生成https需要的PK和证书后，需要把CA导入到JDK的的ca根证书库中。</p>
-<pre><code>cd /etc/cas
-sudo keytool -import -alias cas_cert -storepass changeit -file cas.crt -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts
-</code></pre>
-<p>查看ca keystore<br><code>sudo keytools -list -storepass changeit  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts</code></p>
-<p>从ca keystore中删除cascert<br><code>sudo keytool -delete  -alias cas_cert  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts  -storepass changeit</code></p>
-<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以手工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
-<p>默认的内置的用户名密码是 casuser/Mellon，可以通过修改/etc/cas/config/cas.properties <code>cas.authn.accept.users=casuser::password</code> 进行定义。</p>
-<p>配置登录用户在Apereo里属于<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">CAS Authentication 的范畴</a>。</p>
-<h3 id="5）Build-and-Run"><a href="#5）Build-and-Run" class="headerlink" title="5）Build and Run"></a>5）Build and Run</h3><pre><code>./gradlew clean build
-java -jar ./build/libs/cas.war
-</code></pre>
-<p>在浏览器中访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas">https://localhost:8443/cas</a> 进入CAS系统。</p>
-<h3 id="6"><a href="#6" class="headerlink" title="6)"></a>6)</h3><p>如果在日志里发现提示<code>The generated key MUST be added to CAS settings</code>， 则可按照提示把cas.tgc.crypto.encryption.key，cas.tgc.crypto.signing.key 加入到etc/cas/config/cas.properties 文件。</p>
-<pre><code>    2022-08-29 23:29:34,160 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for encryption is not defined for [Ticket-granting Cookie]; CAS will attempt to auto-generate the encryption key&gt;
-    2022-08-29 23:29:34,168 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated encryption key [rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I] of size [256] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
-
-            cas.tgc.crypto.encryption.key=rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I
-
-    &gt;
-    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for signing is not defined for [Ticket-granting Cookie]. CAS will attempt to auto-generate the signing key&gt;
-    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated signing key [cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg] of size [512] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
-
-            cas.tgc.crypto.signing.key=cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg
-</code></pre>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/index.html">https://apereo.github.io/cas/6.5.x/index.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5">https://github.com/apereo/cas-overlay-template/tree/6.5</a><br>[3]: <a target="_blank" rel="noopener" href="https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52">https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -994,13 +966,15 @@ java -jar ./build/libs/cas.war
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
-    <li><a href="/tags/MicroService/">MicroService</a><small>2</small></li>
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
   
     <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
   
     <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
   
     <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
