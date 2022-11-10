@@ -45,6 +45,75 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-06-26T14:17:16.465Z"><a href="/2022/06/26/spring/BsonUndefined_caused_ConverterNotFoundException/">2022-06-26</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/06/26/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>因为MongoDB数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下exception</p>
+<blockquote>
+<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
+</blockquote>
+<p>我们可以通过一下几步解决这个问题：</p>
+<h3 id="1）我们首先需要分析是什么情况导致数据中存在undefined值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在undefined值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在undefined值。"></a>1）我们首先需要分析是什么情况导致数据中存在undefined值。</h3><p>从BSON的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined已经是depricated。数据库中出现undefined的多半说明程序有问题，所以需要找出是在哪里、什么情况下向MongoDB写入了undefined value并进行修改。</p>
+<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
+<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个converter类 </p>
+<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt; 
+</code></pre>
+<p>把undefined 转为__任意类型__对象的null，就可以避免如上的Exception。代码如stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把Converter 传给mongoTemplate，我们就需要定义一个MongoCustomConversions Bean。为什么需要这样的Bean，可以参考 AbstractMongoClientConfiguration的源代码。因为AbstractMongoClientConfiguration中已经定义了一个MongoCustomConversions bean，我们就需要给自己的Bean加上@Primary，以便让spring-data-mongo优先使用我们设置了自定义converter的 MongoCustomConversions bean。</p>
+<p>如果你的spring application还是通过XML方式进行beans定义与组装的，那么你就不能通过定义一个ConverterFactory来方便地把undefined 转为__任意类型__对象的null了。这是因为XML不支持类型化参数。这时，只能把converter一个个地定义出来。XML的组装大致如下：</p>
+<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
+    &lt;mongo:custom-converters&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+    &lt;/mongo:custom-converters&gt;
+&lt;/mongo:mapping-converter&gt;
+</code></pre>
+<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个converter才能避免exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在converter 返回 o -&gt; null 之前，执行下面的代码就可以通过log看到是哪个DAO触发了这个转换，进而可以分析出哪个collection存在脏数据。如果我们清理了这个collection的所有脏数据之后这种undefined脏数据还是会产生出来，那么我们就应该好好review一下之前的代码是哪里有问题并进行修改了。</p>
+<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
+for(StackTraceElement st : causes)&#123;
+    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
+        log.warn(st.toString());
+    &#125; else &#123;
+        log.info(st.toString());
+    &#125;
+&#125;
+</code></pre>
+<p>如果是使用JDK9及以上，那么可以使用StackWalker避免getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a> </p>
+<p>写了个Demo来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
+<p><em>Reference:</em></p>
+<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/nginx-workshop-environment" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -828,68 +897,6 @@ sudo systemctl start systemd-networkd.service
 
 
 
-  <article id="post-devops/jenkins_maven_allure" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-05-10T12:39:52.000Z"><a href="/2021/05/10/devops/jenkins_maven_allure/">2021-05-10</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/05/10/devops/jenkins_maven_allure/">在Jenkins中使用Allure显示测试结果</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>allure 官网对自己的定义:</p>
-<blockquote><p>Allure Framework is a flexible lightweight multi-language test report tool that not only shows a very concise representation of what have been tested in a neat web report form …</p>
-</blockquote>
-
-<h3 id="1）首先在开发机器中安装-allure，"><a href="#1）首先在开发机器中安装-allure，" class="headerlink" title="1）首先在开发机器中安装 allure，"></a>1）首先在开发机器中安装 allure，</h3><p>参考官方文档 <a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/#_installing_a_commandline">https://docs.qameta.io/allure/#_installing_a_commandline</a> 安装 allure。这里要注意的是如果是通过下载压缩包解压进行的安装，那么需要把 allure 连接到/usr/bin/allsure 这样的系统目录，否则 allure-maven 插件运行时找不到 allure command。如果是 mac 系统，因为权限管理的问题，可以链接到/usr/local/bin/allure。</p>
-<h3 id="2-配置-pom-文件保证-allure-在本地可工作。"><a href="#2-配置-pom-文件保证-allure-在本地可工作。" class="headerlink" title="2) 配置 pom 文件保证 allure 在本地可工作。"></a>2) 配置 pom 文件保证 allure 在本地可工作。</h3><p>配置 maven 项目使用的是哪种测试框架来配置 pom 文件，可参考：<a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/#_java">https://docs.qameta.io/allure/#_java</a><br>运行以下命令确认本地环境可以正常生成 allure report。</p>
-<pre><code>mvn clean test allure:report
-mvn allure:serve
-</code></pre>
-<h3 id="3）在-jenkins-中安装-allure-插件并配置。"><a href="#3）在-jenkins-中安装-allure-插件并配置。" class="headerlink" title="3）在 jenkins 中安装 allure 插件并配置。"></a>3）在 jenkins 中安装 allure 插件并配置。</h3><p>如图，安装 allure plugin<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_install_allure_plugin.png" alt="安装allure插件"></p>
-<p>如图，配置 allure tool，这里选择用到 allure 时自动下载。<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_config_allure_tool.png" alt="配置allure工具"></p>
-<h3 id="4）修改-Jenkinsfile-添加-allure-相关-step。"><a href="#4）修改-Jenkinsfile-添加-allure-相关-step。" class="headerlink" title="4）修改 Jenkinsfile 添加 allure 相关 step。"></a>4）修改 Jenkinsfile 添加 allure 相关 step。</h3><p>allure 相关配置大致如下：</p>
-<pre><code>post &#123;
-    always &#123;
-        junit testResults: &quot;**/target/surefire-reports/*.xml&quot;
-
-        script &#123;
-          allure includeProperties: false, jdk: &#39;&#39;, results: [[path: &#39;target/allure-results/&#39;]]
-        &#125;
-    &#125;
-
-    success &#123;
-        archiveArtifacts &#39;target/*.jar&#39;
-    &#125;
-&#125;
-</code></pre>
-<p>当把对 pom 和 jenkinsfile 的修改 push 到 GitLab 之后，因为之前已经配置了 pipeline 可被 gitlab 事件触发执行。顺利的话，就可在 Jenkins 中看到 allure 生成的报表了。</p>
-<p>报表入口：<br>注意，生成的 allure-report.zip 并不能解压后直接通过浏览器查看，需要通过运行 allure open ./allure-report.zip 来查看。<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_allure_result0.png"></p>
-<p>可视化图表：<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_allure_result2.png"></p>
-<p>Reference:<br><a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/">https://docs.qameta.io/allure/</a><br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/allure-plugin">https://github.com/jenkinsci/allure-plugin</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -916,19 +923,19 @@ mvn allure:serve
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/AWS/">AWS</a><small>1</small></li>
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
   
     <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>28</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
     <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   

@@ -6,8 +6,8 @@
   <title>创建 AWS EFS | 浅流</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="https://www.eksworkshop.com/beginner/190_efs/launching-efs/ 是关于创建EFS的一个workshop，本文基本是基于此workshop的记录和扩展。
-要创建一个EFS资源，大致有以下几个步骤：  要在哪个VPC上创建 –&amp;gt; 这个VPC上">
+  <meta name="description" content="本文基本是基于此efs workshop的记录和扩展。
+要创建一个EFS资源，大致有以下几个步骤：  要在哪个VPC上创建 –&amp;gt; 这个VPC上子网的CIDR  创建一个SG –&amp;gt; 设置这个SG的ingress rule: 对子网开放NFS的2049  创建EFS，根据需求设置不同的参数比">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -63,19 +63,19 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p><a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">https://www.eksworkshop.com/beginner/190_efs/launching-efs/</a> 是关于创建EFS的一个workshop，本文基本是基于此workshop的记录和扩展。</p>
+        <p>本文基本是基于此<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">efs workshop</a>的记录和扩展。</p>
 <p>要创建一个EFS资源，大致有以下几个步骤：<br>  要在哪个VPC上创建 –&gt; 这个VPC上子网的CIDR<br>  创建一个SG –&gt; 设置这个SG的ingress rule: 对子网开放NFS的2049<br>  创建EFS，根据需求设置不同的参数比如是否加密、备份、performance mode、throughput-mode 等。<br>  找到VPC上的public subnet，在这些public subnet上创建Moint Target。  </p>
 <p>  有了 mount targets，这个NFS就已经可以对外提供服务了。<br>  如果需要对mount的网络文件系统的目录设置特定的user、group属性，那么可以通过在这个NFS上创建 Access Points 完成。  </p>
 <p>因为EFS是可以跨region在这个region的所有AZ中可用的一个NFS，所以需要 VPC ID 应该是比较容易理解的。</p>
 <p>下面介绍一下如何通过 aws cli 创建EFS及其Access Points，完整的脚本可以在这里下载 <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_efs.sh">create_efs.sh</a>, <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_access_points.sh">create_access_points.sh</a>。  </p>
 <h3 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h3><p>这些变量定义了我们当前的aws环境以及要创建的资源名称等信息。</p>
-<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=saml
+<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=myProfile
 AWS_REGION=us-west-2
-CLUSTER_NAME=dev3-ebs-eks1
+CLUSTER_NAME=myCluster
 </code></pre>
-<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=mySG4EFS
 MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
-EFS_NAME=dev3-ebs-eks1-perf-test-efs
+EFS_NAME=myEfsName
 </code></pre>
 <h3 id="1）获取-VPC-ID"><a href="#1）获取-VPC-ID" class="headerlink" title="1）获取 VPC ID"></a>1）获取 VPC ID</h3><p>因为这里创建出来的EFS要供 EKS 的pod使用，所以VPC的获取是根据eks cluster得到的。</p>
 <pre><code>VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME \
@@ -123,7 +123,6 @@ fi
 <h3 id="8-找到-public-subnets"><a href="#8-找到-public-subnets" class="headerlink" title="8) 找到 public subnets"></a>8) 找到 public subnets</h3><pre><code>for subnetId in $&#123;eksSubnetIds[@]&#125;
   do
       echo &quot;Check the subnet &quot; $subnetId
-      # 根据subnet相关的route-table信息，得到这个subnet的igw。
       IGW_IN_ROUTS=$(aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
                     --filter Name=association.subnet-id,Values=$subnetId \
                     --query &quot;RouteTables[].Routes[]&quot; \
@@ -145,10 +144,10 @@ fi
   done
 </code></pre>
 <h3 id="10-创建-Access-Point"><a href="#10-创建-Access-Point" class="headerlink" title="10) 创建 Access Point"></a>10) 创建 Access Point</h3><p>到这里这个NFS已经可以在这个VPC里提供服务了。如果你的目录需要更精细的用户、组的设置，可以通过下面的命令创建 Access Point 来做更精细的控制。</p>
-<pre><code>ACCESS_POING_NAME=perf_test_db
+<pre><code>ACCESS_POING_NAME=myAP
 FILE_SYSTEM_ID=fs-082697b352a3230d1
-AP_USER=&#39;&#123;&quot;Uid&quot;: 70, &quot;Gid&quot;: 70, &quot;SecondaryGids&quot;: [70]&#125;&#39;
-AP_ROOT_DIR=&#39;/perf_test/db,CreationInfo=&#123;OwnerUid=70,OwnerGid=70,Permissions=0755&#125;&#39;
+AP_USER=&#39;&#123;&quot;Uid&quot;: 123, &quot;Gid&quot;: 123, &quot;SecondaryGids&quot;: [20]&#125;&#39;
+AP_ROOT_DIR=&#39;/myapp/logs,CreationInfo=&#123;OwnerUid=123,OwnerGid=123,Permissions=0755&#125;&#39;
 
 aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
 --tags Key=name,Value=$ACCESS_POING_NAME \
@@ -252,19 +251,19 @@ parameters:
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/AWS/">AWS</a><small>1</small></li>
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
   
     <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>28</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
     <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   

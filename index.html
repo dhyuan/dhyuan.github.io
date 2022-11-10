@@ -61,19 +61,19 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p><a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">https://www.eksworkshop.com/beginner/190_efs/launching-efs/</a> 是关于创建EFS的一个workshop，本文基本是基于此workshop的记录和扩展。</p>
+        <p>本文基本是基于此<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">efs workshop</a>的记录和扩展。</p>
 <p>要创建一个EFS资源，大致有以下几个步骤：<br>  要在哪个VPC上创建 –&gt; 这个VPC上子网的CIDR<br>  创建一个SG –&gt; 设置这个SG的ingress rule: 对子网开放NFS的2049<br>  创建EFS，根据需求设置不同的参数比如是否加密、备份、performance mode、throughput-mode 等。<br>  找到VPC上的public subnet，在这些public subnet上创建Moint Target。  </p>
 <p>  有了 mount targets，这个NFS就已经可以对外提供服务了。<br>  如果需要对mount的网络文件系统的目录设置特定的user、group属性，那么可以通过在这个NFS上创建 Access Points 完成。  </p>
 <p>因为EFS是可以跨region在这个region的所有AZ中可用的一个NFS，所以需要 VPC ID 应该是比较容易理解的。</p>
 <p>下面介绍一下如何通过 aws cli 创建EFS及其Access Points，完整的脚本可以在这里下载 <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_efs.sh">create_efs.sh</a>, <a href="/2022/10/16/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_access_points.sh">create_access_points.sh</a>。  </p>
 <h3 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h3><p>这些变量定义了我们当前的aws环境以及要创建的资源名称等信息。</p>
-<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=saml
+<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=myProfile
 AWS_REGION=us-west-2
-CLUSTER_NAME=dev3-ebs-eks1
+CLUSTER_NAME=myCluster
 </code></pre>
-<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=mySG4EFS
 MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
-EFS_NAME=dev3-ebs-eks1-perf-test-efs
+EFS_NAME=myEfsName
 </code></pre>
 <h3 id="1）获取-VPC-ID"><a href="#1）获取-VPC-ID" class="headerlink" title="1）获取 VPC ID"></a>1）获取 VPC ID</h3><p>因为这里创建出来的EFS要供 EKS 的pod使用，所以VPC的获取是根据eks cluster得到的。</p>
 <pre><code>VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME \
@@ -121,7 +121,6 @@ fi
 <h3 id="8-找到-public-subnets"><a href="#8-找到-public-subnets" class="headerlink" title="8) 找到 public subnets"></a>8) 找到 public subnets</h3><pre><code>for subnetId in $&#123;eksSubnetIds[@]&#125;
   do
       echo &quot;Check the subnet &quot; $subnetId
-      # 根据subnet相关的route-table信息，得到这个subnet的igw。
       IGW_IN_ROUTS=$(aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
                     --filter Name=association.subnet-id,Values=$subnetId \
                     --query &quot;RouteTables[].Routes[]&quot; \
@@ -143,10 +142,10 @@ fi
   done
 </code></pre>
 <h3 id="10-创建-Access-Point"><a href="#10-创建-Access-Point" class="headerlink" title="10) 创建 Access Point"></a>10) 创建 Access Point</h3><p>到这里这个NFS已经可以在这个VPC里提供服务了。如果你的目录需要更精细的用户、组的设置，可以通过下面的命令创建 Access Point 来做更精细的控制。</p>
-<pre><code>ACCESS_POING_NAME=perf_test_db
+<pre><code>ACCESS_POING_NAME=myAP
 FILE_SYSTEM_ID=fs-082697b352a3230d1
-AP_USER=&#39;&#123;&quot;Uid&quot;: 70, &quot;Gid&quot;: 70, &quot;SecondaryGids&quot;: [70]&#125;&#39;
-AP_ROOT_DIR=&#39;/perf_test/db,CreationInfo=&#123;OwnerUid=70,OwnerGid=70,Permissions=0755&#125;&#39;
+AP_USER=&#39;&#123;&quot;Uid&quot;: 123, &quot;Gid&quot;: 123, &quot;SecondaryGids&quot;: [20]&#125;&#39;
+AP_ROOT_DIR=&#39;/myapp/logs,CreationInfo=&#123;OwnerUid=123,OwnerGid=123,Permissions=0755&#125;&#39;
 
 aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
 --tags Key=name,Value=$ACCESS_POING_NAME \
@@ -176,6 +175,129 @@ parameters:
 
 <hr>
 <p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using.html">https://docs.aws.amazon.com/efs/latest/ug/creating-using.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html</a><br>[4]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html</a><br>[5]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli">https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli</a><br>[6]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet">https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/linux/jq-command-json">https://www.baeldung.com/linux/jq-command-json</a><br>[8]: <a target="_blank" rel="noopener" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/">https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/</a><br>[9]: <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-10-15T12:06:40.953Z"><a href="/2022/10/15/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/">2022-10-15</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/10/15/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/">使用 AWS EFS 作为EKS里PV的后端存储</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="预备知识"><a href="#预备知识" class="headerlink" title="预备知识"></a>预备知识</h2><p>AWS的EC2存储，有四种选择：</p>
+<ul>
+<li>Amazon Elastic Block Store</li>
+<li>Amazon EC2 instance store</li>
+<li>Use Amazon EFS with Amazon EC2</li>
+<li>Use Amazon S3 with Amazon EC2</li>
+</ul>
+<p>下面的这张概念图很好的描述各种存储的位置层次。<br><img src="/2022/10/15/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/ec2_storage_options.jpg" alt="EC2 Storage Options"><br>在EKS的node如果是基于EC2的，那么PV就可以利用以上除去S3之外的其余三种作为底层存储。<br>参考：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/eks/latest/userguide/storage.html%E3%80%82">https://docs.aws.amazon.com/eks/latest/userguide/storage.html。</a> </p>
+<p>关于EC2可以使用的存储的特性、使用场景，推荐阅读官方文档：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html。</a>   </p>
+<h2 id="使用-aws-cli-创建一个EFS资源"><a href="#使用-aws-cli-创建一个EFS资源" class="headerlink" title="使用 aws cli 创建一个EFS资源"></a>使用 aws cli 创建一个EFS资源</h2><ol>
+<li>创建EFS</li>
+</ol>
+<p>可以在AWS Console中创建EFS <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html。</a><br>也可以通过使用aws cli在命令行创建，<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/%E3%80%82">https://www.eksworkshop.com/beginner/190_efs/launching-efs/。</a><br>下面是根据上文得到的，通过aws cli创建EFS的脚本。<br>假设，你的aws profile是myAwsProfile、eks所在region是us-west-2、eks集群名称是myCluster，而要创建的EFS名称是 my-test-efs<br>为了使用EFS需要创建SecurityGroup来允许对NFS端口2049的使用，这里设置SG名称为 SG_efs_demo。</p>
+<pre><code># Set the input env vars
+export AWS_PROFILE=myAwsProfile
+export AWS_REGION=us-west-2
+export CLUSTER_NAME=myCluster
+
+# Set the output env vars
+export MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+export MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+export EFS_NAME=my-test-efs
+
+# Get eks cluster&#39;s VPC ID.
+export VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+# Get the subnets&#39;s CIDR in the VPC.
+export CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+
+# Create SG(allow port 2049 in ingress for all of the CIDR in VPC) for EFS
+export MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION --group-name $MOUNT_TARGET_GROUP_NAME --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; --vpc-id $VPC_ID | jq --raw-output &#39;.GroupId&#39;)
+aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+
+# Create EFS. https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html
+# https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli
+# If no creation-token is provied, you&#39;d better go to the AWS EFS Console 
+# to make sure the EFS is created or not to avoid too many EFS reources are created.
+# 使用efs name作为前缀加序号的方式做 creation-token 是个不错的选择，
+export FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting --tags Key=name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+
+# Find out the public subtnets from the subnets of the eks cluster.
+
+aws ec2 describe-subnets --profile $AWS_PROFILE --region $AWS_REGION  | jq --raw-output &#39;.Subnets[].SubnetId&#39;
+
+// 得到eks里的subnetIds
+aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; --output text
+
+export eksSubnetIDs=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; --output text))
+
+
+# 找到internet gw
+aws ec2 describe-internet-gateways  --profile $AWS_PROFILE --region $AWS_REGION \
+</code></pre>
+<p>  –filters Name=attachment.vpc-id,Values=${VPC_ID} <br>  –query “InternetGateways[].InternetGatewayId” <br>  | jq -r ‘.[0]’</p>
+<pre><code># 找到其中是public的subnets, https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet 
+
+
+
+for subnetId in $&#123;eksSubnetIDs[@]&#125;
+  do
+      echo &quot;creating mount target in &quot; $subnetId
+      aws ec2 describe-subnets --profile $AWS_PROFILE --region $AWS_REGION --subnet-ids subnet-049aa3dbffcc01679,subnet-09debad11fbf98ebd,subnet-07c3928277ce7bc47
+
+    aws ec2 describe-internet-gateways  --profile $AWS_PROFILE --region $AWS_REGION  \
+      --filters Name=attachment.vpc-id,Values=subnet-07c3928277ce7bc47 \
+      --query &quot;InternetGateways[].InternetGatewayId&quot;
+
+    # 根据subnet相关的route-table信息，得到这个subnet的igw。
+    export aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
+--filter Name=association.subnet-id,Values=subnet-07c3928277ce7bc47 \
+--query &quot;RouteTables[].Routes[]&quot; \
+ | jq &#39;.[] | select(.DestinationCidrBlock==&quot;0.0.0.0/0&quot;) | select(.GatewayId|test(&quot;^igw-.&quot;)) | .GatewayId&#39;
+
+    
+
+      aws ec2 describe-subnets --profile $AWS_PROFILE --region $AWS_REGION
+      aws ec2 describe-subnets --profile $AWS_PROFILE --region $AWS_REGION  | jq --raw-output &#39;.Subnets[].SubnetId&#39;
+  done
+</code></pre>
+<p>  export eks1SubnetIds=(subnet-07c3928277ce7bc47 subnet-084b042c532a74654 subnet-0a4c36a0a3830873c)</p>
+<p>  ╰─$ for subnet in ${eks1SubnetIds[@]}<br>  do<br>      echo “creating mount target in “ $subnet<br>      aws efs create-mount-target –profile $AWS_PROFILE –region us-west-2 –file-system-id $FILE_SYSTEM_ID –subnet-id $subnet –security-groups $MOUNT_TARGET_GROUP_ID<br>  done<br>  creating mount target in  subnet-07c3928277ce7bc47<br>  creating mount target in  subnet-084b042c532a74654<br>  creating mount target in  subnet-0a4c36a0a3830873c</p>
+<p>ACCESS_POING_NAME=ap_db2<br>FILE_SYSTEM_ID=fs-055b5f1fcc7df3e4b<br>AP_DIR_USER=’{“Uid”: 70, “Gid”: 70, “SecondaryGids”: [70]}’<br>AP_ROOT_DIR=’/perf_test_db2,CreationInfo={OwnerUid=70,OwnerGid=70,Permissions=0755}’</p>
+<p>aws efs create-access-point –profile $AWS_PROFILE –region $AWS_REGION  <br>–tags Key=name,Value=$ACCESS_POING_NAME <br>–client-token “$ACCESS_POING_NAME”_2 <br>–file-system-id $FILE_SYSTEM_ID <br>–posix-user $AP_DIR_USER <br>–root-directory Path=$AP_ROOT_DIR</p>
+<p>aws efs create-access-point –profile $AWS_PROFILE –region $AWS_REGION  <br>–tags Key=name,Value=$ACCESS_POING_NAME <br>–client-token “$ACCESS_POING_NAME”_3 <br>–file-system-id $FILE_SYSTEM_ID <br>–posix-user ‘{“Uid”: 70, “Gid”: 70, “SecondaryGids”: [70]}’ <br>–root-directory Path=’/perf_test_db2,CreationInfo={OwnerUid=70,OwnerGid=70,Permissions=0755}’</p>
+<p>注意Path的格式必须满足正则 </p>
+<pre><code>^(\/|(\/(?!\.)+[^$#&lt;&gt;;`|&amp;?&#123;&#125;^*/\n]+)&#123;1,4&#125;)$
+</code></pre>
+<p>所以 /perf_test_db不能以 <code>/</code> 结尾。</p>
+<p>另外，创建的access point 可以同名、可以同名同path，唯一标识access point的是<code>Access point ID</code>。</p>
+<p>aws efs delete-access-point –profile $AWS_PROFILE –region $AWS_REGION  –access-point-id     fsap-0a8b1b7d9e0c1c9c3<br>aws efs delete-access-point –profile $AWS_PROFILE –region $AWS_REGION  –access-point-id fsap-039d554565ee7157d<br>aws efs delete-access-point –profile $AWS_PROFILE –region $AWS_REGION  –access-point-id fsap-0706476ad7b5e985c</p>
 
       
     </div>
@@ -832,75 +954,6 @@ java -jar ./build/libs/cas.war
 
 
 
-  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-06-26T14:17:16.465Z"><a href="/2022/06/26/spring/BsonUndefined_caused_ConverterNotFoundException/">2022-06-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/06/26/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>因为MongoDB数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下exception</p>
-<blockquote>
-<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
-</blockquote>
-<p>我们可以通过一下几步解决这个问题：</p>
-<h3 id="1）我们首先需要分析是什么情况导致数据中存在undefined值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在undefined值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在undefined值。"></a>1）我们首先需要分析是什么情况导致数据中存在undefined值。</h3><p>从BSON的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined已经是depricated。数据库中出现undefined的多半说明程序有问题，所以需要找出是在哪里、什么情况下向MongoDB写入了undefined value并进行修改。</p>
-<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
-<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个converter类 </p>
-<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt; 
-</code></pre>
-<p>把undefined 转为__任意类型__对象的null，就可以避免如上的Exception。代码如stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把Converter 传给mongoTemplate，我们就需要定义一个MongoCustomConversions Bean。为什么需要这样的Bean，可以参考 AbstractMongoClientConfiguration的源代码。因为AbstractMongoClientConfiguration中已经定义了一个MongoCustomConversions bean，我们就需要给自己的Bean加上@Primary，以便让spring-data-mongo优先使用我们设置了自定义converter的 MongoCustomConversions bean。</p>
-<p>如果你的spring application还是通过XML方式进行beans定义与组装的，那么你就不能通过定义一个ConverterFactory来方便地把undefined 转为__任意类型__对象的null了。这是因为XML不支持类型化参数。这时，只能把converter一个个地定义出来。XML的组装大致如下：</p>
-<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
-    &lt;mongo:custom-converters&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-    &lt;/mongo:custom-converters&gt;
-&lt;/mongo:mapping-converter&gt;
-</code></pre>
-<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个converter才能避免exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在converter 返回 o -&gt; null 之前，执行下面的代码就可以通过log看到是哪个DAO触发了这个转换，进而可以分析出哪个collection存在脏数据。如果我们清理了这个collection的所有脏数据之后这种undefined脏数据还是会产生出来，那么我们就应该好好review一下之前的代码是哪里有问题并进行修改了。</p>
-<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
-for(StackTraceElement st : causes)&#123;
-    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
-        log.warn(st.toString());
-    &#125; else &#123;
-        log.info(st.toString());
-    &#125;
-&#125;
-</code></pre>
-<p>如果是使用JDK9及以上，那么可以使用StackWalker避免getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a> </p>
-<p>写了个Demo来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
-<p><em>Reference:</em></p>
-<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -925,19 +978,19 @@ for(StackTraceElement st : causes)&#123;
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/AWS/">AWS</a><small>1</small></li>
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
   
     <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>28</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
     <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   

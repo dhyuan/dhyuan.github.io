@@ -45,6 +45,56 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-reactive/about_reactive_manifesto" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-05T12:36:22.000Z"><a href="/2020/10/05/reactive/about_reactive_manifesto/">2020-10-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/10/05/reactive/about_reactive_manifesto/">关于 Reactive Manifesto</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p>
+<p>反应式宣言英文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/zh-CN">https://www.reactivemanifesto.org/zh-CN</a></p>
+<p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应着某个解决方案的思想原则。</p>
+<p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" alt="反应式"></p>
+<p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p>
+<p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p>
+<blockquote>
+<p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p>
+</blockquote>
+<p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p>
+<p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p>
+<p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p>
+<blockquote>
+<p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p>
+</blockquote>
+<p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p>
+<p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手段，但不是唯一的手段，比如就位置透明这点来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p>
+<p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/install_dashboard_for_k8s_cluster" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -833,84 +883,6 @@ brctl addif br0 em1
 
 
 
-  <article id="post-devops/ansible_basic" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-17T07:25:36.000Z"><a href="/2020/09/17/devops/ansible_basic/">2020-09-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/17/devops/ansible_basic/">ansible basic concepts</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h3><p>Ansible 从 2.5 版开始就已经支持 python3。如果你在使用 conda 管理你的 python 环境，那么切换到你的环境，通过使用 pip 直接安装就好。</p>
-<pre><code>pip3 install ansible
-或者
-pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple ansbile
-</code></pre>
-<h3 id="第一原理"><a href="#第一原理" class="headerlink" title="第一原理"></a>第一原理</h3><p>ansbile 的基本工作原理就是通过(controll node) ssh 连接到远程主机(managed node)，使用类似 K8S 里“控制器模式”的思想以一种状态声明的方式让你需要管理的主机到达你期望的状态：比如，拥有哪些软件、主机上服务运行在什么状态等。幂等性对我来说是最有吸引力的特性之一。</p>
-<h3 id="基础配置"><a href="#基础配置" class="headerlink" title="基础配置"></a>基础配置</h3><p>正如每个软件总需要根据不同参数运行一样，ansible 的基础配置信息放在 ansible.cfg 文件中。而此文件的位置依次根据$ANSIBLE_CONFIG, 当前目录、Home 目录, /etc/ansible/ansible.cfg 的顺序查询。其内容大致如下：</p>
-<pre><code>[defaults]
-hostfile = hosts
-remote_uesr = devop
-private_key_file = ./rsa/dell430/private_key_rsa
-host_key_checking = False
-</code></pre>
-<p>hostfile 定义的文件保存了当你运行 ansbile playbook 时需要操作的主机的连接信息。这个文件就是 inventory 文件，如果没有 ansible.cfg 的配置存在其内容大致如下：</p>
-<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22 ansible_ssh_user=devop ansbile_ssh_private_key_file=./rsa/dellT430.rsa
-</code></pre>
-<p>有了 ansible.cfg 的配置，其中 ssh 连接使用的用户名、私钥这些信息就可以从 inventory 文件中去掉，仅定义主机别名、ip、port 就可以了。</p>
-<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
-</code></pre>
-<h3 id="小试-ansible："><a href="#小试-ansible：" class="headerlink" title="小试 ansible："></a>小试 ansible：</h3><p>managed node 是一台安装了 CentOS7.8 的 Dell T430，ip 地址 192.168.1.10，用户名 devop。<br>本地 Mac 做为 controll node，当前目录下有 ansible.cfg 及 inventory 文件 hosts。<br>当然，在这之前你要参考上一篇记录的方法，先要用 ssh-keygen 制作私钥及证书，并用 ssh-copy-id 把证书 copy 到 managed node 实现免密 ssh 登录。</p>
-<p><strong>ansible.cfg</strong>:</p>
-<pre><code>(base) ➜  kvm git:(master) ✗ cat ansible.cfg
-[defaults]
-hostfile = hosts
-remote_uesr = devop
-private_key_file = /Users/dahui/.ssh/homeDellT430_rsa
-host_key_checking = False
-</code></pre>
-<p><strong>Inventory file</strong>:</p>
-<pre><code>(base) ➜  kvm git:(master) ✗ cat hosts
-kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
-</code></pre>
-<p><strong>尝试两个简单命令</strong>：</p>
-<pre><code>(base) ➜  kvm git:(master) ✗ ansible kvmhost -m ping
-kvmhost | success &gt;&gt; &#123;
-    &quot;changed&quot;: false,
-    &quot;ping&quot;: &quot;pong&quot;
-&#125;
-
-(base) ➜  kvm git:(master) ✗ ansible kvmhost -m command -a uptime
-kvmhost | success | rc=0 &gt;&gt;
-00:48:22 up 20 min,  1 user,  load average: 0.05, 0.03, 0.05
-
-(base) ➜  kvm git:(master) ✗
-</code></pre>
-<p>Reference:<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/">https://docs.ansible.com/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -937,19 +909,19 @@ kvmhost | success | rc=0 &gt;&gt;
   <h3 class="title">标签</h3>
   <ul class="entry">
   
-    <li><a href="/tags/AWS/">AWS</a><small>1</small></li>
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
   
     <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>28</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
     <li><a href="/tags/Java/">Java</a><small>7</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>1</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
