@@ -45,6 +45,65 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring/filters-In-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-11T04:09:43.930Z"><a href="/2022/11/11/spring/filters-In-Spring-Security/">2022-11-11</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/11/spring/filters-In-Spring-Security/">SpringSecurity里的filer们</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。</p>
+<p><img src="/2022/11/11/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
+<h3 id="1）使用-Spring-Security"><a href="#1）使用-Spring-Security" class="headerlink" title="1）使用 Spring Security"></a>1）使用 Spring Security</h3><p>要使用Spring Security，如果是在Spring Boot环境，那么只需要导入security的starter，Spring Boot就会自动做下面的事。<br><strong>Creates a servlet Filter as a bean named springSecurityFilterChain</strong>. This bean is responsible for all the security (protecting the application URLs, validating submitted username and passwords, redirecting to the log in form, and so on) within your application.<br><strong>Registers the Filter with a bean named springSecurityFilterChain</strong> with the Servlet container for every request.<br><strong>Creates a UserDetailsService bean with a username of user and a randomly generated password</strong> that is logged to the console.</p>
+<p>不使用Spring Boot的情况下，就需要自己在web.xml文件中定义springSecurityFilterChain。</p>
+<pre><code>&lt;filter&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.springframework.web.filter.DelegatingFilterProxy&lt;/filter-class&gt;
+&lt;/filter&gt;
+&lt;filter-mapping&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+&lt;/filter-mapping&gt;
+</code></pre>
+<h3 id="2）入口-DelegatingFilterProxy"><a href="#2）入口-DelegatingFilterProxy" class="headerlink" title="2）入口 DelegatingFilterProxy"></a>2）入口 DelegatingFilterProxy</h3><p>下面通过源码简单看下DelegatingFilterProxy实例化的过程。<br>Tomcat启动时会在 web 容器中初始化 DelegatingFilterProxy 实例，<br><img src="/2022/11/11/spring/filters-In-Spring-Security/registerDelegatingFilterProxy-as-bean.jpg"></p>
+<p>DelegatingFilterProxy 本身既是一个Filter也是一个ServletContextAware的实例。 Spring 使用 ContextLoaderListener 来加载spring的bean。org.springframework.web.context.support.GenericWebApplicationContext 则是servlet context和spring context真正交汇的地方。<br>从下面DelegatingFilterProxy实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context的桥梁</strong>。<br>因为Spring要等web context初始化完成才能初始化自己的context，所以如果在spring中定义的filter beans就可以延迟初始化。通过延迟初始化就解决了Filter必须定义在Servlet Container中的问题。 Spring很巧妙的通过FilterChain接口把这些filter beans串在一起</p>
+<pre><code>public class DelegatingFilterProxy extends GenericFilterBean
+</code></pre>
+<p>而 ServletContextAware 是Spring的一个接口。</p>
+<pre><code>public abstract class GenericFilterBean implements Filter, BeanNameAware, EnvironmentAware,
+    EnvironmentCapable, ServletContextAware, InitializingBean, DisposableBean 
+</code></pre>
+<p>从DelegatingFilterProxy的两个关键fields：WebApplicationContext webApplicationContext 和 Filter delegate，也能知道DelegatingFilterProxy桥梁作用。<br><img src="/2022/11/11/spring/filters-In-Spring-Security/DelegatingFilterProxy-properties.jpg"><br>上图中的delegate是FilterChainProxy的实例。</p>
+<h3 id="3）-FilterChainProxy-包装了-filers。"><a href="#3）-FilterChainProxy-包装了-filers。" class="headerlink" title="3） FilterChainProxy 包装了 filers。"></a>3） FilterChainProxy 包装了 filers。</h3><p>下图中filterChian包含的filters是不做任何特殊配置时的16个filters。FilerChainProxy就是通过调用它拥有的filters起到了对request做filter处理的作用，这就是称它为代理的原因.<br><img src="/2022/11/11/spring/filters-In-Spring-Security/construct-FilterChainProxy.jpg"></p>
+<h3 id="4）springSecurityFilterChain-进入-DelegatingFilterProxy"><a href="#4）springSecurityFilterChain-进入-DelegatingFilterProxy" class="headerlink" title="4）springSecurityFilterChain 进入 DelegatingFilterProxy"></a>4）springSecurityFilterChain 进入 DelegatingFilterProxy</h3><p>上面提到 DelegatingFilterProxy 对filter延迟初始化的作用。所以对delegate的赋值只发生处理第一个http request时。被命名为springSecurityFilterChain的FilterChainProxy会从spring context中被找出来并设置到DelegatingFilterProxy的delegate field。<br><img src="/2022/11/11/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy0.jpeg"></p>
+<p><img src="/2022/11/11/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy.jpeg"></p>
+<hr>
+<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-micro_service/glimpse-of-saga" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -856,76 +915,6 @@ cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/serv
 
 
 
-  <article id="post-notes/cas/Apereo-CAS-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-29T13:12:11.450Z"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">2022-08-29</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS 之 用户认证</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录cas。我们可以通过etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的authentication的校验。</p>
-<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到build.gradle文件。</p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
-    
-</code></pre>
-<h3 id="1）在MongoDb中保存用户信息"><a href="#1）在MongoDb中保存用户信息" class="headerlink" title="1）在MongoDb中保存用户信息"></a>1）在MongoDb中保存用户信息</h3><p>获得密码’md5password’的MD5值，并保存到collection。<br>    $ md5 -s ‘md5password’<br>    MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
-<pre><code>db.cas_user.insert(&#123;
-    &quot;username&quot;: &quot;casuser&quot;,
-    &quot;password&quot;: &quot;ec85070aa70e598eda72cbe82d99fabc&quot;,
-    &quot;first_name&quot;: &quot;john&quot;,
-    &quot;last_name&quot;: &quot;smith&quot;
-&#125;)
-</code></pre>
-<h3 id="2）-配置cas从MongoDB获取用户信息"><a href="#2）-配置cas从MongoDB获取用户信息" class="headerlink" title="2） 配置cas从MongoDB获取用户信息"></a>2） 配置cas从MongoDB获取用户信息</h3><p>通过直接设置client-uri表明连接到mongoDB的哪个库做认证，就不用再分别设置注入host、database这样的参数了。<br><code>cas-user</code>是保存用户数据的collection。<br>如果因为我们使用MD5作为密码摘要来验证，所以这里password-encoder.type 设置为 DEFAULT，encoding-algorithm设置为MD5。可以查看源码 DefaultPasswordEncoder 理解这个设置，诸如BCrypt是不需要encoding-algorithm的。<br>cas也支持BCRYPT、PBKDF2这样的密码编码。也可以把type设置为一个自己实现的PasswordEncoder。<br>如果密码是明文保存的，则可把 password-encoder.type 设为NONE。</p>
-<pre><code># -- Use MongoDB as the authentication data source.
-cas.authn.mongo.client-uri=mongodb://admin:password@localhost:27017/center0
-cas.authn.mongo.collection=cas_user
-# cas.authn.mongo.database-name=
-# cas.authn.mongo.host=localhost=
-# cas.authn.mongo.password=
-# cas.authn.mongo.port=27017
-# cas.authn.mongo.principal-transformation.groovy.location=
-# cas.authn.mongo.user-id=
-cas.authn.mongo.password-encoder.type=DEFAULT
-cas.authn.mongo.password-encoder.encoding-algorithm=MD5
-</code></pre>
-<h3 id="3）登录验证"><a href="#3）登录验证" class="headerlink" title="3）登录验证"></a>3）登录验证</h3><p>运行<code>./gradlew clean copyCasConfiguration build run</code>，在浏览器输入casuser / md5password 进行登录。</p>
-<h3 id="4）使用BCrypt"><a href="#4）使用BCrypt" class="headerlink" title="4）使用BCrypt"></a>4）使用BCrypt</h3><p>BCrypt是当前最通用的password encoding方式了。BCrypt会自己内部产生一个随机salt并和hash的结果保存在一起作为encode的结果。这样每次做BCrypt的结果都不同并且再校验时也无需提供salt。可参考这篇文章<a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-security-registration-password-encoding-bcrypt">spring-security-registration-password-encoding-bcrypt</a>。</p>
-<p>生成一个密码bcpassword的BCrypt值：</p>
-<pre><code>$ brew tap spring-io/tap
-$ brew install spring-boot
-$ spring encodepassword bcpassword
-&#123;bcrypt&#125;$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy
-</code></pre>
-<p>更新数据库里的password为<code>$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy</code>。</p>
-<p>设置 cas.authn.mongo.password-encoder.type=BCRYPT<br>注释掉 cas.authn.mongo.password-encoder.encoding-algorithm。</p>
-<p>重新使用新配置启动cas server，用密码bcpassword登录。这个时候cas后台就已经使用BCrypt来验证密码了。<br><code>./gradlew clean copyCasConfiguration build run</code></p>
-<p>其实Type=BCRYPT就对应到了class org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -960,7 +949,7 @@ $ spring encodepassword bcpassword
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>7</small></li>
+    <li><a href="/tags/Java/">Java</a><small>8</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
@@ -978,9 +967,9 @@ $ spring encodepassword bcpassword
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>10</small></li>
+    <li><a href="/tags/Security/">Security</a><small>11</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>10</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   

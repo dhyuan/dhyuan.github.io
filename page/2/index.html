@@ -45,6 +45,76 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/cas/Apereo-CAS-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-08-29T13:12:11.450Z"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">2022-08-29</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/08/29/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS 之 用户认证</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录cas。我们可以通过etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的authentication的校验。</p>
+<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到build.gradle文件。</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
+    
+</code></pre>
+<h3 id="1）在MongoDb中保存用户信息"><a href="#1）在MongoDb中保存用户信息" class="headerlink" title="1）在MongoDb中保存用户信息"></a>1）在MongoDb中保存用户信息</h3><p>获得密码’md5password’的MD5值，并保存到collection。<br>    $ md5 -s ‘md5password’<br>    MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
+<pre><code>db.cas_user.insert(&#123;
+    &quot;username&quot;: &quot;casuser&quot;,
+    &quot;password&quot;: &quot;ec85070aa70e598eda72cbe82d99fabc&quot;,
+    &quot;first_name&quot;: &quot;john&quot;,
+    &quot;last_name&quot;: &quot;smith&quot;
+&#125;)
+</code></pre>
+<h3 id="2）-配置cas从MongoDB获取用户信息"><a href="#2）-配置cas从MongoDB获取用户信息" class="headerlink" title="2） 配置cas从MongoDB获取用户信息"></a>2） 配置cas从MongoDB获取用户信息</h3><p>通过直接设置client-uri表明连接到mongoDB的哪个库做认证，就不用再分别设置注入host、database这样的参数了。<br><code>cas-user</code>是保存用户数据的collection。<br>如果因为我们使用MD5作为密码摘要来验证，所以这里password-encoder.type 设置为 DEFAULT，encoding-algorithm设置为MD5。可以查看源码 DefaultPasswordEncoder 理解这个设置，诸如BCrypt是不需要encoding-algorithm的。<br>cas也支持BCRYPT、PBKDF2这样的密码编码。也可以把type设置为一个自己实现的PasswordEncoder。<br>如果密码是明文保存的，则可把 password-encoder.type 设为NONE。</p>
+<pre><code># -- Use MongoDB as the authentication data source.
+cas.authn.mongo.client-uri=mongodb://admin:password@localhost:27017/center0
+cas.authn.mongo.collection=cas_user
+# cas.authn.mongo.database-name=
+# cas.authn.mongo.host=localhost=
+# cas.authn.mongo.password=
+# cas.authn.mongo.port=27017
+# cas.authn.mongo.principal-transformation.groovy.location=
+# cas.authn.mongo.user-id=
+cas.authn.mongo.password-encoder.type=DEFAULT
+cas.authn.mongo.password-encoder.encoding-algorithm=MD5
+</code></pre>
+<h3 id="3）登录验证"><a href="#3）登录验证" class="headerlink" title="3）登录验证"></a>3）登录验证</h3><p>运行<code>./gradlew clean copyCasConfiguration build run</code>，在浏览器输入casuser / md5password 进行登录。</p>
+<h3 id="4）使用BCrypt"><a href="#4）使用BCrypt" class="headerlink" title="4）使用BCrypt"></a>4）使用BCrypt</h3><p>BCrypt是当前最通用的password encoding方式了。BCrypt会自己内部产生一个随机salt并和hash的结果保存在一起作为encode的结果。这样每次做BCrypt的结果都不同并且再校验时也无需提供salt。可参考这篇文章<a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-security-registration-password-encoding-bcrypt">spring-security-registration-password-encoding-bcrypt</a>。</p>
+<p>生成一个密码bcpassword的BCrypt值：</p>
+<pre><code>$ brew tap spring-io/tap
+$ brew install spring-boot
+$ spring encodepassword bcpassword
+&#123;bcrypt&#125;$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy
+</code></pre>
+<p>更新数据库里的password为<code>$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy</code>。</p>
+<p>设置 cas.authn.mongo.password-encoder.type=BCRYPT<br>注释掉 cas.authn.mongo.password-encoder.encoding-algorithm。</p>
+<p>重新使用新配置启动cas server，用密码bcpassword登录。这个时候cas后台就已经使用BCrypt来验证密码了。<br><code>./gradlew clean copyCasConfiguration build run</code></p>
+<p>其实Type=BCRYPT就对应到了class org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-notes/cas/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -818,95 +888,6 @@ SQL&gt;
 
 
 
-  <article id="post-devops/create_vm_and_docker_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-05-21T14:54:38.000Z"><a href="/2021/05/21/devops/create_vm_and_docker_by_ansible/">2021-05-21</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/05/21/devops/create_vm_and_docker_by_ansible/">通过Ansible在Ubuntu KVM Host上安装VM和Docker</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="0）-前提"><a href="#0）-前提" class="headerlink" title="0） 前提"></a>0） 前提</h3><p>Ubuntu HOST 已经安装了 KVM 环境并工作良好。</p>
-<h3 id="1）-在-Ubuntu-KVM-HOST-上安装-ansible"><a href="#1）-在-Ubuntu-KVM-HOST-上安装-ansible" class="headerlink" title="1） 在 Ubuntu KVM HOST 上安装 ansible"></a>1） 在 Ubuntu KVM HOST 上安装 ansible</h3><pre><code># Ansible
-sudo apt install -y software-properties-common
-sudo apt-add-repository --yes --update ppa:ansible/ansible
-sudo apt install -y ansible
-</code></pre>
-<h3 id="2）-安装其它相关工具包"><a href="#2）-安装其它相关工具包" class="headerlink" title="2） 安装其它相关工具包"></a>2） 安装其它相关工具包</h3><pre><code>sudo apt install -y --no-install-recommends \
-dnsmasq \
-git \
-genisoimage \
-libguestfs-tools \
-libosinfo-bin \
-python3-libvirt \
-python3-lxml \
-qemu-utils \
-virtinst
-</code></pre>
-<h3 id="3-checkout-virt-infra-代码库"><a href="#3-checkout-virt-infra-代码库" class="headerlink" title="3) checkout virt-infra 代码库"></a>3) checkout virt-infra 代码库</h3><pre><code>mkdir ~/devenv_bootstrap
-
-git clone https://github.com/dhyuan/virt-infra-ansible.git
-git check -b devenv origin/devenv
-
-cd roles
-git clone https://github.com/dhyuan/ansible-role-virt-infra.git
-git check -b devenv orign.devenv
-</code></pre>
-<h3 id="4）-确保宿主机上有个网桥名与客户机定义文件所用网络名一致。"><a href="#4）-确保宿主机上有个网桥名与客户机定义文件所用网络名一致。" class="headerlink" title="4） 确保宿主机上有个网桥名与客户机定义文件所用网络名一致。"></a>4） 确保宿主机上有个网桥名与客户机定义文件所用网络名一致。</h3><p>比如 inventory/ubuntu20Server.yml 中我们定义了网桥网络使用 br0。</p>
-<pre><code>virt_infra_networks:
-        - name: br0
-</code></pre>
-<h3 id="5）-使用-ansible-在-ubuntu-宿主机上安装客户机"><a href="#5）-使用-ansible-在-ubuntu-宿主机上安装客户机" class="headerlink" title="5） 使用 ansible 在 ubuntu 宿主机上安装客户机"></a>5） 使用 ansible 在 ubuntu 宿主机上安装客户机</h3><p>在 <a target="_blank" rel="noopener" href="http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img">http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img</a> 下载镜像保持到 host 的 /var/lib/libvirt/images 目录。确保 kvmhost 上的/etc/hosts 中没有定义对 ubuntu20Server 的 ip 映射。</p>
-<pre><code>apt install -y ansible
-
-ansible-playbook --limit kvmhost,ubuntu20Server ./virt-infra.yml
-</code></pre>
-<p>删除安装的虚拟机：</p>
-<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
-</code></pre>
-<h3 id="6-创建完毕，通过-virt-manager-启动客户机。"><a href="#6-创建完毕，通过-virt-manager-启动客户机。" class="headerlink" title="6) 创建完毕，通过 virt-manager 启动客户机。"></a>6) 创建完毕，通过 virt-manager 启动客户机。</h3><p>测试网络的连通性，在 kvmhost 上 ping ubuntu20Server。有问题可以通过 ip 命令查看，进行必要的网卡启动等操作、检查/etc/netplan/….yml 文件、执行 netplan apply 等操作。</p>
-<h3 id="7-下载在-VM-安装-Docker-的脚本，并安装"><a href="#7-下载在-VM-安装-Docker-的脚本，并安装" class="headerlink" title="7) 下载在 VM 安装 Docker 的脚本，并安装"></a>7) 下载在 VM 安装 Docker 的脚本，并安装</h3><p>在 kvmhost 上执行：</p>
-<pre><code>ansible-galaxy install \
---roles-path ~/.ansible/roles/ \
-git+https://github.com/haxorof/ansible-role-docker-ce.git,3.3.2
-
-#
-ansible-galaxy list
-</code></pre>
-<p>~/devenv_bootstrap/virt-infra-ansible/install_docker.yml 里定义了 ansbile 所用配置。执行以下语句，将在第五步创建的 VM ubuntu20Server 中安装 Docker 20.10.4。</p>
-<pre><code>ansible-playbook ./install_docker.yml --limit ubuntu20Server -v --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
-</code></pre>
-<p>可以通过 docker_users 参数指定加入 docker group 的用户，使用 ali 镜像下载 docker 安装包：</p>
-<pre><code>ansible-playbook ./install_docker.yml \
---limit ubuntu20Server -v \
---extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal \
---extra-vars &#39;&#123;&quot;docker_users&quot;: [&quot;devops&quot;] &#125;&#39; \
--e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu20&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/ubuntu/dists/focal/Release&quot;&#125;&#125;&#39;
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -943,7 +924,7 @@ ansible-galaxy list
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>7</small></li>
+    <li><a href="/tags/Java/">Java</a><small>8</small></li>
   
     <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
   
@@ -961,9 +942,9 @@ ansible-galaxy list
   
     <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
   
-    <li><a href="/tags/Security/">Security</a><small>10</small></li>
+    <li><a href="/tags/Security/">Security</a><small>11</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>9</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>10</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
