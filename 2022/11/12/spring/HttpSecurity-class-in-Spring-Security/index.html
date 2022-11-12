@@ -6,7 +6,7 @@
   <title>The HttpSecurity class in Spring Security | 浅流</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity，要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置。所以在理解了！DelegatingFilterProxy，Filte">
+  <meta name="description" content="在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity。要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置，所以在理解了DelegatingFilterProxy，Filter">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -62,7 +62,7 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity，要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置。所以在理解了！<a href="./filters-In-Spring-Security/">DelegatingFilterProxy，FilterChainProxy，SecurityFilterChain之间的关系</a>之后就很有必要了解一下HttpSecurity类了。</p>
+        <p>在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity。要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置，所以在理解了DelegatingFilterProxy，FilterChainProxy，SecurityFilterChain之间的关系之后就很有必要了解一下HttpSecurity类了。</p>
 <p>HttpSecurity这个类名与它的实际功用相差甚远，其实把它称为HttpSecurityFilterChainBuiler应该更合适，因为它的作用就是利用构造器模式构造出SecurityFilterChain的一个实例供FilterChainProxy使用。这点从它的类签名就能看出来。</p>
 <p>如果有多个 SecurityFilterChain 被配置、构造出来，它们的顺序可以通过注解 @Order来设定。没有@Order注解的优先级最低。同一order层级的，就可以通过 SecurityFilterChain 中的RequestMatcher 来决定了该chain是否与http request匹配了。我们应该尽量把特殊的匹配放在前面，通用的放在后面。</p>
 <p>体会下HttpSecurity源码的定义部分：<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/HttpSecurity_class.jpeg" alt="HttpSecurity"></p>
