@@ -45,6 +45,48 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring/HttpSecurity-class-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-12T13:10:54.146Z"><a href="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/">2022-11-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/">The HttpSecurity class in Spring Security</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity，要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置。所以在理解了！<a href="">DelegatingFilterProxy，FilterChainProxy，SecurityFilterChain之间的关系</a>之后就很有必要了解一下HttpSecurity类了。</p>
+<p>HttpSecurity这个类名与它的实际功用相差甚远，其实把它称为HttpSecurityFilterChainBuiler应该更合适，因为它的作用就是利用构造器模式构造出SecurityFilterChain的一个实例供FilterChainProxy使用。这点从它的类签名就能看出来。</p>
+<p>如果有多个 SecurityFilterChain 被配置、构造出来，它们的顺序可以通过注解 @Order来设定。没有@Order注解的优先级最低。同一order层级的，就可以通过 SecurityFilterChain 中的RequestMatcher 来决定了该chain是否与http request匹配了。我们应该尽量把特殊的匹配放在前面，通用的放在后面。</p>
+<p>体会下HttpSecurity源码的定义部分：<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/HttpSecurity_class.jpeg" alt="HttpSecurity"></p>
+<p>虽然现在基于Spring的开发都是基于注解的了，但是如果遇到遗留系统里通过http元素来定义HttpSecurity，那么俯视一下下面的schema应该也能大致了然了。。。<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/http-element-for-HttpSecurity.jpeg" alt="http element in security namespace">  </p>
+<br/>  
+<br/> 
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-spring/filters-In-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -843,79 +885,6 @@ holdFor(Duration.ofSeconds(30)),
 
 
 
-  <article id="post-notes/cas/Apereo-CAS-Management-UI" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-30T06:23:12.806Z"><a href="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/">2022-08-30</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/">Apereo CAS 之 管理界面</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>类似cas-server，先下载cas-management-overlay代码，这里使用6.5分支。</p>
-<pre><code>$ git clone https://github.com/apereo/cas-management-overlay cas-management   
-$ cd cas-management   
-$ git checkout -b 6.5 origin/6.5
-</code></pre>
-<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server作为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
-<p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
-<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage</a></p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
-</code></pre>
-<h3 id="2）告诉cas-server-在哪里可以找到定义client-service的json文件"><a href="#2）告诉cas-server-在哪里可以找到定义client-service的json文件" class="headerlink" title="2）告诉cas-server 在哪里可以找到定义client/service的json文件"></a>2）告诉cas-server 在哪里可以找到定义client/service的json文件</h3><p>在文件 etc/cas/config/cas.properties 中加入如下配置：<br><code>cas.service-registry.json.location=classpath:/services</code></p>
-<p>在cas-server 项目的 src/resources 目录下创建一个名为casManagement-2000.json的文体。文件名的格式是 clientName + clientId.json，具体请阅读官方文档。</p>
-<pre><code>&#123;
-  &quot;@class&quot; : &quot;org.apereo.cas.services.RegexRegisteredService&quot;,
-  &quot;serviceId&quot; : &quot;^(https|imaps)://.*&quot;,
-  &quot;name&quot; : &quot;casManagement&quot;,
-  &quot;id&quot; : 2000,
-  &quot;logoutType&quot; : &quot;BACK_CHANNEL&quot;,
-  &quot;logoutUrl&quot; : &quot;https://localhost:8444/cas-management/logout&quot;
-&#125;
-</code></pre>
-<h3 id="3）配置cas-management"><a href="#3）配置cas-management" class="headerlink" title="3）配置cas-management"></a>3）配置cas-management</h3><p>上面两步是配置cas-server以把cas-manager作为它的client。现在，配置cas-management。<br>编辑 cas-management 项目里的 etc/case/config/management.properties 文件，内容如下。</p>
-<pre><code>cas.server.name=https://localhost:8443
-cas.server.prefix=$&#123;cas.server.name&#125;/cas
-
-server.port=8444
-mgmt.server-name=https://localhost:8444
-mgmt.admin-roles[0]=ROLE_ADMIN
-mgmt.user-properties-file=file:/etc/cas/config/users.json
-
-logging.config=file:/etc/cas/config/log4j2-management.xml
-
-server.ssl.key-store=file:/etc/cas/thekeystore
-server.ssl.key-store-password=changeit
-
-# Let the cas-management to know where to find/save the registed services
-cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/services
-</code></pre>
-<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
-<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
-<h3 id="4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management"><a href="#4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management" class="headerlink" title="4） 同时运行cas-server，cas-management后，访问 https://localhost:8444/cas-management/"></a>4） 同时运行cas-server，cas-management后，访问 <a target="_blank" rel="noopener" href="https://localhost:8444/cas-management/">https://localhost:8444/cas-management/</a></h3><p><img src="/2022/08/30/notes/cas/Apereo-CAS-Management-UI/apereo_cas_mgmt_ui.jpg" alt="CAS-Management-UI"></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -970,7 +939,7 @@ cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/serv
   
     <li><a href="/tags/Security/">Security</a><small>11</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>10</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>11</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
