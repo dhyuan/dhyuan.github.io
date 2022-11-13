@@ -86,10 +86,10 @@ public abstract class AbstractAuthenticationFilterConfigurer&lt;B extends HttpSe
 
 public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;&gt; extends AbstractHttpConfigurer&lt;HttpBasicConfigurer&lt;B&gt;, B&gt; &#123;
 </code></pre>
-<p>负责根据这些configuer构造出对象来的类是</p>
+<p>负责根据这些configuer构造出对象来的类是AbstractConfiguredSecurityBuilder。</p>
 <pre><code>public abstract class AbstractConfiguredSecurityBuilder&lt;O, B extends SecurityBuilder&lt;O&gt;&gt; extends AbstractSecurityBuilder&lt;O&gt; &#123;   
 </code></pre>
-<h4 id="2-没有被使用的AuthenticationFilter"><a href="#2-没有被使用的AuthenticationFilter" class="headerlink" title="2) 没有被使用的AuthenticationFilter"></a>2) 没有被使用的AuthenticationFilter</h4><p>很奇怪在Spring Security 的源码里没有看到 AuthenticationFilter 被使用。估计这是要让程序员通过 authenticationConverter authenticationManagerResolver 来定制使用？ 对比三个与authentication相关的fitler体会下。</p>
+<h4 id="2-没有被使用的AuthenticationFilter"><a href="#2-没有被使用的AuthenticationFilter" class="headerlink" title="2) 没有被使用的AuthenticationFilter"></a>2) 没有被使用的AuthenticationFilter</h4><p>很奇怪在Spring Security 的源码里没有看到 AuthenticationFilter 被使用。估计这是要让程序员通过提供自定义的 authenticationConverter 和 authenticationManagerResolver 来使用吧。<br>对比三个与authentication相关的fitler体会下。</p>
 <p>BasicAuthenticationFilter<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/authnMgr_in_BasicAuthenticationFilter.jpg"></p>
 <p>UsernamePasswordAuthenticationFitler<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/authn_inUsernamePasswordAuthenticationFitler.jpg" alt="UsernamePasswordAuthenticationFitler"></p>
 <p>AuthenticationFilter<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/authn_inAuthenticationFilter.jpg" alt="AuthenticationFilter"></p>
@@ -97,7 +97,7 @@ public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;
 <br/> 
 
 <hr>
-<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a> </p>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a><br>[4]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-onceperrequestfilter">https://www.baeldung.com/spring-onceperrequestfilter</a> </p>
 
       
     </div>
