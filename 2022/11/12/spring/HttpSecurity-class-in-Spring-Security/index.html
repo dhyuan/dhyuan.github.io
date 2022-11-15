@@ -69,7 +69,7 @@
 <h3 id="2-用xml配置http-security："><a href="#2-用xml配置http-security：" class="headerlink" title="2) 用xml配置http security："></a>2) 用xml配置http security：</h3><p>虽然现在基于Spring的开发都是基于注解的了，但是如果遇到遗留系统里通过http元素来定义HttpSecurity，那么俯视一下下面的schema应该也能大致了然了。。。<br><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/http-element-for-HttpSecurity.jpeg" alt="http element in security namespace">  </p>
 <h3 id="3-fitlers-的顺序定义："><a href="#3-fitlers-的顺序定义：" class="headerlink" title="3) fitlers 的顺序定义："></a>3) fitlers 的顺序定义：</h3><p><img src="/2022/11/12/spring/HttpSecurity-class-in-Spring-Security/FilterOrderRegistration.jpeg" alt="FilterOrderRegistration"></p>
 <h3 id="4-HttpSecurity-build-filter的套路"><a href="#4-HttpSecurity-build-filter的套路" class="headerlink" title="4) HttpSecurity build filter的套路"></a>4) HttpSecurity build filter的套路</h3><p>看看与 authentication 相关的两个fitler的构建。</p>
-<h4 id="1）从两个filter看规律"><a href="#1）从两个filter看规律" class="headerlink" title="1）从两个filter看规律"></a>1）从两个filter看规律</h4><p>FormLoginConfigurer 定义了构建出来的formloginFilter UsernamePasswordAuthenticationFilter &amp; DefaultLoginPageGeneratingFilter 长什么样。<br>HttpBasicConfigurer 则定义了 BasicAuthenticationFilter。</p>
+<h4 id="1）从两个filter看规律"><a href="#1）从两个filter看规律" class="headerlink" title="1）从两个filter看规律"></a>1）从两个filter看规律</h4><p>Filter都是根据Configurer构建出来的。我们以BasicAuthenticationFilter和UsernamePasswordAuthenticationFilter的Configurer举例。<br>FormLoginConfigurer 比较“特殊”，它定义了两个filter。一个是UsernamePasswordAuthenticationFilter， 一个是DefaultLoginPageGeneratingFilter，后者提供了一个让用户输入credential页面的filter。<br>HttpBasicConfigurer 则定义了 BasicAuthenticationFilter。  </p>
 <pre><code>public FormLoginConfigurer&lt;HttpSecurity&gt; formLogin() throws Exception &#123;
   return getOrApply(new FormLoginConfigurer&lt;&gt;());
 &#125;
@@ -203,7 +203,7 @@ public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;
   
     <li><a href="/tags/Security/">Security</a><small>12</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>11</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>12</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
