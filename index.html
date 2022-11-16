@@ -82,7 +82,7 @@ public class RememberMeAuthenticationFilter extends GenericFilterBean
 </code></pre>
 <h2 id="2）Request-to-Authentication"><a href="#2）Request-to-Authentication" class="headerlink" title="2）Request to Authentication"></a>2）Request to Authentication</h2><p>Authentication这个类在认证前主要用于承载认证需要的凭证信息，比如用户名密码。authentication 对象也就等同于一个authentication request的event，并包含请求者进行认证所必须的信息。<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/Authentication.jpg"></p>
 <h2 id="3）AuthenticationManager"><a href="#3）AuthenticationManager" class="headerlink" title="3）AuthenticationManager"></a>3）AuthenticationManager</h2><p>authentication对象会传递给<strong>AuthenticationManager</strong> 的方法authenticate()做认证。<br>AuthenticationManager是个interface，它的实现类如下图片所示。<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/implements_of_AuthenticationManager.jpg"></p>
-<p>在认证后，principal的授权信息会被写在authentication对象的authorities字段。下图摘自《Spring Security in Action》，使用username password做认证。 <a href="#fg3.1_of_SpringSecurityInAction"></a><br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/fg3.1_of_SpringSecurityInAction.jpg"></p>
+<p>在认证后，principal的授权信息会被写在authentication对象的authorities字段。下图摘自《Spring Security in Action》，使用username password做认证。<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/fg3.1_of_SpringSecurityInAction.jpg"></p>
 <p>如上图所示的，具体的认证工作是委托给<strong>AuthenticationProvider</strong>完成的。在Spring Security的代码实现中，也并不是由AuthenticationManager直接包含一组AuthenticationProvider的方式完成，中间还有一个叫做<strong>ProviderManager</strong>的类，下面列出它的两个关键字段体会下。 </p>
 <pre><code>public class ProviderManager implements AuthenticationManager, MessageSourceAware, InitializingBean &#123;
 
@@ -113,7 +113,9 @@ protected void configure(AuthenticationManagerBuilder auth) &#123;
 <p>不过这个类已经被官方API文档标为Deprecated，并推荐使用HttpSecurity定义SecurityFilterChain的方式或者通过WebSecurityCustomizer来配置WebSecurity。参考源码：<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/registerAuthenticationProvider.jpeg"></p>
 <p>到这里我们应该已经知道具体的认证逻辑都在AuthenticationProvider里。想知道Spring Security提供了哪些开箱即用的provider吗？见下图，一共17个。<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/authenticationProviders.jpg"></p>
 <p>再捋一下与认证相关的类，就结束这篇吧。虽然没有涉及过多细节，相信理解了这些脉略应该也能在copy-past代码的时候点点头了。。。<br>SecurityContextHolder：保存SecurityContext的地方。<br>SecurityContextHolderStrategy：定义SecurityContext在线程中共享的策略模式。如果要跨线越Spring管理的线程，请参考 。。。。<br>SecurityContext - 认证成功后Authentication对象就放在这里。<br>Authentication - 存放要认证的信息以及被 AuthenticationManager 认证后的结果，认证成功后被放入SecurityContext。<br>GrantedAuthority - 请求认证的principal认证成功后被赋予的权限(i.e. roles, scopes, etc.)<br>AuthenticationManager - authentication相关的filter调用这个对象做认证。<br>AbstractAuthenticationProcessingFilter：各个认证相关filter的父类。<br>ProviderManager - AuthenticationManager的一个实现.<br>AuthenticationProvider - 由ProviderManager 用来做具体的认证。<br>AuthenticationEntryPoint: 用于询问并接收用户的credentials，可以是重定向到一个网页或者发送http WWW-Authenticate response。</p>
-<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？如果没有，一定是我还没描述清楚。  请看<a href="#fg3.1_of_SpringSecurityInAction">上面的这张图</a><br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder</p>
+<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？如果没有，一定是我还没描述清楚。<br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder</p>
+<br/>
+
 <hr>
 <p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html">https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html</a><br>[2]: 《Spring Security in Action》  </p>
 
