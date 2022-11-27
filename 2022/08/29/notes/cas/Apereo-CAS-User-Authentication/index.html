@@ -101,6 +101,14 @@ $ spring encodepassword bcpassword
 <p>设置 cas.authn.mongo.password-encoder.type=BCRYPT<br>注释掉 cas.authn.mongo.password-encoder.encoding-algorithm。</p>
 <p>重新使用新配置启动cas server，用密码bcpassword登录。这个时候cas后台就已经使用BCrypt来验证密码了。<br><code>./gradlew clean copyCasConfiguration build run</code></p>
 <p>其实Type=BCRYPT就对应到了class org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder。</p>
+<h3 id="5）使用多个不同的DataSource用于认证"><a href="#5）使用多个不同的DataSource用于认证" class="headerlink" title="5）使用多个不同的DataSource用于认证"></a>5）使用多个不同的DataSource用于认证</h3><p>可同时使用多个不同的DataSource用于认证，但是相同类型的数据源只能有一个。<br>对于同时使用多个认证源的情况，关键是要设置好authentication policy。请参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">Authentication Manager</a> 和 <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">Authentication Policy
+</a>。  </p>
+<p>同时用json file， texfile，MongoDB作为认证源的<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/commit/fc72643a88e93f1c1214e51ec3d88610b90109e1#diff-b94e97ddebc92ca55c272b4fe7917b097e9f38b4f042603370216252d0fb3494">一个例子</a>。  </p>
+<p>如果需要同时设置两个MongoDB作为认证源，就需要自己通过继承 AbstractUsernamePasswordAuthenticationHandler 来实现了。</p>
+<br>
+
+<hr>
+<p><em>References</em>：<br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://fawnoos.com/2018/06/12/cas53-authn-handlers/">https://fawnoos.com/2018/06/12/cas53-authn-handlers/</a>  </p>
 
       
     </div>
