@@ -113,7 +113,7 @@ protected void configure(AuthenticationManagerBuilder auth) &#123;
 <p>不过这个类已经被官方API文档标为Deprecated，并推荐使用HttpSecurity定义SecurityFilterChain的方式或者通过WebSecurityCustomizer来配置WebSecurity。参考源码：<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/registerAuthenticationProvider.jpeg"></p>
 <p>到这里我们应该已经知道具体的认证逻辑都在AuthenticationProvider里。想知道Spring Security提供了哪些开箱即用的provider吗？见下图，一共17个。<br><img src="/2022/11/14/spring/Authentication-in-Spring-Security/authenticationProviders.jpg"></p>
 <p>再捋一下与认证相关的类，就结束这篇吧。虽然没有涉及过多细节，相信理解了这些脉略应该也能在copy-past代码的时候点点头了。。。<br>SecurityContextHolder：保存SecurityContext的地方。<br>SecurityContextHolderStrategy：定义SecurityContext在线程中共享的策略模式。如果要跨线越Spring管理的线程，请参考 。。。。<br>SecurityContext - 认证成功后Authentication对象就放在这里。<br>Authentication - 存放要认证的信息以及被 AuthenticationManager 认证后的结果，认证成功后被放入SecurityContext。<br>GrantedAuthority - 请求认证的principal认证成功后被赋予的权限(i.e. roles, scopes, etc.)<br>AuthenticationManager - authentication相关的filter调用这个对象做认证。<br>AbstractAuthenticationProcessingFilter：各个认证相关filter的父类。<br>ProviderManager - AuthenticationManager的一个实现.<br>AuthenticationProvider - 由ProviderManager 用来做具体的认证。<br>AuthenticationEntryPoint: 用于询问并接收用户的credentials，可以是重定向到一个网页或者发送http WWW-Authenticate response。</p>
-<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？如果没有，一定是我还没描述清楚。<br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder</p>
+<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？<br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder<br>如果没有，一定是我还没描述清楚。 </p>
 <br/>
 
 <hr>
@@ -233,7 +233,7 @@ public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;
 &lt;/filter-mapping&gt;
 </code></pre>
 <h3 id="2）入口-DelegatingFilterProxy"><a href="#2）入口-DelegatingFilterProxy" class="headerlink" title="2）入口 DelegatingFilterProxy"></a>2）入口 DelegatingFilterProxy</h3><p>下面通过源码简单看下DelegatingFilterProxy实例化的过程。<br>Tomcat启动时会在 web 容器中初始化 DelegatingFilterProxy 实例，<br><img src="/2022/11/11/spring/filters-In-Spring-Security/registerDelegatingFilterProxy-as-bean.jpg"></p>
-<p>DelegatingFilterProxy 本身既是一个Filter也是一个ServletContextAware的实例。 Spring 使用 ContextLoaderListener 来加载spring的bean。org.springframework.web.context.support.GenericWebApplicationContext 则是servlet context和spring context真正交汇的地方。<br>从下面DelegatingFilterProxy实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context的桥梁</strong>。<br>因为Spring要等web context初始化完成才能初始化自己的context，所以如果在spring中定义的filter beans就可以延迟初始化。通过延迟初始化就解决了Filter必须定义在Servlet Container中的问题。 Spring很巧妙的通过FilterChain接口把这些filter beans串在一起</p>
+<p>DelegatingFilterProxy 本身既是一个Filter也是一个ServletContextAware的实例。 Spring 使用 ContextLoaderListener 来加载spring的bean。org.springframework.web.context.support.GenericWebApplicationContext 则是servlet context和spring context真正交汇的地方。<br>从下面DelegatingFilterProxy实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context的桥梁</strong>。<br>因为Spring要等web context初始化完成才能初始化自己的context，所以在spring中定义的filter beans就要延迟初始化才行。通过延迟初始化就解决了Filter必须定义在Servlet Container中的问题。 Spring很巧妙的通过FilterChain接口把这些filter beans串在一起</p>
 <pre><code>public class DelegatingFilterProxy extends GenericFilterBean
 </code></pre>
 <p>而 ServletContextAware 是Spring的一个接口。</p>
@@ -245,6 +245,7 @@ public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;
 <h3 id="4）springSecurityFilterChain-进入-DelegatingFilterProxy"><a href="#4）springSecurityFilterChain-进入-DelegatingFilterProxy" class="headerlink" title="4）springSecurityFilterChain 进入 DelegatingFilterProxy"></a>4）springSecurityFilterChain 进入 DelegatingFilterProxy</h3><p>上面提到 DelegatingFilterProxy 对filter延迟初始化的作用，所以对delegate的赋值只发生处理第一个http request时。被命名为springSecurityFilterChain的FilterChainProxy会从spring context中被找出来并设置到DelegatingFilterProxy的delegate field。<br><img src="/2022/11/11/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy0.jpeg"></p>
 <p><img src="/2022/11/11/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy.jpeg"></p>
 <p>至此，应该对文首的第一个图能说出点儿什么了吧… …</p>
+<p><code>DelegatingFilterProxy</code> 的 field ‘Filter delegate’ 就是<code>名为springSecurityFilterChain 的 FilterChainProxy实例</code>。<br>而springSecurityFilterChain默认包含16个<code>SecurityFilterChain</code>。</p>
 <hr>
 <p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a>  </p>
 
@@ -968,7 +969,7 @@ mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&
   </div>
   <footer id="footer" class="inner"><div class="alignleft">
   
-  &copy; 2022 Dahui
+  &copy; 2023 Dahui
   
 </div>
 <div class="clearfix"></div></footer>
