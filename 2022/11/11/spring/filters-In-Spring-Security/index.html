@@ -6,9 +6,7 @@
   <title>SpringSecurity里的filer们 | 浅流</title>
   <meta name="author" content="Dahui">
   
-  <meta name="description" content="这段文字主要源于对 https://docs.spring.io/spring-security/reference/servlet/architecture.html 的学习和理解，其实就是对下图的理解。
-
-1）使用 Spring Security要使用Spring Security，如果是在Sp">
+  <meta name="description" content="这段文字主要源于对 https://docs.spring.io/spring-security/reference/servlet/architecture.html 的学习和理解，其实就是对下图的理解。上图表达了下面几个类之间的关系：DelegatingFilterProxy,  FilterC">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -64,8 +62,8 @@
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。</p>
-<p><img src="/2022/11/11/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
+        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。<br><img src="/2022/11/11/spring/filters-In-Spring-Security/securityfilterchain.png" alt="SecurityFilterChain"><br>上图表达了下面几个类之间的关系：<br><strong>DelegatingFilterProxy,  FilterChainProxy (springSecurityFilterChain),   SecurityFilterChain (security filter)</strong><br>通过调用 SecurityFilterChain API 把 Security Filters 组装成一个或多个chain，再设置给FilterChainProxy使用。   </p>
+<p>对于下图这样FilterChainProxy有多个SecurityFilterChain的情况，只会触发第一个匹配的securityFilterChain。<br><img src="/2022/11/11/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
 <h3 id="1）使用-Spring-Security"><a href="#1）使用-Spring-Security" class="headerlink" title="1）使用 Spring Security"></a>1）使用 Spring Security</h3><p>要使用Spring Security，如果是在Spring Boot环境那么只需要导入security的starter，Spring Boot就会自动做下面的事。<br><strong>Creates a servlet Filter as a bean named springSecurityFilterChain</strong>. This bean is responsible for all the security (protecting the application URLs, validating submitted username and passwords, redirecting to the log in form, and so on) within your application.<br><strong>Registers the Filter with a bean named springSecurityFilterChain</strong> with the Servlet container for every request.<br><strong>Creates a UserDetailsService bean with a username of user and a randomly generated password</strong> that is logged to the console.</p>
 <p>不使用Spring Boot的情况下，就需要自己在web.xml文件中定义springSecurityFilterChain。</p>
 <pre><code>&lt;filter&gt;
@@ -92,7 +90,7 @@
 <p>至此，应该对文首的第一个图能说出点儿什么了吧… …</p>
 <p><code>DelegatingFilterProxy</code> 的 field ‘Filter delegate’ 就是<code>名为springSecurityFilterChain 的 FilterChainProxy实例</code>。<br>而springSecurityFilterChain默认包含16个<code>SecurityFilterChain</code>。</p>
 <hr>
-<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a>  </p>
+<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters">https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters</a>  </p>
 
       
     </div>
