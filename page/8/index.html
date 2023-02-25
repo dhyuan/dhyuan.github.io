@@ -45,6 +45,59 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-Semigroup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2018-09-12T12:43:02.000Z"><a href="/2018/09/12/Semigroup/">2018-09-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2018/09/12/Semigroup/">Semigroup</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="SemiGroup-幺半群"><a href="#SemiGroup-幺半群" class="headerlink" title="SemiGroup 幺半群"></a>SemiGroup 幺半群</h3><h4 id="Type-signature"><a href="#Type-signature" class="headerlink" title="Type signature:"></a>Type signature:</h4><pre><code>// C#定义SemiGroup：
+public interface SemiGroup&lt;T&gt; &#123;
+    T Append(T thingToAppend);
+&#125;
+
+// 用Haskell定义：
+class SemiGroup a where
+    append :: a-&gt; a -&gt; a
+
+// Haskell实现的String with append：
+instance Semigroup String where
+    append a b = a ++ b
+</code></pre>
+<p>__Law__s are additional properties that need to be satisfied beyond what’s expressed in the type signature.</p>
+<h4 id="Laws-of-Semigroup"><a href="#Laws-of-Semigroup" class="headerlink" title="Laws of Semigroup:"></a>Laws of Semigroup:</h4><p><em>Append is associative.</em></p>
+<pre><code>Append(Append(a, b), c) == Append(a, Append(b, c))
+
+(a &lt;&gt; b) &lt;&gt;&gt; c == a &lt;&gt; (b &lt;&gt; c)
+</code></pre>
+<h4 id="Usage-Feature-of-semigroup"><a href="#Usage-Feature-of-semigroup" class="headerlink" title="Usage/Feature of semigroup:"></a>Usage/Feature of semigroup:</h4><p><strong>1）Partition friendly</strong></p>
+<p><strong>2）Incremental</strong></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-OpenSSL-create-CA-service-certificates" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -627,66 +680,13 @@ configuration/apps
 
 
 
-  <article id="post-spring-cloud-config-git-backend" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2016-08-17T14:29:16.000Z"><a href="/2016/08/17/spring-cloud-config-git-backend/">2016-08-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2016/08/17/spring-cloud-config-git-backend/">Spring Cloud Config 之 Git Backend</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p><em>Reference</em>:<br><a target="_blank" rel="noopener" href="http://cloud.spring.io/spring-cloud-config/spring-cloud-config.html">spring-cloud-config</a>详细讲述了使用文件系统或Git做backend时的基本使用方法，以及在复杂使用场景下的配置。<br><a target="_blank" rel="noopener" href="http://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-profiles.html">Spring Profiles</a> 讲述了profile在configuration中的作用及使用方法。</p>
-<p>Spring Cloud Configuration的使用包括server和client。<br>Configuration Server作为配置信息的统一的、集中的数据源。Configuration Client从server端获取数据。  </p>
-<p><strong>Server端的配置</strong>：</p>
-<pre><code>spring.cloud.config.server.git.uri=/Users/dahui/GitHub/config-repo
-server.port=8888
-</code></pre>
-<p><strong>Client端的配置</strong></p>
-<pre><code>spring.application.name=reservation-service
-spring.profiles.active=profile1,profile3
-SpringConfigClient_GitBackend.png
-spring.cloud.config.uri＝http://localhost:8888
-</code></pre>
-<p>下图仅仅演示了最简单的application name、profile、label的使用。<br>实际场景中的图中profile一般设置为dev、qa、production等。<strong>label</strong>用于对application+profile提供标识版本的能力。</p>
-<p><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigServer_GitBackend.png" alt="application name、profile、label的使用"></p>
-<p>Config Client端配置说明：<br><img src="/2016/08/17/spring-cloud-config-git-backend/SpringConfigClient_GitBackend.png" alt="多个profile中重复定义"></p>
-<ul>
-<li><p>在Confige Server使用的配置文件中的配置优先级高于Confige Client本地的配置。<br>比如，confige client本地的bootstrap.properties中定义了server.port=8866，在git文件中定义server.port=8000，那么config client实际使用的是8000. （即使在application.properties文件中定义，也无效。）</p>
-</li>
-<li><p>在config client项目中添加Actuator库，通过浏览器访问<a target="_blank" rel="noopener" href="http://localhost:8888/mappings%EF%BC%8C%E5%B0%B1%E5%8F%AF%E4%BB%A5%E7%9C%8B%E5%88%B0Actuator%E6%8F%90%E4%BE%9B%E7%9A%84REST%E6%8E%A5%E5%8F%A3%E3%80%82%E5%85%B6%E4%B8%AD%E7%9A%84POST">http://localhost:8888/mappings，就可以看到Actuator提供的REST接口。其中的POST</a> /refresh可以用于当config server的配置信息发生变化时，让client去pull一下最新的值。</p>
-<pre><code>  可以同通过 curl -d &#123;&#125; http://localhost:8000/refresh 获取更新。
-</code></pre>
-</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
     <a href="/page/7/" class="alignleft prev">上一页</a>
   
+  
+    <a href="/page/9/" class="alignright next">下一页</a>
   
   <div class="clearfix"></div>
 </nav></div></div>
@@ -736,7 +736,7 @@ spring.cloud.config.uri＝http://localhost:8888
   
     <li><a href="/tags/Security/">Security</a><small>12</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>12</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>13</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   

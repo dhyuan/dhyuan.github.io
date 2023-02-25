@@ -45,6 +45,79 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring/Authorization-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-18T00:54:02.912Z"><a href="/2022/11/18/spring/Authorization-in-Spring-Security/">2022-11-18</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/18/spring/Authorization-in-Spring-Security/">Spring Security里的授权（1）</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-根据什么数据进行授权"><a href="#1-根据什么数据进行授权" class="headerlink" title="1. 根据什么数据进行授权"></a>1. 根据什么数据进行授权</h3><p><strong>认证成功后以GrantedAuthority 的形式保存在Authentication对象中的authorities会别用来进行授权运算。</strong>  </p>
+<p>请求被 AuthenticationManager 认证之后，其 Principal 的 authorities 以一组 GrantedAuthority 的形式被保存在 Authentication 对象里。</p>
+<pre><code>public interface GrantedAuthority extends Serializable &#123;
+    String getAuthority();
+&#125;
+</code></pre>
+<p>在是否可以对security object （比如一个方法的调用、一个web request的处理）进行访问之前，需要使用 AuthorizationManager 来决定是否可以invoke 这些security objects。<br>如果这些授权不能以String的形式表达出来，那么就用返回null的形式告诉 AuthorizationManager/AccessDecisionManager 需要自己进行特殊的处理。  Spring Security 源码里就有一个这样的例子，请参阅： WebExpressionConfigAttribute， WebExpressionVoter。</p>
+<h3 id="2-通过-AuthorizationManager-体会设计的改进"><a href="#2-通过-AuthorizationManager-体会设计的改进" class="headerlink" title="2. 通过 AuthorizationManager 体会设计的改进"></a>2. 通过 AuthorizationManager 体会设计的改进</h3><p>AuthorizationManager 是在 <a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-security/releases/tag/5.5.0-M2">spring security 5.5</a> 中被加入。从spring-security-core-6.0开始，AccessDecisionManager AccessDecisionVoter 已经被 deprecated，由 AuthorizationManager 取代其作用。 对于之前定制化AccessDecisionManager AccessDecisionVoter的代码应该考虑迁移到AuthorizationManager。  </p>
+<p>AuthorizationManager<br><img src="/2022/11/18/spring/Authorization-in-Spring-Security/AuthorizationManager.jpg" alt="AuthorizationManager"></p>
+<p>AccessDecisionManager<br><img src="/2022/11/18/spring/Authorization-in-Spring-Security/AccessDecisionManager.jpg" alt="AccessDecisionManager"></p>
+<p>AccessDecisionVoter<br><img src="/2022/11/18/spring/Authorization-in-Spring-Security/AccessDecisionVoter.jpg" alt="AccessDecisionVoter"></p>
+<ol>
+<li>之前AccessDecisionManager 通过抛出异常，现在default的verify也是通过exception。</li>
+<li>明确返回AuthorizationDecision来标识。</li>
+<li>之前有support方法，跟AuthenticationProvider的思路很像，</li>
+</ol>
+<h3 id="3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor"><a href="#3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor" class="headerlink" title="3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor"></a>3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor</h3><p>AuthorizationManagers 被 AuthorizationFilter 来使用，负责做出是否允许访问的决定。<br>为了保证向后兼容，FilterSecurityInterceptor 作为用于授权的security fitler依旧是默认的 Spring Security Filters 之一，在倒数第二的位置上。</p>
+<pre><code>... ...
+SessionManagementFilter
+ExceptionTranslationFilter
+FilterSecurityInterceptor
+SwitchUserFilter
+</code></pre>
+<h3 id="4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？"><a href="#4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？" class="headerlink" title="4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？"></a>4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？</h3><p>在通过HttpSecurity构建SecurityFilterChain的时候调用<strong>authorizeHttpRequests()</strong> 就会在security fitler chain中插入<code>AuthorizationFilter</code>，而调用****authorizeRequests()****则会插入 security filter <code>FilterSecurityInterceptor</code>。  </p>
+<pre><code>@Bean
+SecurityFilterChain web(HttpSecurity http) throws AuthenticationException &#123;
+    http
+        .authorizeHttpRequests((authorize) -&gt; authorize
+            .anyRequest().authenticated();
+        )
+        // ...
+
+    return http.build();
+&#125;
+</code></pre>
+<h3 id="5-详细的使用范式"><a href="#5-详细的使用范式" class="headerlink" title="5. 详细的使用范式"></a>5. 详细的使用范式</h3><p>关于AuthorizationFilter/AuthorizationManger，可参考：<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html</a>   </p>
+<p>关于 FilterSecurityInterceptor，可参考： <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html</a>  </p>
+<br>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/index.html">https://docs.spring.io/spring-security/reference/servlet/authorization/index.html</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-spring/Authentication-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -818,83 +891,6 @@ cas.service-registry.mongo.collection=cas_serviceregistry
 
 
 
-  <article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-09-17T09:34:56.793Z"><a href="/2022/09/17/mongo/MongoDB-User-Authentication/">2022-09-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/09/17/mongo/MongoDB-User-Authentication/">MongoDB的用户管理</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。</p>
-<pre><code>security:
-  authorization: enabled
-</code></pre>
-<p>/usr/local/opt/mongodb-community/bin/mongod –config /usr/local/etc/mongod.conf</p>
-<p>如果你忘记的root用户或者其它管理员用户的密码，那么可以先以无权限控制的方式启动MongoDB：</p>
-<pre><code>mongod --port 27017 --dbpath /usr/local/var/mongodb
-</code></pre>
-<p>再连接到MongoDB：</p>
-<pre><code>mongo --port 27017
-</code></pre>
-<p>根据需要可以更改用户密码或者创建新用户：</p>
-<pre><code>db.changeUserPassword(&quot;root&quot;, passwordPrompt())
-db.changeUserPassword(&quot;root&quot;, &quot;password&quot;)
-
-db.createUser(&#123;
-    &quot;user&quot;: &quot;dahui&quot;,
-    &quot;pwd&quot;: &quot;password&quot;,
-    &quot;roles&quot;:
-    [
-        &#123;
-            &quot;role&quot;: &quot;userAdminAnyDatabase&quot;,
-            &quot;db&quot;: &quot;admin&quot;
-        &#125;,
-        &quot;readWriteAnyDatabase&quot;
-    ]
-&#125;);
-</code></pre>
-<p>添加完这种带有 userAdminAnyDatabase 角色的用户后，关闭MongoDB server：</p>
-<pre><code>db.adminCommand( &#123; shutdown: 1 &#125; )
-</code></pre>
-<p>再以有权限控制的方式重新启动MongoDB Server。（/usr/local/etc/mongod.conf 中设置了 authorization: enabled）</p>
-<pre><code>mongod --config /usr/local/etc/mongod.conf
-或
-mongod --auth --port 27017 --dbpath /var/lib/mongodb
-</code></pre>
-<p>这样使用拥有 userAdminAnyDatabase 角色的用户登录后，就可以通过使用use DB_NAME 的方式给不同的DB添加用户了。</p>
-<pre><code>mongosh --port 27017 -u admin -p password --authenticationDatabase admin
-
-mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&quot;
-</code></pre>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/">https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/reference/method/js-user-management/">https://www.mongodb.com/docs/manual/reference/method/js-user-management/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -949,7 +945,7 @@ mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&
   
     <li><a href="/tags/Security/">Security</a><small>12</small></li>
   
-    <li><a href="/tags/Spring/">Spring</a><small>12</small></li>
+    <li><a href="/tags/Spring/">Spring</a><small>13</small></li>
   
     <li><a href="/tags/android/">android</a><small>1</small></li>
   
