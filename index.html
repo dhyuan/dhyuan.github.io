@@ -75,7 +75,10 @@
 <ol>
 <li>之前AccessDecisionManager 通过抛出异常，现在default的verify也是通过exception。</li>
 <li>明确返回AuthorizationDecision来标识。</li>
-<li>之前有support方法，跟AuthenticationProvider的思路很像，</li>
+<li>之前有support方法，跟AuthenticationProvider的思路很像。<br>从方法签名可以直接看出上面这几点。官方文档列出了更有意义的变化：</li>
+<li>AuthorizationManager的API相对于之前FilterSecurityInterCepter/AccessDecisionManager要使用metadata sources, config attributes, decison managers, voters进行授权判断要简化很多。</li>
+<li>因为通过把AuthenticationManger放在Supplier中实现了对认证数据的延迟访问，这对一些无需认证的授权是有好处的。</li>
+<li>支持基于Bean的配置。</li>
 </ol>
 <h3 id="3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor"><a href="#3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor" class="headerlink" title="3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor"></a>3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor</h3><p>AuthorizationManagers 被 AuthorizationFilter 来使用，负责做出是否允许访问的决定。<br>为了保证向后兼容，FilterSecurityInterceptor 作为用于授权的security fitler依旧是默认的 Spring Security Filters 之一，在倒数第二的位置上。</p>
 <pre><code>... ...
