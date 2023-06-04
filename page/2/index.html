@@ -45,6 +45,54 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/cas/Apereo-CAS-Service-Registry-Storage" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-09-17T10:10:22.607Z"><a href="/2022/09/17/notes/cas/Apereo-CAS-Service-Registry-Storage/">2022-09-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/09/17/notes/cas/Apereo-CAS-Service-Registry-Storage/">Apereo CAS 使用MongoDB作为Service注册的存储</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>可以以不同的方式保存Servcie的注册信息，参考这里获得完整列表：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage%E3%80%82">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage。</a><br>这里只记录下如何设置MongoDB作为存储端，官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html%E3%80%82">https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html。</a></p>
+<h3 id="1-添加依赖"><a href="#1-添加依赖" class="headerlink" title="1. 添加依赖"></a>1. 添加依赖</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
+</code></pre>
+<h3 id="2-设置"><a href="#2-设置" class="headerlink" title="2. 设置"></a>2. 设置</h3><pre><code>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db
+cas.service-registry.mongo.collection=cas_serviceregistry
+</code></pre>
+<h3 id="3-服务注册初始化"><a href="#3-服务注册初始化" class="headerlink" title="3. 服务注册初始化"></a>3. 服务注册初始化</h3><p>参数 <code>cas.service-registry.core.init-from-json</code> 用于控制在CAS系统启动时对发现的json格式的服务注册信息是否导入到对应的后端存储。默认为true，这样启动时会把用json文件定义的服务注册信息写入到后端存储，这里是cas_db 的 cas_serviceregistry collection。<br>开发初期可以使用json的方式调试，然后通过init-from-json=true把数据导入DB之后，再设置init-from-json为false。</p>
+<h3 id="4-设置CAS-Management使用MongoDB作为服务注册信息源。"><a href="#4-设置CAS-Management使用MongoDB作为服务注册信息源。" class="headerlink" title="4. 设置CAS-Management使用MongoDB作为服务注册信息源。"></a>4. 设置CAS-Management使用MongoDB作为服务注册信息源。</h3><p>CAS Management应用之前通过下面的信息找到注册的服务数据，使用MongoDDB作为存储后，需要在cas-management的 build.gradle 中添加依赖：</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
+</code></pre>
+<p>同时 删除掉cas.service-registry.json.location的设置，并把把cas-server中关于 cas.service-registry.mongo 的配置copy过来。<br>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db<br>cas.service-registry.mongo.collection=cas_serviceregistry</p>
+<h3 id="5-通过WebUI注册一个新的CAS-Service。"><a href="#5-通过WebUI注册一个新的CAS-Service。" class="headerlink" title="5. 通过WebUI注册一个新的CAS Service。"></a>5. 通过WebUI注册一个新的CAS Service。</h3><p>通过Web界面添加一个新的CAS Client之后，查看MongoDB的cas_serviceregistry collection，可以看到一个新的document数据被成功创建出来。</p>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html">https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -713,66 +761,6 @@ DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot
 
 
 
-  <article id="post-reactive/processAListOfDataInReactiveParallelWay" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-10-24T07:48:07.564Z"><a href="/2021/10/24/reactive/processAListOfDataInReactiveParallelWay/">2021-10-24</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/10/24/reactive/processAListOfDataInReactiveParallelWay/">响应式并发批处理</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</p>
-<pre><code>public interface DataProcessor &#123;
-  Mono&lt;String&gt; batchProcess(List&lt;DataItem&gt; dataItems);
-  ... ...
-&#125;
-
-
-DataProcessor dataProcessor = ...;
-
-int batchSize = 500;
-
-Flux&lt;DataItem&gt; dataItems = ...
-</code></pre>
-<p>下面分别以串行和并行的方式展示一下Reactor API的使用。</p>
-<h3 id="1）攒够-batchSize-个数据后进行处理。"><a href="#1）攒够-batchSize-个数据后进行处理。" class="headerlink" title="1）攒够 batchSize 个数据后进行处理。"></a>1）攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems.buffer(batchSize)
-    .flatMap(dataProcessor::batchProcess)
-    .collectList();
-</code></pre>
-<h3 id="2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。"><a href="#2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。" class="headerlink" title="2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。"></a>2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems
-    .parallel(10)
-    .runOn(Schedulers.fromExecutor(Executors.newFixedThreadPool(10)))
-    .groups()
-    .flatMap(g -&gt; g.buffer(batchSize).flatMap(dataProcessor::batchProcess))
-    .collectList();
-</code></pre>
-<p>这里runOn接收的参数可以是Schedulers不同策略的实现，具有不同适用范围，比如适合计算密集型的ParallelScheduler、单线程的SingleScheduler。这里使用的是Executors FixedThreadPool。</p>
-<p>可以想象如果我们自己实现这样一个处理逻辑的复杂度，而通过reactor api，仅仅几行代码就完成了这么复杂高效的处理。</p>
-<h3 id="3）使用-reactive-mongo-driver需要的线程。"><a href="#3）使用-reactive-mongo-driver需要的线程。" class="headerlink" title="3）使用 reactive mongo driver需要的线程。"></a>3）使用 reactive mongo driver需要的线程。</h3><p>Spring默认到monog的链接池最大为100，但是实际上在使用reactive方式访问时使用20～10个左右的线程就足够了。因此对mongog的连接串最好明确使用适合自己情况的连接数以避免连接浪费或不够。<br>测试了一个70万条、大概250M数据的批量插入，发现无论使用串行还是并行，数据库插入时间都差不多（36s～26s）。而连接池最大连接设为200、100、50、20、10对数据库插入的性能也没有太大影响，200个线程时反而有一点下降。这个情况从mongo响应式驱动的角度去解释是完全可以理解的，如果使用传统驱动，恐怕所需的线程就不是这个量级的了。</p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -805,13 +793,15 @@ Flux&lt;DataItem&gt; dataItems = ...
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>30</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
     <li><a href="/tags/Java/">Java</a><small>9</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>3</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   

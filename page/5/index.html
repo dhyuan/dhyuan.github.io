@@ -45,6 +45,42 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/13/notes/spring_tech4framework/">Spring 中的常用定式</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
+<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
+<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-notes/about_shiro_path_filter" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -647,107 +683,6 @@ sudo systemctl status docker
 
 
 
-  <article id="post-devops/install_docker_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-27T02:50:05.000Z"><a href="/2020/09/27/devops/install_docker_by_ansible/">2020-09-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/27/devops/install_docker_by_ansible/">使用Ansible自动安装Docker</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/
-git clone git@github.com:dhyuan/virt-infra-ansible.git
-
-cd ~/devenv_bootstrap/virt-infra-ansible/roles
-git clone https://github.com/dhyuan/ansible-role-virt-infra.git
-cd ansible-role-virt-infra
-git checkout -b devenv
-git branch --set-upstream-to origin/devenv
-git pull
-</code></pre>
-<h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.yml
-vi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml
-</code></pre>
-<p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p>
-<h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes
-</code></pre>
-<h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=running
-</code></pre>
-<h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=shutdown
-</code></pre>
-<h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p>
-<pre><code>ansible-playbook ./virt-infra.yml \
---limit kvmhost,k8s_masters,k8s_nodes \
---extra-vars virt_infra_state=undefined
-</code></pre>
-<h2 id="为安装-K8S-更新虚拟机"><a href="#为安装-K8S-更新虚拟机" class="headerlink" title="为安装 K8S 更新虚拟机"></a>为安装 K8S 更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><pre><code>ansible-playbook --ask-become-pass --inventory ./inventory ansible/update-vms.yaml
-</code></pre>
-<h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \
---roles-path ~/.ansible/roles/ \
-git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
-
-#
-ansible-galaxy list
-</code></pre>
-<p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p>
-<h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml
----
-- hosts: all,!kvmhost
-  vars:
-    docker_version: 19.03.8
-    docker_remove_pre_ce: false
-    docker_users: [devops]
-    docker_daemon_config:
-      exec-opts: [&quot;native.cgroupdriver=systemd&quot;],
-      registry-mirrors:
-        [
-          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,
-          &quot;http://registry.docker-cn.com&quot;,
-          &quot;http://docker.mirrors.ustc.edu.cn&quot;,
-          &quot;http://hub-mirror.c.163.com&quot;,
-        ]
-      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]
-
-  roles:
-    - role: ansible-role-docker-ce
-[devops@192 virt-infra-ansible]$
-</code></pre>
-<p>其中，exec-opts: [“native.cgroupdriver=systemd”], 是为了避免以后使用 kubeadm 安装 k8s 集群时警告：</p>
-<pre><code>[WARNING IsDockerSystemdCheck]: detected &quot;cgroupfs&quot; as the Docker cgroup driver. The recommended driver is &quot;systemd&quot;. Please follow the guide at https://kubernetes.io/docs/setup/cri/
-</code></pre>
-<h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \
---limit k8s_masters,k8s_nodes -v \
--e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;&#125;&#125;&#39;
-</code></pre>
-<h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -780,13 +715,15 @@ ansible-galaxy list
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>30</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
     <li><a href="/tags/Java/">Java</a><small>9</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>3</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   

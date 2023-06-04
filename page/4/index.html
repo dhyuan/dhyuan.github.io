@@ -45,6 +45,46 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">2021-04-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">响应式流的生命周期</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这里所说的响应式流的生命周期是说我们从定义响应式流到触发这个流的处理所经历的不同阶段。<br>总的来说，就是三个阶段。组装时、订阅时、运行时。</p>
+<h2 id="组装时"><a href="#组装时" class="headerlink" title="组装时"></a>组装时</h2><p>这个阶段就是我们建立处理模型的阶段。基本上是解决了下面 3 个方面的问题。</p>
+<h3 id="1）定义这个-reactive-stream-的数据来源是什么。Publisher"><a href="#1）定义这个-reactive-stream-的数据来源是什么。Publisher" class="headerlink" title="1）定义这个 reactive stream 的数据来源是什么。Publisher"></a>1）定义这个 reactive stream 的数据来源是什么。Publisher</h3><p>这个阶段我们通过使用诸如 just(), range(), fromArray(), push(), create(), generate()等方法来设置数据源头。</p>
+<h3 id="2）这个数据流的最终订阅者是谁？Subscriber"><a href="#2）这个数据流的最终订阅者是谁？Subscriber" class="headerlink" title="2）这个数据流的最终订阅者是谁？Subscriber"></a>2）这个数据流的最终订阅者是谁？Subscriber</h3><p>我们在最下游 publisher 上通过调用 subscribe()方法把 subscriber 从下游到上游依次传递到最上游的包含数据源的 publisher。</p>
+<h3 id="3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator"><a href="#3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator" class="headerlink" title="3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator"></a>3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator</h3><p>以上两个调用解决了数据来源于哪里、被谁最终接收的问题。但是在数据从上游被传递到下游的过程中，我们往往需要对数据做各种处理。这个阶段就各种 operator 大显身手的地方，比如 map(), flatMap(), filter(), reduce(), scan(), concatMap(), usingWhen()… …<br>实际上每经历一个 operator，就生成了一个新的中间级别的 publisher，这就是 reactive stream 的不可变性。</p>
+<p>组装时基本就是我们写出的代码定义出的静态逻辑这部分。<br>程序运行起来，才会进入下面的两个阶段：订阅时、运行时，所以说这两个阶段是程序的动态表现。</p>
+<h2 id="订阅时"><a href="#订阅时" class="headerlink" title="订阅时"></a>订阅时</h2><p>通过组装时我们定义了什么数据(publisher)经过怎样的处理(operator)最后传递给谁(subscriber)。而订阅时这个阶段，解决的问题是把调用下游 publisher 时传入的 subscriber 依次传递给上游的的 publisher。可以想象 Project Reactor 在传递 subscriber 的时候是依次进行封装之后传递的而不会是直接把下游的 subscriber 传递上去，因为以 operator 串联起来的各个 publisher 都需要“自己”的 subscriber。可以体会下这里“Subscriber 链”的概念。<br>这个传递过程很重要，因为 subscriber 中的 onSubscribe(Subscription s)提供了上游 publisher 把 Subscription 传递给下游 Subscriber 的机制。<br>因为 Subscriber 只有通过 subsciption 的 request 方法才能启动数据的流动。</p>
+<h2 id="运行时"><a href="#运行时" class="headerlink" title="运行时"></a>运行时</h2><p>经过组装时、订阅时，数据流已经“一触即发”。我们只有通过上游传递给我们的 Subscription 调用 request()方法就可以触发数据的流动了。<br>通过（在 Subscirberd 的 onSubscription(), onNext()被回调时）向 Subscription 的 request()传入不同的数字，我们分别可以实现拉模型、推模型、拉-推模型。<br>响应式流的运行时所强调的就是这种 Publisher 和 Subscriber 之间的信号交换。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-micro_service/keywords_of_cipher" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -847,42 +887,6 @@ Docker version 20.10.4, build d3cb89e
 
 
 
-  <article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/12/13/notes/spring_tech4framework/">Spring 中的常用定式</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
-<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
-<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
-<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
-<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -915,13 +919,15 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
   
-    <li><a href="/tags/DevOps/">DevOps</a><small>29</small></li>
+    <li><a href="/tags/DevOps/">DevOps</a><small>30</small></li>
   
     <li><a href="/tags/FP/">FP</a><small>2</small></li>
   
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
     <li><a href="/tags/Java/">Java</a><small>9</small></li>
   
-    <li><a href="/tags/Kubernets/">Kubernets</a><small>2</small></li>
+    <li><a href="/tags/Kubernets/">Kubernets</a><small>3</small></li>
   
     <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
   
