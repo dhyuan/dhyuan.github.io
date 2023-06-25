@@ -45,6 +45,68 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-notes/tools/about-slf4j" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2023-06-25T01:08:03.654Z"><a href="/2023/06/25/notes/tools/about-slf4j/">2023-06-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2023/06/25/notes/tools/about-slf4j/">About SLF4J</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="SLF4J-是什么？"><a href="#SLF4J-是什么？" class="headerlink" title="SLF4J 是什么？"></a>SLF4J 是什么？</h3><p>Java的世界里有很多优秀的log库，比如logback，log4j2。SLF4J（Simple Logging Facade）作为一个日志框架的抽象层，以Facade模式帮助我们“无缝”地选择、切换这些log库。  </p>
+<h3 id="如何使用SLF4J？"><a href="#如何使用SLF4J？" class="headerlink" title="如何使用SLF4J？"></a>如何使用SLF4J？</h3><p>在项目中要使用SLF4J需要做的就是引入slf4j-api-2.0.7.jar，再根据你选择的底层log框架选择对应的provider。比如，<br>如果底层使用log4j2，就要导入log4j-slf4j-impl（provider/bridge）、log4j-api.jar（log4j接口）、log4j-core（log4j实现）。<br>如果底层使用logback，就要导入”ch.qos.logback:logback-classic”，这个会自动导入 slf4j-api-2.0.7.jar（provider/bridge）、logback-core-1.3.6.jar（logback实现）。  </p>
+<p>SpringBoot底层默认支持logbak，如果使用log4j2则需要显示的exclude logback。</p>
+<pre><code>&lt;dependencies&gt;
+  &lt;dependency&gt;
+      &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+      &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+      &lt;exclusions&gt;
+        &lt;exclusion&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-logging&lt;/artifactId&gt;
+        &lt;/exclusion&gt;
+      &lt;/exclusions&gt;
+  &lt;/dependency&gt;
+  &lt;dependency&gt;
+      &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+      &lt;artifactId&gt;spring-boot-starter-log4j2&lt;/artifactId&gt;
+  &lt;/dependency&gt;
+&lt;dpendencies&gt;
+</code></pre>
+<h3 id="关于SLF4J的MDC"><a href="#关于SLF4J的MDC" class="headerlink" title="关于SLF4J的MDC"></a>关于SLF4J的MDC</h3><p>SLF4J, 在底层库支持MDC(Mapped Diagnostic Context)的情况下也是支持MDC的。<code>MDC data can also be highly helpful in filtering messages or triggering certain actions</code>, 目前也就log4j2, logback支持MDC。在当前微服务流行的情况下让各个微服务的日志格式遵循同一格式是困难的，而且MDC的跨服务传递也是不现实的，这个特性在实际工程中用的比较少。</p>
+<h3 id="关于log4j2自己的log。"><a href="#关于log4j2自己的log。" class="headerlink" title="关于log4j2自己的log。"></a>关于log4j2自己的log。</h3><ol>
+<li>如果我们希望看到log4j2自己的log，可以设置-Dlog4j2.debug=true，让它自己的log显示在console。</li>
+<li><a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration">Composite Configuration</a>, 因为可以通过 log4j2.configurationFile 设置多个逗号分隔的配置文件，log4j有一套自己的逻辑对多个配置文件进行merge。所以除非项目中有特定的需求，显示的通过log4j2.configurationFile显示的指定配置文件可以减少不必要的困惑。  </li>
+</ol>
+<br/>
+<br/>
+
+<hr>
+<p><em>References</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.slf4j.org/manual.html">https://www.slf4j.org/manual.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration">https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration</a><br>[3]: <a target="_blank" rel="noopener" href="https://howtodoinjava.com/logback/setting-up-slf4j/">https://howtodoinjava.com/logback/setting-up-slf4j/</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/Kubernetes-Ingresses-1" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -1031,83 +1093,6 @@ print(statistic)
 
 
 
-  <article id="post-notes/cas/enable-OAuth-support-for-Apereo-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-09-17T13:19:55.680Z"><a href="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/">2022-09-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/">Apereo CAS 之 支持OAuth2</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>Apereo CAS 通过使用bridge模式来支持多个协议：CAS、SAML2、OAuth2、OpenID Connect等。<br>CAS可部署软件包中已经包含了可以使用SAML2、OAuth2等协议的plugin/bridges/modules，这些plugins模块都是和CAS通信。 可参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html%E3%80%82">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html。</a> </p>
-<p><code>The right-hand side of that equation is always CAS when you consider, as an example, the following authentication flow with an OAuth2-enabled client application:</code></p>
-<ol>
-<li>The CAS deployment has turned on the OAuth2 plugin.</li>
-<li>An OAuth2 authorization request is submitted to the relevant CAS endpoint.</li>
-<li>The OAuth2 plugin verifies the request and translates it to a CAS authentication request!</li>
-<li>The authentication request is routed to the relevant CAS login endpoint.</li>
-<li>User authenticates and CAS routes the flow back to the OAuth2 plugin, having issued a service ticket for the plugin.</li>
-<li>The OAuth2 plugin attempts to validate that ticket to retrieve the necessary user profile and attributes.</li>
-<li>The OAuth2 plugin then proceeds to issue the right OAuth2 response by translating and transforming the profile and validated assertions into what the client application may need.</li>
-</ol>
-<h3 id="1-添加依赖库"><a href="#1-添加依赖库" class="headerlink" title="1. 添加依赖库"></a>1. 添加依赖库</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-oauth-webflow&quot;
-</code></pre>
-<h3 id="2-Enable-Actuator-Endpoints-（Optional）"><a href="#2-Enable-Actuator-Endpoints-（Optional）" class="headerlink" title="2. Enable Actuator Endpoints （Optional）"></a>2. Enable Actuator Endpoints （Optional）</h3><p>添加依赖，并设置开放oauthd的actuator端点。</p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-reports&quot;
-
-management.endpoint.oauthTokens.enabled=true
-management.endpoints.web.exposure.include=oauthTokens
-cas.monitor.endpoints.endpoint.oauthTokens.access=PERMIT
-</code></pre>
-<p>通过访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas/actuator/">https://localhost:8443/cas/actuator/</a> 应该可以看到OAuth相关endpoints。</p>
-<h3 id="3-定义一个OAuth-Client"><a href="#3-定义一个OAuth-Client" class="headerlink" title="3. 定义一个OAuth Client"></a>3. 定义一个OAuth Client</h3><p>可以通过设置</p>
-<pre><code>cas.service-registry.json.location=classpath:/services
-cas.service-registry.core.init-from-json=true
-</code></pre>
-<p>在 cas-overlay-template的 resources/services 下定义文件 OAuth2DemoClient-2001.json 包含以下内容来把这个OAuth2 Client ‘OAuth2DemoClient’ 自动导入到MongoDB 的 cas_serviceregistry collection。</p>
-<pre><code>&#123;
-  &quot;@class&quot; : &quot;org.apereo.cas.support.oauth.services.OAuthRegisteredService&quot;,
-  &quot;clientId&quot;: &quot;oauth2DemoClientID&quot;,
-  &quot;clientSecret&quot;: &quot;clientSecret&quot;,
-  &quot;serviceId&quot; : &quot;^(https|imaps)://&lt;redirect-uri&gt;.*&quot;,
-  &quot;name&quot; : &quot;OAuth2DemoClient&quot;,
-  &quot;id&quot; : 2001,
-  &quot;supportedGrantTypes&quot;: [ &quot;java.util.HashSet&quot;, [ &quot;password&quot;, &quot;authorization_code&quot;, &quot;client_credentials&quot;, &quot;refresh_token&quot;] ],
-  &quot;supportedResponseTypes&quot;: [ &quot;java.util.HashSet&quot;, [ &quot;token&quot;, &quot;code&quot;, &quot;device_code&quot;] ]
-&#125;
-</code></pre>
-<p>grant是获得AccessToken的方式/方法，这篇文章对此进行了详细介绍：<a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/%E3%80%82">https://alexbilbie.com/guide-to-oauth-2-grants/。</a></p>
-<h3 id="4-重启、查看"><a href="#4-重启、查看" class="headerlink" title="4. 重启、查看"></a>4. 重启、查看</h3><p>运行 <code>./gradlew clean copyCasConfiguration build run </code> 后，查看 <code>db.getCollection(&#39;cas_serviceregistry&#39;).find(&#123;&#125;)</code> 应该可以看到id为2001的 OAutho client定义。</p>
-<p>通过CAS Management UI也可以看到刚刚添加的‘OAuth2DemoClient’：<br><img src="/2022/09/17/notes/cas/enable-OAuth-support-for-Apereo-CAS/OAuth2Client_view.jpg" alt="An OAuth Client/Service"></p>
-<p>至此，我们以及把Apereo CAS配置成支持OAuth2协议。</p>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/">https://alexbilbie.com/guide-to-oauth-2-grants/</a><br>[3]: <a target="_blank" rel="noopener" href="https://dacurry-tns.github.io/deploying-apereo-cas/building_server_service-registry_configure-the-service-registry.html">https://dacurry-tns.github.io/deploying-apereo-cas/building_server_service-registry_configure-the-service-registry.html</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -1144,7 +1129,7 @@ cas.service-registry.core.init-from-json=true
   
     <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>9</small></li>
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
   
     <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
   
@@ -1172,7 +1157,7 @@ cas.service-registry.core.init-from-json=true
   
     <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
   
-    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>12</small></li>
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
   
     <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
   

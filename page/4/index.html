@@ -45,6 +45,65 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-reactive/webflux_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/14/reactive/webflux_csrf/">2021-04-14</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/14/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这篇基本上是<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/">Spring Security Reference</a>关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。</p>
+<h3 id="什么是-CSRF"><a href="#什么是-CSRF" class="headerlink" title="什么是 CSRF"></a>什么是 CSRF</h3><p>跨站请求伪造。经典场景是：</p>
+<h5 id="1）受害者首先登录了银行网站"><a href="#1）受害者首先登录了银行网站" class="headerlink" title="1）受害者首先登录了银行网站"></a>1）受害者首先登录了银行网站</h5><h5 id="2）用户没有-longout-的情况下"><a href="#2）用户没有-longout-的情况下" class="headerlink" title="2）用户没有 longout 的情况下"></a>2）用户没有 longout 的情况下</h5><h5 id="3）用同一个浏览器访问了“坏”网站"><a href="#3）用同一个浏览器访问了“坏”网站" class="headerlink" title="3）用同一个浏览器访问了“坏”网站"></a>3）用同一个浏览器访问了“坏”网站</h5><h5 id="4）“坏”网站有一个向银行网站提交业务请求的页面"><a href="#4）“坏”网站有一个向银行网站提交业务请求的页面" class="headerlink" title="4）“坏”网站有一个向银行网站提交业务请求的页面"></a>4）“坏”网站有一个向银行网站提交业务请求的页面</h5><h5 id="5）诱使用户发送这个请求。"><a href="#5）诱使用户发送这个请求。" class="headerlink" title="5）诱使用户发送这个请求。"></a>5）诱使用户发送这个请求。</h5><p>实际上利用有 XSS 漏洞，完全可以无需受害者参与利用 javascript 而自动触发第 4 第 5 步。</p>
+<h4 id="这个场景背后有些逻辑："><a href="#这个场景背后有些逻辑：" class="headerlink" title="这个场景背后有些逻辑："></a><strong>这个场景背后有些逻辑：</strong></h4><p>这里我们把浏览器等同于用户，有些数据是用户自己可见的，有些数据是浏览器自动处理、发送而用户对这些数据是无感知的（比如 SessionId）。<br>银行网站以 cookie 的形式把 sessionId 发送给浏览器（set-cookie），浏览器每次请求都会再自动带上 cookie（cookie）。<br>上面场景第 5 步虽然“坏”表单不是源于银行网站页面而是在第三方网站的页面上，但是<strong>浏览器</strong>发现目标地址是银行网站，因此会自动带上响应的 cookie，比如 JSESSION 就会随带着被发送了。从服务器的角度看，来自第 4 步的数据与正常数据没有任何差别，因为这个业务请求便会被执行。</p>
+<p>归根结底，这种 CSRF 的问题是 cookie 和浏览器工作方式引起的。</p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>一个是主流的“Synchronizer Token Pattern”方法，另一个是渐成主流的“SameSite Attribute”。</p>
+<p>因为<strong>SameSite Attribute</strong>的方式实施和理解比较容易，我们先说。<br>服务端利用 cookie 的 SameSite 属性可以禁止浏览器从外部站点发送请求时带上 cookie。比如下面的 cookie 就不会被放在由在第三方网页发起而目标是银行网站的请求上。这就自然解决了上面的 CSRF 的问题。</p>
+<pre><code>Set-Cookie: JSESSIONID=randomid; Domain=bank.example.com; Secure; HttpOnly; SameSite=Lax
+</code></pre>
+<p><strong>Synchronizer Token Pattern</strong><br>这个解决办法的原理是对来自浏览器的请求我们都回送一个随机数，下次浏览器再请求业务时需要在 header 里或者表单里带上这个随机数。这个随机数就是 csrf token。<br>这个办法之所以能防范 CSRF，是因为 sessionId 来自 cookie，而 csrf token 来自 header 或者 form。相当于分别在两条不同的路径上传递。</p>
+<p>Spring Security 模块生成 csrf token 后可放在两个地方。Spring 默认的，随机数与 sessionId 关联，放在 session 里。另一个方式：随机数放在 cookie 里。</p>
+<h3 id="基于-Session-保存-csrf-token"><a href="#基于-Session-保存-csrf-token" class="headerlink" title="基于 Session 保存 csrf token"></a>基于 Session 保存 csrf token</h3><p>与 session 关联比较容易理解，下次浏览器发送请求过来，服务端就可以从 header 或 form 里取出来的 csrf token 与 session 中的随机数相比较来进行判断。</p>
+<h3 id="基于-Cookie-保存-csrf-token"><a href="#基于-Cookie-保存-csrf-token" class="headerlink" title="基于 Cookie 保存 csrf token"></a>基于 Cookie 保存 csrf token</h3><p>通过 cookie 保存 csrf 是怎么回事呢？如果 csrf token 通过 cookie 发送给浏览器，那这个随机数不就跟 JSESSIONID 一样了会被浏览器自动传回到服务器了吗？<br>是的，这个 csrf 会被浏览器传回给服务器，我们也正是利用这一点“保存”了 csrf token。之所以使用基于 cookie 的方式，是因为要针对前后端分离的情形让前端可以使用 javascript 获得 csrf token，并把这个 token 作为下次请求的 header 参数或者 form 参数传递给服务端。服务端所要做的就是对比来自 cookie 的 csrf token 和来自 header/form 里的 csrftoken 来做出判断。</p>
+<p>下面代码设置使用 cookie 保存，注意使用 cookie 传递 token 需要把 cookie 的 HttpOnly 属性设置为 false，以便让 javascript 能读到此值。</p>
+<pre><code>@EnableWebSecurity
+public class WebSecurityConfig extends
+        WebSecurityConfigurerAdapter &#123;
+
+    @Override
+    protected void configure(HttpSecurity http) &#123;
+        http
+            .csrf(csrf -&gt; csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            );
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -762,131 +821,6 @@ docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-D
 
 
 
-  <article id="post-devops/add_an_devServer_in_kvm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一组开发服务器</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
-<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
-mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
-</code></pre>
-<h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
-<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
-<pre><code>devopServers:
-    hosts:
-        repositoryServer:
-        virt_infra_state: running
-        virt_infra_distro: ubuntu
-        virt_infra_distro_image: focal-server-cloudimg-amd64.img
-        ansible_python_interpreter: /usr/bin/python3
-        virt_infra_timezone: &quot;Asia/Shanghai&quot;
-        virt_infra_disk_size: 500
-        virt_infra_disk_cmd:
-            - apt update
-            - apt install -y net-tools
-            - apt install -y lsb
-            - useradd -m devops
-            - echo &quot;devops:password&quot;| chpasswd
-        devopsServer[0:2]:
-        virt_infra_state: running
-        virt_infra_distro: ubuntu
-        virt_infra_distro_image: focal-server-cloudimg-amd64.img
-        ansible_python_interpreter: /usr/bin/python3
-        virt_infra_timezone: &quot;Asia/Shanghai&quot;
-        virt_infra_disk_cmd:
-            - apt update
-            - apt install -y net-tools
-            - apt install -y lsb
-            - useradd -m devops
-            - echo &quot;devops:password&quot;| chpasswd
-    vars:
-        virt_infra_root_password: password
-        virt_infra_disk_size: 80
-        virt_infra_ram: 4094
-        virt_infra_ram_max: 8192
-        virt_infra_cpus: 4
-        virt_infra_cpus_max: 8
-        virt_infra_state: running
-        virt_infra_networks:
-        - name: br0
-            type: bridge
-</code></pre>
-<h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
-ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
-</code></pre>
-<h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
-<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
-</code></pre>
-<h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
-<pre><code>- name: Add Aliyun Docker official GPG key
-become: true
-apt_key:
-url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
-state: present
-register: \_pkg_result
-until: \_pkg_result is succeeded
-when:
-
-- docker_network_access | bool
-- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
-    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
-
-- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
-become: true
-lineinfile:
-path: /etc/apt/sources.list.d/docker-ce.list
-line: &quot;deb [arch=&#123;&#123; _docker_os_arch|lower &#125;&#125;] http://mirrors.aliyun.com/docker-ce/linux/&#123;&#123; \_docker_os_dist|lower &#125;&#125; &#123;&#123; ansible_lsb.codename &#125;&#125; stable&quot;
-insertbefore: BOF
-</code></pre>
-<p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
-<pre><code>root@basehost0:~# apt-cache madison docker-ce
-docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-。。。 。。。
-</code></pre>
-<p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
-<pre><code>    ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
-</code></pre>
-<p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
-<pre><code>ansible-playbook ./install_docker.yml \
---limit devopServers -v \
--e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; &#125;&#125;&#39;
-</code></pre>
-<p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
-<pre><code>root@basehost0:~# docker -v
-Docker version 20.10.4, build d3cb89e
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
 
 <nav id="pagination">
   
@@ -925,7 +859,7 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
   
-    <li><a href="/tags/Java/">Java</a><small>9</small></li>
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
   
     <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
   
@@ -953,7 +887,7 @@ Docker version 20.10.4, build d3cb89e
   
     <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
   
-    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>12</small></li>
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
   
     <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
   
