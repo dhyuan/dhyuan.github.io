@@ -80,9 +80,16 @@ git pull --all
 </code></pre>
 <h3 id="5-在github-gitlab创建一个新repo，把这个repo设为这个子目录的remote目标"><a href="#5-在github-gitlab创建一个新repo，把这个repo设为这个子目录的remote目标" class="headerlink" title="5) 在github/gitlab创建一个新repo，把这个repo设为这个子目录的remote目标"></a>5) 在github/gitlab创建一个新repo，把这个repo设为这个子目录的remote目标</h3><pre><code>git remote add origin YOUR_NEW_REPO_GIT_URL
 </code></pre>
-<h3 id="6-把master的history-push到新repo"><a href="#6-把master的history-push到新repo" class="headerlink" title="6) 把master的history push到新repo"></a>6) 把master的history push到新repo</h3><p>  git branch -M master<br>  git push -uf origin master</p>
+<h3 id="6-把master的history-push到新repo"><a href="#6-把master的history-push到新repo" class="headerlink" title="6) 把master的history push到新repo"></a>6) 把master的history push到新repo</h3><pre><code>git branch -M master
+git push -uf origin master
+</code></pre>
 <h3 id="7）把所有branchs-tags都push上去"><a href="#7）把所有branchs-tags都push上去" class="headerlink" title="7）把所有branchs/tags都push上去"></a>7）把所有branchs/tags都push上去</h3><pre><code>git push --all origin
 </code></pre>
+<br/>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]:  <a target="_blank" rel="noopener" href="https://github.com/newren/git-filter-repo/">https://github.com/newren/git-filter-repo/</a></p>
 
       
     </div>
