@@ -1,0 +1,1034 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 6 页 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/install_dashboard_for_k8s_cluster" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-30T03:21:02.000Z"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">2020-09-30</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">安装k8s的Dashboard</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>安装 Dashboard 相较之前的步骤就容易很多了。</p>
+<h3 id="下载-Dashboard-yaml"><a href="#下载-Dashboard-yaml" class="headerlink" title="下载 Dashboard yaml"></a>下载 Dashboard yaml</h3><p>这里使用 Dashboard 2.0.4。</p>
+<pre><code>wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
+
+vi recommended.yml
+
+# 设置node port，让集群外部通过node port可以访问Dashboard
+    nodePort: 30443
+type: NodePort
+</code></pre>
+<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_node_port.png" alt="Dashboard Home Page"></p>
+<h3 id="安装-Dashboard"><a href="#安装-Dashboard" class="headerlink" title="安装 Dashboard"></a>安装 Dashboard</h3><pre><code>kubectl apply -f recommended.yaml
+kubectl get pods -n kubernetes-dashboard
+</code></pre>
+<h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>此时访问 <a target="_blank" rel="noopener" href="http://master_node_ip:30443/">http://master_node_ip:30443</a> 并用 kubeadmin init 输出的 token 可以登录到 Dashboard 管理界面。</p>
+<h3 id="创建-Dashboard-专用登录用户"><a href="#创建-Dashboard-专用登录用户" class="headerlink" title="创建 Dashboard 专用登录用户"></a>创建 Dashboard 专用登录用户</h3><pre><code># 创建用户 devops
+kubectl create serviceaccount devops -n kube-system
+
+# 授权
+kubectl create clusterrolebinding devops --clusterrole=cluster-admin --serviceaccount=kube-system:devops
+
+kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | awk &#39;/devops/&#123;print $1&#125;&#39;)
+</code></pre>
+<p>访问 <a target="_blank" rel="noopener" href="http://master_node_ip:30443/">http://master_node_ip:30443</a> 并用 devops 的 token 登录。</p>
+<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_home_page.png" alt="kubelet up"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/create_k8s_by_kubeadm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-28T07:23:52.000Z"><a href="/2020/09/28/devops/create_k8s_by_kubeadm/">2020-09-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/28/devops/create_k8s_by_kubeadm/">使用kubeadm创建K8S单控制节点集群</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在对 K8S 控制节点有 HA 方面需求的话，应考虑 <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/</a> 提到的两种拓扑。</p>
+<p>HA 的方式除了让 controll nodes 和 etcd 有多个节点外，另外一个就是对外需要 VIP + LoadBalance 的功能。<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing">https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing</a> 讲述了如果使用 keepalived 和 haproxy 来实现这个前提。这个连接讲述了三个部署 keepalive, haproxy 的方式。推荐还是使用第二或第三种，第一种方式仅作为我们理解背后工作的逻辑就好。</p>
+<p>因为这里只是开发环境使用的 k8s，所以就不以 HA 的方式安装 k8s 了。。无非就是多了两个步骤：<br>1）准备 VIP/LB;<br>2）kubeadm –init 时，用–control-plane flag 添加其它 CP 节点而已）。</p>
+<h2 id="1）为-kubeadm-准备虚拟机和-docker"><a href="#1）为-kubeadm-准备虚拟机和-docker" class="headerlink" title="1）为 kubeadm 准备虚拟机和 docker"></a>1）为 kubeadm 准备虚拟机和 docker</h2><h3 id="准备开发用-KVM-HOST-并-创建网桥"><a href="#准备开发用-KVM-HOST-并-创建网桥" class="headerlink" title="准备开发用 KVM HOST 并 创建网桥"></a>准备开发用 KVM HOST 并 创建网桥</h3><p>步骤参考：<br>a) 准备 kvm：<a href="https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/</a><br>b) 创建网桥：<a href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/">https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</a></p>
+<h3 id="下载创建虚拟机的-CentOS7-镜像"><a href="#下载创建虚拟机的-CentOS7-镜像" class="headerlink" title="下载创建虚拟机的 CentOS7 镜像"></a>下载创建虚拟机的 CentOS7 镜像</h3><pre><code>curl -O https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2
+
+sudo mv -iv CentOS-7-x86_64-GenericCloud.qcow2 /var/lib/libvirt/images/
+</code></pre>
+<h3 id="得到一键安装-GuestHost-和-Docker-的-ansible-脚本。"><a href="#得到一键安装-GuestHost-和-Docker-的-ansible-脚本。" class="headerlink" title="得到一键安装 GuestHost 和 Docker 的 ansible 脚本。"></a>得到一键安装 GuestHost 和 Docker 的 ansible 脚本。</h3><p>注意这里是使用分支 devenv 上的代码。</p>
+<pre><code>cd ~/devenv_bootstrap
+git clone -b devenv https://github.com/dhyuan/virt-infra-ansible.git
+
+cd ~/devenv_bootstrap/virt-infra-ansible/roles
+git clone -b devenv https://github.com/dhyuan/ansible-role-virt-infra
+
+ansible-galaxy install \
+--roles-path ~/.ansible/roles/ \
+git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
+</code></pre>
+<h3 id="根据自己的需求修改-K8S-master、nodes-节点的主机配置。"><a href="#根据自己的需求修改-K8S-master、nodes-节点的主机配置。" class="headerlink" title="根据自己的需求修改 K8S master、nodes 节点的主机配置。"></a>根据自己的需求修改 K8S master、nodes 节点的主机配置。</h3><p>注意：节点名称已经改为使用-而不是_以符合 DNS 规范。这点是 K8S 的要求，但是和 yaml 的格式规范使用下划线有点而冲突。</p>
+<pre><code>cd ~/devenv_bootstrap
+vi inventory/k8s-masters.yml
+vi inventory/k8s-nodes.yml
+</code></pre>
+<h3 id="一键创建-master-nodes-虚拟机"><a href="#一键创建-master-nodes-虚拟机" class="headerlink" title="一键创建 master + nodes 虚拟机"></a>一键创建 master + nodes 虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+    --limit kvmhost,k8s-masters,k8s-nodes
+</code></pre>
+<h3 id="一键在-master、nodes-节点上安装-docker"><a href="#一键在-master、nodes-节点上安装-docker" class="headerlink" title="一键在 master、nodes 节点上安装 docker"></a>一键在 master、nodes 节点上安装 docker</h3><pre><code>ansible-playbook ./install_docker.yml \
+--limit k8s-masters,k8s-nodes -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;&#125;&#125;&#39;
+</code></pre>
+<h3 id="验证环境"><a href="#验证环境" class="headerlink" title="验证环境"></a>验证环境</h3><p>在 KVM HOST 查看/etc/hosts 里面记录了各个主机节点 IP。<br>各节点互相 ping<br>登录到各主机检查 docker 引擎是否工作正常。<br><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png"></p>
+<h2 id="2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。"><a href="#2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。" class="headerlink" title="2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。"></a>2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。</h2><p>下面基本参照官网 <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/</a> 以及另阿良的<br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a> 来进行。</p>
+<h3 id="设置-kubernets-yum-源"><a href="#设置-kubernets-yum-源" class="headerlink" title="设置 kubernets yum 源"></a>设置 kubernets yum 源</h3><pre><code>cat &lt;&lt;EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+# 使用阿里源
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+exclude=kubelet kubeadm kubectl
+EOF
+</code></pre>
+<h3 id="确保将桥接的-IPv4-流量传递到-iptables-的链："><a href="#确保将桥接的-IPv4-流量传递到-iptables-的链：" class="headerlink" title="确保将桥接的 IPv4 流量传递到 iptables 的链："></a>确保将桥接的 IPv4 流量传递到 iptables 的链：</h3><p>加载 br_netfilter 模块加载：</p>
+<pre><code>sudo modprobe br_netfilter
+lsmod | grep br_netfilter
+</code></pre>
+<p>设置 br_netfilter，也可设置在/etc/sysctl.d/99-sysctl.conf 文件里。</p>
+<pre><code>cat &lt;&lt;EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables=1
+net.bridge.bridge-nf-call-iptables=1
+EOF
+
+sudo sysctl --system
+</code></pre>
+<h3 id="设置禁用-SELinux"><a href="#设置禁用-SELinux" class="headerlink" title="设置禁用 SELinux"></a>设置禁用 SELinux</h3><pre><code>sudo setenforce 0
+sudo sed -i &#39;s/^SELINUX=enforcing$/SELINUX=disabled/&#39; /etc/selinux/config
+</code></pre>
+<h3 id="让各机器时间同步"><a href="#让各机器时间同步" class="headerlink" title="让各机器时间同步"></a>让各机器时间同步</h3><p>因为这里的环境是运行在 KVM 里的虚拟机，所以这一步可忽略。在生成环境中，各机器时间应该同步。</p>
+<pre><code>yum install ntpdate -y
+ntpdate time.windows.com
+</code></pre>
+<h3 id="安装-kubeadm"><a href="#安装-kubeadm" class="headerlink" title="安装 kubeadm"></a>安装 kubeadm</h3><pre><code>sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+yum list installed | grep kube
+</code></pre>
+<p>此时可用的最新版本是 1.19.2。</p>
+<h3 id="enable-kubelet"><a href="#enable-kubelet" class="headerlink" title="enable kubelet"></a>enable kubelet</h3><pre><code>sudo systemctl enable kubelet
+sudo systemctl status kubelet
+</code></pre>
+<p>此时 kubelet 的状态是 failed，因为 api server 还没有起来。</p>
+<h2 id="3）构建集群"><a href="#3）构建集群" class="headerlink" title="3）构建集群"></a>3）构建集群</h2><h3 id="在规划的-master-节点上首先初始化一个集群的-master-节点"><a href="#在规划的-master-节点上首先初始化一个集群的-master-节点" class="headerlink" title="在规划的 master 节点上首先初始化一个集群的 master 节点"></a>在规划的 master 节点上首先初始化一个集群的 master 节点</h3><p>这里要注意因为 gcr.io 被墙， 所以是使用 ali 镜像。各参数含义参考：<a target="_blank" rel="noopener" href="https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/">https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/</a><br>另外，关于 pod-network-cidr 的意义这篇文章非常好：<a target="_blank" rel="noopener" href="https://blog.csdn.net/shida_csdn/article/details/104334372">https://blog.csdn.net/shida_csdn/article/details/104334372</a><br>执行 kubeadm 时需要下载镜像，所以需要稍等一会儿。</p>
+<pre><code>sudo kubeadm init \
+--apiserver-advertise-address=192.168.1.11 \
+--image-repository registry.aliyuncs.com/google_containers \
+--kubernetes-version v1.19.2 \
+--service-cidr=10.96.0.0/12 \
+--pod-network-cidr=10.244.0.0/16
+</code></pre>
+<p>kubeadm init 命令输出大致如下，并且 kubelet 服务也已经正常。</p>
+<pre><code>[bootstrap-token] Creating the &quot;cluster-info&quot; ConfigMap in the &quot;kube-public&quot; namespace
+[kubelet-finalize] Updating &quot;/etc/kubernetes/kubelet.conf&quot; to point to a rotatable kubelet client certificate and key
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run &quot;kubectl apply -f [podnetwork].yaml&quot; with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \
+    --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d
+[devops@k8s-master-0 ~]$
+</code></pre>
+<p>执行以下命令，让普通用户也能执行 kubectl 命令：</p>
+<pre><code>mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+</code></pre>
+<h3 id="安装网络插件-flannel"><a href="#安装网络插件-flannel" class="headerlink" title="安装网络插件 flannel"></a>安装网络插件 flannel</h3><pre><code>wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# 替换 quay.io 为国内镜像 quay.mirrors.ustc.edu.cn
+
+kubectl apply -f kube-flannel.yml
+
+# 验证网络插件安装成功
+kubectl get pods -n kube-system
+</code></pre>
+<p>如果需要，可以删除刚才安装的 flannel 插件：</p>
+<pre><code>kubectl delete -f kube-flannel.yml
+ip link
+ip link delete cni0
+ip link delete flannel.1
+</code></pre>
+<h3 id="把-nodes-加入集群"><a href="#把-nodes-加入集群" class="headerlink" title="把 nodes 加入集群"></a>把 nodes 加入集群</h3><p>在各个 node 节点运行以下命令：</p>
+<pre><code>sudo kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \
+        --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d
+</code></pre>
+<h3 id="在-master-节点，验证-nodes-都成功加入-K8S-集群："><a href="#在-master-节点，验证-nodes-都成功加入-K8S-集群：" class="headerlink" title="在 master 节点，验证 nodes 都成功加入 K8S 集群："></a>在 master 节点，验证 nodes 都成功加入 K8S 集群：</h3><pre><code>[devops@k8s-master-0 ~]$ kubectl get nodes
+NAME           STATUS   ROLES    AGE     VERSION
+k8s-master-0   Ready    master   72m     v1.19.2
+k8s-node-0     Ready    &lt;none&gt;   4m41s   v1.19.2
+k8s-node-1     Ready    &lt;none&gt;   76s     v1.19.2
+k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2
+[devops@k8s-master-0 ~]$
+</code></pre>
+<p><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png"></p>
+<p><img src="/2020/09/28/devops/create_k8s_by_kubeadm/done.png"></p>
+<p>至此，已经完成了 Kubernetes 集群的搭建。</p>
+<hr>
+<p><em>Reference:</em></p>
+<p><a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm</a><br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a><br><a target="_blank" rel="noopener" href="https://my.oschina.net/u/3021599/blog/4308021">https://my.oschina.net/u/3021599/blog/4308021</a><br><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1525487">https://cloud.tencent.com/developer/article/1525487</a><br><a target="_blank" rel="noopener" href="https://galaxy.ansible.com/geerlingguy/docker">https://galaxy.ansible.com/geerlingguy/docker</a><br><a target="_blank" rel="noopener" href="https://galaxy.ansible.com/">https://galaxy.ansible.com/</a><br>在 CentOS7 上运行个 DHCP Server：<a target="_blank" rel="noopener" href="https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/">https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/hellxz/p/11044012.html">https://www.cnblogs.com/hellxz/p/11044012.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_local_docker_registry" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-27T13:17:11.000Z"><a href="/2020/09/27/devops/setup_local_docker_registry/">2020-09-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/27/devops/setup_local_docker_registry/">建立本地docker镜像中心</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>以下是在本地建立 docker registry 的过程，避免每次去互联网拉取镜像以及各种墙的问题。</p>
+<h2 id="安装-docker"><a href="#安装-docker" class="headerlink" title="安装 docker"></a>安装 docker</h2><p>因为我们使用 registry 镜像安装镜像中心，所以需要首先安装 docker 引擎。</p>
+<pre><code>sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+sudo yum install docker-ce docker-ce-cli containerd.io
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo systemctl status docker
+</code></pre>
+<h2 id="运行-docker-registry"><a href="#运行-docker-registry" class="headerlink" title="运行 docker-registry"></a>运行 docker-registry</h2><p>sudo docker pull registry<br>sudo docker run –restart=always -d -p 15000:5000 -v /mnt/data/registry:/var/lib/registry registry</p>
+<h2 id="TODO：添加镜像。。。"><a href="#TODO：添加镜像。。。" class="headerlink" title="TODO：添加镜像。。。"></a>TODO：添加镜像。。。</h2>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/install_docker_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-27T02:50:05.000Z"><a href="/2020/09/27/devops/install_docker_by_ansible/">2020-09-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/27/devops/install_docker_by_ansible/">使用Ansible自动安装Docker</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="准备虚拟机"><a href="#准备虚拟机" class="headerlink" title="准备虚拟机"></a>准备虚拟机</h2><h3 id="checkout-用于创建-KVM-Guest-的-Ansible-脚本。"><a href="#checkout-用于创建-KVM-Guest-的-Ansible-脚本。" class="headerlink" title="checkout 用于创建 KVM Guest 的 Ansible 脚本。"></a>checkout 用于创建 KVM Guest 的 Ansible 脚本。</h3><pre><code>cd ~/devenv_bootstrap/
+git clone git@github.com:dhyuan/virt-infra-ansible.git
+
+cd ~/devenv_bootstrap/virt-infra-ansible/roles
+git clone https://github.com/dhyuan/ansible-role-virt-infra.git
+cd ansible-role-virt-infra
+git checkout -b devenv
+git branch --set-upstream-to origin/devenv
+git pull
+</code></pre>
+<h3 id="基于自己的情况修改在-inventory-中定义的虚拟机参数"><a href="#基于自己的情况修改在-inventory-中定义的虚拟机参数" class="headerlink" title="基于自己的情况修改在 inventory 中定义的虚拟机参数"></a>基于自己的情况修改在 inventory 中定义的虚拟机参数</h3><pre><code>vi ~/devenv_bootstrap/virt-infra-ansible/k8s_masters.yml
+vi ~/devenv_bootstrap/virt-infra-ansible/k8s_nodes.yml
+</code></pre>
+<p>如果我们希望利用 DHCP 服务让这些机器拥有固定的 IP，那么我们这里可以给虚拟机设置 mac 地址。</p>
+<h3 id="创建虚拟机"><a href="#创建虚拟机" class="headerlink" title="创建虚拟机"></a>创建虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes
+</code></pre>
+<h3 id="启动虚拟机"><a href="#启动虚拟机" class="headerlink" title="启动虚拟机"></a>启动虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=running
+</code></pre>
+<h3 id="停止虚拟机"><a href="#停止虚拟机" class="headerlink" title="停止虚拟机"></a>停止虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=shutdown
+</code></pre>
+<h3 id="删除虚拟机"><a href="#删除虚拟机" class="headerlink" title="删除虚拟机"></a>删除虚拟机</h3><p>强烈建议用 ansible 删除虚拟机，因为 KVM HOST 上的 hosts 文件、ssh 的一些配置也要修改。</p>
+<pre><code>ansible-playbook ./virt-infra.yml \
+--limit kvmhost,k8s_masters,k8s_nodes \
+--extra-vars virt_infra_state=undefined
+</code></pre>
+<h2 id="为安装-K8S-更新虚拟机"><a href="#为安装-K8S-更新虚拟机" class="headerlink" title="为安装 K8S 更新虚拟机"></a>为安装 K8S 更新虚拟机</h2><h3 id="更新虚拟机"><a href="#更新虚拟机" class="headerlink" title="更新虚拟机"></a>更新虚拟机</h3><pre><code>ansible-playbook --ask-become-pass --inventory ./inventory ansible/update-vms.yaml
+</code></pre>
+<h3 id="在-KVMHost-上安装-docker-role"><a href="#在-KVMHost-上安装-docker-role" class="headerlink" title="在 KVMHost 上安装 docker role"></a>在 KVMHost 上安装 docker role</h3><pre><code>ansible-galaxy install \
+--roles-path ~/.ansible/roles/ \
+git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
+
+#
+ansible-galaxy list
+</code></pre>
+<p>其代码保存在 ~/.ansible/roles/ansible-role-docker-ce</p>
+<h3 id="创建安装-docker-的-playbook"><a href="#创建安装-docker-的-playbook" class="headerlink" title="创建安装 docker 的 playbook"></a>创建安装 docker 的 playbook</h3><pre><code>[devops@192 virt-infra-ansible]$ cat install_docker.yml
+---
+- hosts: all,!kvmhost
+  vars:
+    docker_version: 19.03.8
+    docker_remove_pre_ce: false
+    docker_users: [devops]
+    docker_daemon_config:
+      exec-opts: [&quot;native.cgroupdriver=systemd&quot;],
+      registry-mirrors:
+        [
+          &quot;http://ovfftd6p.mirror.aliyuncs.com&quot;,
+          &quot;http://registry.docker-cn.com&quot;,
+          &quot;http://docker.mirrors.ustc.edu.cn&quot;,
+          &quot;http://hub-mirror.c.163.com&quot;,
+        ]
+      insecure-registries: [&quot;docker.mirrors.ustc.edu.cn&quot;]
+
+  roles:
+    - role: ansible-role-docker-ce
+[devops@192 virt-infra-ansible]$
+</code></pre>
+<p>其中，exec-opts: [“native.cgroupdriver=systemd”], 是为了避免以后使用 kubeadm 安装 k8s 集群时警告：</p>
+<pre><code>[WARNING IsDockerSystemdCheck]: detected &quot;cgroupfs&quot; as the Docker cgroup driver. The recommended driver is &quot;systemd&quot;. Please follow the guide at https://kubernetes.io/docs/setup/cri/
+</code></pre>
+<h3 id="在所有-k8s-节点上安装-docker-engine。"><a href="#在所有-k8s-节点上安装-docker-engine。" class="headerlink" title="在所有 k8s 节点上安装 docker engine。"></a>在所有 k8s 节点上安装 docker engine。</h3><pre><code>ansible-playbook ./install_docker.yml \
+--limit k8s_masters,k8s_nodes -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;&#125;&#125;&#39;
+</code></pre>
+<h3 id="登录到-master、nodes-节点确认-docker-安装成功。"><a href="#登录到-master、nodes-节点确认-docker-安装成功。" class="headerlink" title="登录到 master、nodes 节点确认 docker 安装成功。"></a>登录到 master、nodes 节点确认 docker 安装成功。</h3>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_vpn_on_centos7" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-27T02:49:55.000Z"><a href="/2020/09/27/devops/setup_vpn_on_centos7/">2020-09-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/27/devops/setup_vpn_on_centos7/">CentOS7科学上网</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="安装-VPN"><a href="#安装-VPN" class="headerlink" title="安装 VPN"></a>安装 VPN</h2><pre><code>sudo yum install -y epel-release
+sudo yum install -y vpnc
+</code></pre>
+<h3 id="配置-vpnc"><a href="#配置-vpnc" class="headerlink" title="配置 vpnc"></a>配置 vpnc</h3><pre><code>sudo cp /etc/vpnc/default.conf /etc/vpnc/config.conf
+</code></pre>
+<p>根据你的 VPN 服务供应商提供的参数修改/etc/vpnc/config.conf：</p>
+<pre><code>[root@osnode ~]# vi /etc/vpnc/config.conf
+IPSec gateway my.vpn.gateway
+IPSec ID my.ipsec.id
+IPSec secret mysecret
+# your username goes here:
+Xauth username
+[root@osnode ~]#
+</code></pre>
+<h3 id="运行-vpnc"><a href="#运行-vpnc" class="headerlink" title="运行 vpnc"></a>运行 vpnc</h3><pre><code>sudo vpnc /etc/vpnc/config.conf --local-port 0
+</code></pre>
+<h3 id="停止-vpnc"><a href="#停止-vpnc" class="headerlink" title="停止 vpnc"></a>停止 vpnc</h3><pre><code>sudo vpnc-disconnect
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/create_bridge_on_centos7" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-21T14:29:20.000Z"><a href="/2020/09/21/devops/create_bridge_on_centos7/">2020-09-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/21/devops/create_bridge_on_centos7/">在CentOS7上创建持久化的桥接网络及Guests</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇文章中用 ip link add name br0 type bridge 创建网桥重启之后就没有了。</p>
+<p><strong>添加网桥设备文件</strong></p>
+<pre><code>[devops@192 ~]$ touch /etc/sysconfig/network-scripts/ifcfg-br0
+</code></pre>
+<p><strong>配置网桥</strong></p>
+<pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-br0
+TYPE=Bridge
+BOOTPROTO=static
+IPADDR=192.168.1.10
+PREFIX=24
+GATEWAY=192.168.1.1
+DNS1=192.168.1.1
+NM_CONTROLLED=no
+
+DEFROUTE=yes
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+
+DEVICE=br0
+ONBOOT=yes
+[devops@192 ~]$
+</code></pre>
+<p><strong>把网卡挂到网桥</strong><br>把 em1 网卡 IP 地址配置的部分注释掉(或者 BOOTPROTO=none)，并加入 BRIDGE=br0。</p>
+<pre><code>[devops@192 ~]$ cat /etc/sysconfig/network-scripts/ifcfg-em1
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+IPV6_PRIVACY=no
+NAME=em1
+UUID=48f1a196-a6ff-4966-8b93-fb0d7b707e47
+DEVICE=em1
+ONBOOT=yes
+
+#BOOTPROTO=static
+#IPADDR=192.168.1.10
+#PREFIX=24
+#GATEWAY=192.168.1.1
+#DNS1=192.168.1.1
+
+NM_CONTROLLED=no
+#BRIDGE=br0
+[devops@192 ~]$
+</code></pre>
+<p><strong>当前主机路由及网桥接口</strong></p>
+<pre><code>[devops@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    0      0        0 br0
+link-local      0.0.0.0         255.255.0.0     U     1002   0        0 em1
+link-local      0.0.0.0         255.255.0.0     U     1004   0        0 br0
+192.168.1.0     0.0.0.0         255.255.255.0   U     0      0        0 br0
+192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0
+[devops@192 ~]$
+[devops@192 ~]$
+[devops@192 ~]$ brctl show
+bridge name    bridge id        STP enabled    interfaces
+br0        8000.1866daa0cb22    no        em1
+virbr0        8000.5254002a0526    yes        virbr0-nic
+[devops@192 ~]$
+</code></pre>
+<p><strong>重启网络服务</strong></p>
+<pre><code>sudo systemctl restart network
+</code></pre>
+<p><em>如果再重启网络失败，出现这样的错误 Failed to start LSB: Bring up/down networking。需要检查一下 /etc/sysconfig/network-scripts/ 下面的网络接口文件定义的是不是有问题。我这里因为有双网卡，其中一个的配置出现问题，导致网络服务启动失败。</em></p>
+<p><strong>创建使用 br0 的虚拟机们</strong></p>
+<p>有了上面的网桥 br0，我们就可以通过下面的命令分分钟创建出使用 br0 的三台虚拟机。</p>
+<pre><code>ansible-playbook  ./virt-infra.yml \
+  --limit kvmhost,k8shosts \
+  -e virt_infra_root_password=password \
+  -e virt_infra_disk_size=100 \
+  -e virt_infra_ram=4096 \
+  -e virt_infra_ram_max=8192 \
+  -e virt_infra_cpus=8 \
+  -e virt_infra_cpus_max=16 \
+  -e &#39;&#123; &quot;virt_infra_networks&quot;: [&#123; &quot;name&quot;: &quot;br0&quot;, &quot;type&quot;: &quot;bridge&quot; &#125;] &#125;&#39; \
+  -e virt_infra_state=running
+</code></pre>
+<p>登录到创建出来的 k8s_host 虚拟机 ping 局域网及 internet 网络都是通的，证明 br0 桥接工作正常。以后，我们就可以基于这些虚拟机来折腾 K8S 了。。。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/route_local_table" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-19T17:07:42.000Z"><a href="/2020/09/20/devops/route_local_table/">2020-09-20</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/20/devops/route_local_table/">ping veth不通的原因</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>今天这篇给自己解释了一下为什么 Linux veth0/1 + bridge ping 不通。<br>原因都在 ip route show table local 输出里。 直接上步骤：</p>
+<pre><code>[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+[dahui@192 ~]$
+
+# 创建veth对。
+sudo ip link add veth0 type veth peer name veth1
+
+# 给veth设置IP地址
+sudo ip addr add 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.20/24 dev veth1
+
+# 激活接口
+sudo ip link set veth0 up
+sudo ip link set veth1 up
+
+
+# 直连路由被自动添加了路由表
+[dahui@192 ~]$ route -v
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 em1
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 em1
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth0
+192.168.2.0     0.0.0.0         255.255.255.0   U     0      0        0 veth1
+[dahui@192 ~]$
+
+
+# 创建一个linux网桥 br0
+sudo ip link add name br0 type bridge
+sudo ip link set br0 up
+
+# 把veth0接到br0，veth0有ip的情况下虽然能接收来自协议栈的数据但是reponse只能走br0了。
+sudo ip link set dev veth0 master br0
+
+# veth0 拥有IP已经没有意义，把这个IP给br0
+sudo ip addr del 192.168.2.10/24 dev veth0
+sudo ip addr add 192.168.2.10/24 dev br0
+
+# 期待通过 br0接口ping  veth2能成功。 但是失败了。
+[dahui@192 ~]$  ping -c 1 -I br0 192.168.2.20
+PING 192.168.2.20 (192.168.2.20) from 192.168.2.10 br0: 56(84) bytes of data.
+
+--- 192.168.2.20 ping statistics ---
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+[dahui@192 ~]$
+</code></pre>
+<p>下面是由系统维护的 local 路由表：</p>
+<pre><code>[dahui@192 ~]$ ip route show table local
+broadcast 127.0.0.0 dev lo proto kernel scope link src 127.0.0.1
+local 127.0.0.0/8 dev lo proto kernel scope host src 127.0.0.1
+local 127.0.0.1 dev lo proto kernel scope host src 127.0.0.1
+broadcast 127.255.255.255 dev lo proto kernel scope link src 127.0.0.1
+broadcast 192.168.1.0 dev em1 proto kernel scope link src 192.168.1.10
+local 192.168.1.10 dev em1 proto kernel scope host src 192.168.1.10
+broadcast 192.168.1.255 dev em1 proto kernel scope link src 192.168.1.10
+broadcast 192.168.2.0 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.0 dev br0 proto kernel scope link src 192.168.2.10
+local 192.168.2.10 dev br0 proto kernel scope host src 192.168.2.10
+local 192.168.2.20 dev veth1 proto kernel scope host src 192.168.2.20
+broadcast 192.168.2.255 dev veth1 proto kernel scope link src 192.168.2.20
+broadcast 192.168.2.255 dev br0 proto kernel scope link src 192.168.2.10
+[dahui@192 ~]$
+</code></pre>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat">https://unix.stackexchange.com/questions/205708/linux-does-not-reply-to-arp-request-messages-if-requested-ip-address-is-associat</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/create_gust_hosts_on_kvm_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-18T16:21:02.000Z"><a href="/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">2020-09-19</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">用Ansible在KVM上创建虚拟机</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>此文是对尝试 <a target="_blank" rel="noopener" href="https://github.com/csmart/virt-infra-ansible">https://github.com/csmart/virt-infra-ansible</a> 的记录。</p>
+<p>我们的目标是用 Ansible 快速搭建出一个 miniCloud 环境，以方便以后部署基于 K8S 的各种生产力工具。<br>虽然 VMware vSphere 很好用，但因为 lisence 及价格的因素，KVM 是最适合拿来使用的 Hypervisor。</p>
+<p>在宿主机上需要以下软件：</p>
+<ul>
+<li>Ansible</li>
+<li>KVM</li>
+<li>KVM 用户空间工具</li>
+<li>SSH keys</li>
+<li>Guest Image</li>
+</ul>
+<p>可运行以下命令准备环境：</p>
+<pre><code>  # Create SSH key if you don&#39;t have one
+  ssh-keygen
+
+  # libvirtd
+  sudo yum groupinstall -y &quot;Virtualization Host&quot;
+  sudo systemctl enable --now libvirtd
+
+  # Ansible
+  sudo yum install -y epel-release
+  sudo yum install -y python36
+  pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple --user ansible
+
+  # Other deps
+  sudo yum install -y \
+  git \
+  genisoimage \
+  libguestfs-tools-c \
+  libosinfo \
+  python3 \
+  python3-libvirt \
+  python3-lxml \
+  python3-pip \
+  libselinux-python3 \
+  qemu-img \
+  virt-install
+</code></pre>
+<p>国内用户为了使用 yum 时有更快的下载速度，可以设置 yum 国内镜像源。</p>
+<pre><code>mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+</code></pre>
+<p>pip 使用 -i <a target="_blank" rel="noopener" href="https://pypi.tuna.tsinghua.edu.cn/simple">https://pypi.tuna.tsinghua.edu.cn/simple</a> 参数使用国内源。</p>
+<p><strong>确定要操作的网络接口及名称：</strong></p>
+<pre><code>export NET_DEV=em1
+sudo nmcli con |egrep -w &quot;$&#123;NET_DEV&#125;&quot;
+export NM_NAME=em1
+</code></pre>
+<p><strong>通过 ip 命令创建网桥：</strong></p>
+<pre><code>sudo ip link add name br0 type bridge
+sudo ip addr add 192.168.1.10/24 dev br0
+sudo ip link set dev em1 master br0 ; sudo ip addr del 192.168.1.10/24 dev em1 ; sudo ip link set br0 up
+</code></pre>
+<p><strong>如果修改之后 ping baidu.com 不通，可以坚持一下路由表。确认是否有 default 路由、em1 是否还在路由表里等。</strong></p>
+<pre><code>route -v
+sudo ip route add default via 192.168.1.10 dev br0
+sudo ip route del 192.168.1.0/24 dev em1
+</code></pre>
+<p>也可以用 nmci 创建网桥 br0 并把物理网卡 em1 插到网桥上。</p>
+<pre><code>sudo nmcli con add ifname br0 type bridge con-name br0
+sudo nmcli con add type bridge-slave ifname &quot;$&#123;NET_DEV&#125;&quot; master br0
+</code></pre>
+<p>也可以通过 brctl 创建网桥：</p>
+<pre><code>brctl addbr br0
+brctl addif br0 em1
+</code></pre>
+<p>接下来就可以运行一下命令自动创建 KVM Guests 了。</p>
+<pre><code>ansible-playbook --limit kvmhost,simple ./virt-infra.yml
+</code></pre>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://github.com/csmart/virt-infra-ansible">https://github.com/csmart/virt-infra-ansible</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/hypervisor_types" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-18T15:09:43.000Z"><a href="/2020/09/18/devops/hypervisor_types/">2020-09-18</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/18/devops/hypervisor_types/">虚拟化的分类</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>虚拟化是云计算的底层支撑技术。以前一台主机的各种硬件设备只能被操作系统管理、使用。有了虚拟化技术（VMM/Hypervisor 虚拟机监控器、QEMU、Intel-VT…），一台主机的各种硬件设备可以“分割成”几个部分分别被运行在主机上的不同的(Guest)操作系统使用。</p>
+<p>从不同的视角，虚拟化技术有不同的分类。</p>
+<h2 id="软硬件实现的角度"><a href="#软硬件实现的角度" class="headerlink" title="软硬件实现的角度"></a>软硬件实现的角度</h2><h3 id="软件虚拟化"><a href="#软件虚拟化" class="headerlink" title="软件虚拟化"></a>软件虚拟化</h3><p>QEMU，完全由软件模拟 VMM 层。它实际是通过软件<strong>仿真</strong>出目标平台。目标平台指令–&gt;QEMU 翻译–&gt;宿主机平台指令。</p>
+<h3 id="硬件虚拟化"><a href="#硬件虚拟化" class="headerlink" title="硬件虚拟化"></a>硬件虚拟化</h3><p>计算机硬件自身就提供让 guest os 使用能力，而无需(特殊情况需要)VMM 截获处理。 2005，Intel VT。</p>
+<h2 id="Guest-是否与-VMM-协作"><a href="#Guest-是否与-VMM-协作" class="headerlink" title="Guest 是否与 VMM 协作"></a>Guest 是否与 VMM 协作</h2><h3 id="全虚拟化"><a href="#全虚拟化" class="headerlink" title="全虚拟化"></a>全虚拟化</h3><p>Guest 环境里无需针对虚拟化安装任何程序/驱动，虚拟化的工作完全由 VMM/Hypervisor 截获并处理。Guest 完全不知道自己运行在虚拟硬件之上。</p>
+<h3 id="半虚拟化"><a href="#半虚拟化" class="headerlink" title="半虚拟化"></a>半虚拟化</h3><p>需要在 Guest 环境里安装驱动与 VMM 协同工作来完成虚拟化，就是半虚拟化。因为你需要在 Guest 里运行特殊的用于虚拟化的程序，所以对 guest 来说是有侵入的。这不是很理想，但是好处是可以减轻 VMM 的复杂度。代表技术：virtio。</p>
+<h2 id="是否依赖操作系统"><a href="#是否依赖操作系统" class="headerlink" title="是否依赖操作系统"></a>是否依赖操作系统</h2><h3 id="Type1"><a href="#Type1" class="headerlink" title="Type1"></a>Type1</h3><p>VMM/Hypervisor 直接运行在硬件之上，不依赖其它操作系统。代表产品 VMware ESXi、Xen。（其实 ESXi 就是一个精简的 linux…）</p>
+<h3 id="Type2"><a href="#Type2" class="headerlink" title="Type2"></a>Type2</h3><p>VMM/Hypervisor 运行在操作系统之上。比如 VMware Workstation。</p>
+<p>有的文章把 KVM 算作 Type2。实际上它是以内核模块的方式实现了 VMM 的功能，同时硬件的管理也是依靠宿主操作系统的内核模块管理。从这个角度看其实 ESXi 只是定制得更狠些的 KVM 。。。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/ansible_basic" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-17T07:25:36.000Z"><a href="/2020/09/17/devops/ansible_basic/">2020-09-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/17/devops/ansible_basic/">ansible basic concepts</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h3><p>Ansible 从 2.5 版开始就已经支持 python3。如果你在使用 conda 管理你的 python 环境，那么切换到你的环境，通过使用 pip 直接安装就好。</p>
+<pre><code>pip3 install ansible
+或者
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple ansbile
+</code></pre>
+<h3 id="第一原理"><a href="#第一原理" class="headerlink" title="第一原理"></a>第一原理</h3><p>ansbile 的基本工作原理就是通过(controll node) ssh 连接到远程主机(managed node)，使用类似 K8S 里“控制器模式”的思想以一种状态声明的方式让你需要管理的主机到达你期望的状态：比如，拥有哪些软件、主机上服务运行在什么状态等。幂等性对我来说是最有吸引力的特性之一。</p>
+<h3 id="基础配置"><a href="#基础配置" class="headerlink" title="基础配置"></a>基础配置</h3><p>正如每个软件总需要根据不同参数运行一样，ansible 的基础配置信息放在 ansible.cfg 文件中。而此文件的位置依次根据$ANSIBLE_CONFIG, 当前目录、Home 目录, /etc/ansible/ansible.cfg 的顺序查询。其内容大致如下：</p>
+<pre><code>[defaults]
+hostfile = hosts
+remote_uesr = devop
+private_key_file = ./rsa/dell430/private_key_rsa
+host_key_checking = False
+</code></pre>
+<p>hostfile 定义的文件保存了当你运行 ansbile playbook 时需要操作的主机的连接信息。这个文件就是 inventory 文件，如果没有 ansible.cfg 的配置存在其内容大致如下：</p>
+<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22 ansible_ssh_user=devop ansbile_ssh_private_key_file=./rsa/dellT430.rsa
+</code></pre>
+<p>有了 ansible.cfg 的配置，其中 ssh 连接使用的用户名、私钥这些信息就可以从 inventory 文件中去掉，仅定义主机别名、ip、port 就可以了。</p>
+<pre><code>kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
+</code></pre>
+<h3 id="小试-ansible："><a href="#小试-ansible：" class="headerlink" title="小试 ansible："></a>小试 ansible：</h3><p>managed node 是一台安装了 CentOS7.8 的 Dell T430，ip 地址 192.168.1.10，用户名 devop。<br>本地 Mac 做为 controll node，当前目录下有 ansible.cfg 及 inventory 文件 hosts。<br>当然，在这之前你要参考上一篇记录的方法，先要用 ssh-keygen 制作私钥及证书，并用 ssh-copy-id 把证书 copy 到 managed node 实现免密 ssh 登录。</p>
+<p><strong>ansible.cfg</strong>:</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ cat ansible.cfg
+[defaults]
+hostfile = hosts
+remote_uesr = devop
+private_key_file = /Users/dahui/.ssh/homeDellT430_rsa
+host_key_checking = False
+</code></pre>
+<p><strong>Inventory file</strong>:</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ cat hosts
+kvmhost ansible_ssh_host=192.168.1.10 ansbile_ssh_port=22
+</code></pre>
+<p><strong>尝试两个简单命令</strong>：</p>
+<pre><code>(base) ➜  kvm git:(master) ✗ ansible kvmhost -m ping
+kvmhost | success &gt;&gt; &#123;
+    &quot;changed&quot;: false,
+    &quot;ping&quot;: &quot;pong&quot;
+&#125;
+
+(base) ➜  kvm git:(master) ✗ ansible kvmhost -m command -a uptime
+kvmhost | success | rc=0 &gt;&gt;
+00:48:22 up 20 min,  1 user,  load average: 0.05, 0.03, 0.05
+
+(base) ➜  kvm git:(master) ✗
+</code></pre>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/">https://docs.ansible.com/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/5/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/7/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

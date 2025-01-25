@@ -1,0 +1,880 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 5 页 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/install_dockers_coredns_gitlab_jenkins" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T14:59:25.000Z"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/">安装CoreDNS、GitLab、Jenkins</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在之前创建的 repository server 上安装下面的服务。</p>
+<h3 id="1）搭建-CoreDNS-服务"><a href="#1）搭建-CoreDNS-服务" class="headerlink" title="1）搭建 CoreDNS 服务"></a>1）搭建 CoreDNS 服务</h3><h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+</code></pre>
+<h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
+<pre><code>sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+</code></pre>
+<h4 id="在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下："><a href="#在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下：" class="headerlink" title="在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下："></a>在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下：</h4><p>192.168.0.1 是家里无线路由器的 IP 地址。我这里用的是 TL-WDR7650 千兆易展无线路由。</p>
+<pre><code># ls
+Corefile  hostsfile
+# cat Corefile
+.:53 &#123;
+    hosts /etc/coredns/hostsfile &#123;
+        fallthrough
+    &#125;
+    forward . 192.168.0.1:53
+    log
+&#125;
+</code></pre>
+<p>把之前创建的 Guest 虚拟机 IP 都加进来。</p>
+<pre><code># cat hostsfile
+devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
+192.168.0.114 repositoryServer dnsServer gitlab jenkins gitlab.telbox.cn jenkins.telbox.cn
+192.168.0.112 devopServer0
+192.168.0.113 devopServer1
+192.168.0.115 devopServer2
+
+192.168.0.106 k8s-master-0
+192.168.0.107 k8s-node-0
+192.168.0.109 k8s-node-1
+192.168.0.108 k8s-node-2
+
+192.168.0.114 basehost0
+192.168.0.111 ubuntu20Server
+</code></pre>
+<h4 id="运行-CoreDNS-镜像"><a href="#运行-CoreDNS-镜像" class="headerlink" title="运行 CoreDNS 镜像"></a>运行 CoreDNS 镜像</h4><pre><code>docker run -it -d --net=host \
+--name=coredns --restart=always \
+-v /home/devops/dockerSrvStorage/coredns:/etc/coredns/ \
+coredns/coredns:1.8.3 \
+-conf /etc/coredns/Corefile
+</code></pre>
+<p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<p>Reference:</p>
+<p>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）：<br><a target="_blank" rel="noopener" href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker：<br><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_36938307/article/details/105390004">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
+<h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
+sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
+
+sudo docker run --detach \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--name gitlab \
+--restart always \
+--volume /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.9.2-ce.0
+</code></pre>
+<p>可修改 /home/devops/dockerSrvStorage/gitlab/config 里的配置文件。如有需要，可进入 GitLab 容器进行配置。</p>
+<pre><code>sudo docker exec -it gitlab bash
+cd /opt/gitlab/embedded/service/gitlab-rails/config
+vi gitlab.yml
+</code></pre>
+<p>执行命令 gitlab-ctl reconfigure 使之生效</p>
+<pre><code>sudo docker exec gitlab gitlab-ctl reconfigure
+</code></pre>
+<p>第一次访问安装好的 GitLab 服务<a target="_blank" rel="noopener" href="http://gitlab.telbox.cn:9180/%E9%9C%80%E8%A6%81%E8%AE%BE%E7%BD%AEroot%E7%94%A8%E6%88%B7%E7%9A%84%E5%8F%A3%E4%BB%A4%E3%80%82">http://gitlab.telbox.cn:9180/需要设置root用户的口令。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/080a962c35b6">https://www.jianshu.com/p/080a962c35b6</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/63786567">https://zhuanlan.zhihu.com/p/63786567</a></p>
+<h3 id="3）Jenkins"><a href="#3）Jenkins" class="headerlink" title="3）Jenkins"></a>3）Jenkins</h3><pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins
+
+
+sudo docker run -p 9183:8080 -p 9184:50000 \
+--name jenkins -d \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+-v /home/devops/dockerSrvStorage/jdk/java-se-8u41-ri:/var/jenkins_home/tools/jdk/java-se-8u41-ri \
+-v /home/devops/dockerSrvStorage/jdk/jdk-11.0.2:/var/jenkins_home/tools/jdk/jdk-11.0.2 \
+-v /home/devops/dockerSrvStorage/apache-maven-3.6.3:/var/jenkins_home/tools/apache-maven-3.6.3 \
+jenkins/jenkins:lts
+</code></pre>
+<p>上面通过-v 的方式把 JDK 和 Maven mount 给 Jenkins 容器，之后可以通过 Jenkins Tools 配置他们给 Pipline 使用。<br>启动后，进入 docker 查看初始密码。首次访问 jenkins.telbox.cn:9183 时会用到这个密码。</p>
+<pre><code>sudo docker exec -it jenkins bash
+jenkins@e061aa64ed7b:/$ cat /var/jenkins_home/secrets/initialAdminPassword
+</code></pre>
+<p>访问 jenkins.telbox.cn:9183 输入初始密码，选择安装建议的插件。<br>插件安装完毕后，要求输入 Jenkins URL，这里输入 jenkins.telbox.cn:9183</p>
+<blockquote>
+<p>The Jenkins URL is used to provide the root URL for absolute links to various Jenkins resources. That means this value is required for proper operation of many Jenkins features including email notifications, PR status updates, and the BUILD_URL environment variable provided to build steps.<br>The proposed default value shown is not saved yet and is generated from the current request, if possible. The best practice is to set this value to the URL that users are expected to use. This will avoid confusion when sharing or viewing links.</p>
+</blockquote>
+<p>如果需要，<strong>可以给 Jenkins 配置日志</strong>：</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/data
+cat &gt; /home/devops/dockerSrvStorage/jenkins/data/log.properties &lt;&lt;EOF
+handlers=java.util.logging.ConsoleHandler
+jenkins.level=FINEST
+java.util.logging.ConsoleHandler.level=FINEST
+EOF
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-Djava.util.logging.config.file=/var/jenkins_home/log.properties&quot; -v `pwd`/data:/var/jenkins_home jenkins
+</code></pre>
+<p>如果 Jenkins 插件安装比较慢，可以使用国内插件镜像源，参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525%E3%80%82">https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/docker/blob/master/README.md">https://github.com/jenkinsci/docker/blob/master/README.md</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html">https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/use_aliyun_ubuntu_apt_source" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">2021-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/05/devops/use_aliyun_ubuntu_apt_source/">设置Ubuntu Guest使用aliyun apt镜像源</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true
+</code></pre>
+<p>通过在命令行里设置参数 change_to_ali_ubuntu_source=yes 来创建虚拟机的时候进行 ali ubunt apt source 的设置。</p>
+<p>1）禁止使用 could init 设置默认的 apt sources</p>
+<pre><code>- name: Do not use cloud source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &quot;echo &#39;apt_preserve_sources_list: true&#39; &gt;&gt; /etc/cloud/cloud.cfg&quot;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>2）使用 aliyun 的 ubuntu apt source 镜像。</p>
+<pre><code>- name: Setup Aliyun Source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &#39;mv /etc/apt/sources.list /etc/apt/sources.list.bak&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>3）删除已存在的 Guest 并重新创建。这个虚拟使用 Ali 源并跟随宿主机启动时自动启动。</p>
+<pre><code>[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
+[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true --extra-vars virt_infra_autostart=yes
+</code></pre>
+<ol start="4">
+<li><p>安装 Docker 环境</p>
+<p>[devops@localhost virt-infra-ansible]$ ansible-playbook ./install_docker.yml –limit ubuntu20Server -vv –extra-vars docker_version=5:20.10.4<del>3-0</del>ubuntu-focal</p>
+</li>
+</ol>
+<p>参考：</p>
+<p>关于 virt-customize 命令<br><a target="_blank" rel="noopener" href="https://libguestfs.org/virt-customize.1.html">https://libguestfs.org/virt-customize.1.html</a><br> <a target="_blank" rel="noopener" href="https://ywnz.com/linuxjc/5680.html">https://ywnz.com/linuxjc/5680.html</a></p>
+<p>关于 Ansible yaml 中 command<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html">https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/add_an_devServer_in_kvm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一组开发服务器</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
+<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
+</code></pre>
+<h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
+<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
+<pre><code>devopServers:
+    hosts:
+        repositoryServer:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_size: 500
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+        devopsServer[0:2]:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+    vars:
+        virt_infra_root_password: password
+        virt_infra_disk_size: 80
+        virt_infra_ram: 4094
+        virt_infra_ram_max: 8192
+        virt_infra_cpus: 4
+        virt_infra_cpus_max: 8
+        virt_infra_state: running
+        virt_infra_networks:
+        - name: br0
+            type: bridge
+</code></pre>
+<h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
+</code></pre>
+<h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
+</code></pre>
+<h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
+<pre><code>- name: Add Aliyun Docker official GPG key
+become: true
+apt_key:
+url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
+state: present
+register: \_pkg_result
+until: \_pkg_result is succeeded
+when:
+
+- docker_network_access | bool
+- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
+    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
+
+- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
+become: true
+lineinfile:
+path: /etc/apt/sources.list.d/docker-ce.list
+line: &quot;deb [arch=&#123;&#123; _docker_os_arch|lower &#125;&#125;] http://mirrors.aliyun.com/docker-ce/linux/&#123;&#123; \_docker_os_dist|lower &#125;&#125; &#123;&#123; ansible_lsb.codename &#125;&#125; stable&quot;
+insertbefore: BOF
+</code></pre>
+<p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
+<pre><code>root@basehost0:~# apt-cache madison docker-ce
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+。。。 。。。
+</code></pre>
+<p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
+<pre><code>    ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
+</code></pre>
+<p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
+<pre><code>ansible-playbook ./install_docker.yml \
+--limit devopServers -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; &#125;&#125;&#39;
+</code></pre>
+<p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
+<pre><code>root@basehost0:~# docker -v
+Docker version 20.10.4, build d3cb89e
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-13T08:48:43.000Z"><a href="/2020/12/13/notes/spring_tech4framework/">2020-12-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/13/notes/spring_tech4framework/">Spring 中的常用定式</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="统一异常处理"><a href="#统一异常处理" class="headerlink" title="统一异常处理"></a>统一异常处理</h4><p>对于 Restful API 来说，就是通过 RestCongtrollerAdvisor 注解实现。<br>对于 Spring MVC 来说，通过继承 ErrorController 实现 handleError()来实现统一 excepiton 处理。</p>
+<p>就 Rest API 应用来说，一般把响应统一封装，常见的是封装成 BaseResponse of T。这种范型方式的使用对于 Feign 这种方式的 API 来说存在问题。<br>因为 Feign 是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象的。而范型在运行时类型信息被擦除，所以 BaseResponse<T> 不能和 Feign 一起使用。</p>
+<p>对于 BaseResponse，基本就是封装三个元素：resultCode、message、data、（exception）。对于 resultCode 可以结合 javax.servlet.http.HttpServletResponse 中定义的状态码来定义。</p>
+<h4 id="参数校验"><a href="#参数校验" class="headerlink" title="参数校验"></a>参数校验</h4><h4 id="Feign-强类型客户端"><a href="#Feign-强类型客户端" class="headerlink" title="Feign 强类型客户端"></a>Feign 强类型客户端</h4><p>使用 Feign 基本就是两个步骤：<br>1）在启动类标注 @EnableFeignClient<br>2）在客户端类标注 @FeignClient(SERVICE_NAME) 并在方法名上标注@RequestMapping。<br>Feign 的实现就是通过使用动态代理来执行请求 HTTP 服务、转换响应到对象。也算是强类型的一种客户端。</p>
+<h4 id="Profile"><a href="#Profile" class="headerlink" title="Profile"></a>Profile</h4><h4 id="利用线程池的异步处理"><a href="#利用线程池的异步处理" class="headerlink" title="利用线程池的异步处理"></a>利用线程池的异步处理</h4><h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="Swagger-RestDoc"><a href="#Swagger-RestDoc" class="headerlink" title="Swagger / RestDoc"></a>Swagger / RestDoc</h4>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/about_shiro_path_filter" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-10T15:23:29.000Z"><a href="/2020/12/10/notes/about_shiro_path_filter/">2020-12-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/10/notes/about_shiro_path_filter/">关于Shiro中路径匹配与注解</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Shiro 针对web的安全防护主要是通过各种Filter的操作完成的。其中 PathMatchingFilter来完成</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Gradle-101" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-12-02T14:42:01.000Z"><a href="/2020/12/02/Gradle-101/">2020-12-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/12/02/Gradle-101/">Gradle 101</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <ol>
+<li><p>确保团队使用统一的 gradle 版本。<br> 避免 Gradle 的版本兼容性问题，项目中应使用 gradldw 命令运行。因为 gradlew 会根据 gradle-wrapper.properties 定义的 gradle 分发 dizhi 去下载 gradle 到本地。</p>
+<p> 在 build.gradle 中定义如下 task，生成两个文件：gradlew、gradlew.bat，一个目录：gradle。</p>
+<pre><code> task genWrapper(type: Wrapper)&#123;
+   gradleVersion=&#39;5.3.1&#39;
+   distributionUrl=&#39;https://services.gradle.org/distributions/gradle-5.3.1-all.zip&#39;
+   distributionBase=&#39;GRADLE_USER_HOME&#39;
+   distributionPath=&#39;wrapper/dists&#39;
+   archiveBase=&#39;GRADLE_USER_HOME&#39;
+   archivePath=&#39;wrapper/dists&#39;
+ &#125;
+</code></pre>
+<p> 对于不能访问互联网的内网，需要保证 distributionUrl 地址在私服上可用。执行 gradle genWrapper 后，把生成的内容作为项目文件提交到代码库。</p>
+<p> 这样后面的同事，checkout 出代码后遵循使用 gradlew 构建项目的规则就可以避免 gradle 版本冲突的问题了。</p>
+</li>
+<li><p>Spring Boot 2.4 gradle 插件是需要 Gradle5.6 以上 或 Gradle6.3 版本以上的，否则报错如下。这也从一个方面证明 gradle 版本兼容问题是存在的，所以很有必要在团队中使用 gradlew。</p>
+<p> An exception occurred applying plugin request [id: ‘org.springframework.boot’, version: ‘2.4.0’]</p>
+<blockquote>
+<p>Failed to apply plugin [id ‘org.springframework.boot’]<br>Spring Boot plugin requires Gradle 5 (5.6.x only) or Gradle 6 (6.3 or later). The current version is Gradle 5.3.1</p>
+</blockquote>
+</li>
+</ol>
+<p>Reference:</p>
+<p>基本元素：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/itck/p/10478382.html">https://www.cnblogs.com/itck/p/10478382.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_36850813/article/details/93996333">https://blog.csdn.net/qq_36850813/article/details/93996333</a></p>
+<p>wrapper：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html">https://www.cnblogs.com/davenkin/p/gradle-spring-boot.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-开发环境setup" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-11-28T07:47:43.000Z"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">2020-11-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/11/28/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83setup/">开发环境setup</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="在-macOS-上安装-OpenJDK。"><a href="#在-macOS-上安装-OpenJDK。" class="headerlink" title="在 macOS 上安装 OpenJDK。"></a>在 macOS 上安装 OpenJDK。</h3><pre><code>brew tap AdoptOpenJDK/openjdk
+brew search /adoptopenjdk
+brew cask install adoptopenjdk8
+</code></pre>
+<h3 id="设置-Homebrew-使用国内源，加速-update"><a href="#设置-Homebrew-使用国内源，加速-update" class="headerlink" title="设置 Homebrew 使用国内源，加速 update"></a>设置 Homebrew 使用国内源，加速 update</h3><pre><code>cd /usr/local/Homebrew
+git remote set-url origin http://mirrors.ustc.edu.cn/homebrew.git
+</code></pre>
+<h3 id="变更-Win10-上基于-WSL2-的-Docker-镜像位置"><a href="#变更-Win10-上基于-WSL2-的-Docker-镜像位置" class="headerlink" title="变更 Win10 上基于 WSL2 的 Docker 镜像位置"></a>变更 Win10 上基于 WSL2 的 Docker 镜像位置</h3><p>1）停止 Docker desktop<br>2）停止 WSL</p>
+<pre><code>  wsl --shutdown
+</code></pre>
+<p>3）迁移</p>
+<pre><code>wsl --export docker-desktop-data D:\docker\docker-desktop-data\docker-desktop-data.tar
+wsl --unregister docker-desktop-data
+wsl --import docker-desktop-data D:\docker\ D:\docker\docker-desktop-data\docker-desktop-data.tar --version 2
+</code></pre>
+<h3 id="运行-MySQL-docker-image"><a href="#运行-MySQL-docker-image" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><pre><code>docker pull mysql:8.0.22
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \
+ -v /home/mysql/conf/my.cnf:/etc/mysql/my.cnf \
+ -v /home/mysql/logs:/logs \
+ -v /home/mysql/data/mysql:/var/lib/mysql \
+ -d mysql:8.0.22
+</code></pre>
+<h3 id="设置-MySQL-root-用户可以远程登录"><a href="#设置-MySQL-root-用户可以远程登录" class="headerlink" title="设置 MySQL root 用户可以远程登录"></a>设置 MySQL root 用户可以远程登录</h3><pre><code>docker run -it --rm mysql bash
+ALTER USER &#39;root&#39;@&#39;%&#39; IDENTIFIED WITH mysql_native_password BY &#39;123456&#39;;
+</code></pre>
+<h3 id="运行-MySQL-docker-image-1"><a href="#运行-MySQL-docker-image-1" class="headerlink" title="运行 MySQL docker image"></a>运行 MySQL docker image</h3><p>docker run -p 6379:6379 –name redis -v /Users/dahui/docker_env/redis/redis.conf:/etc/redis/redis.conf -v /Users/dahui/docker_env/redis/data:/data -d redis redis-server /etc/redis/redis.conf –appendonly yes –requirepass “password”</p>
+<p>–appendonly yes ： 开启 redis 持久化<br>–requirepass “password” ： 密码</p>
+<p>docker run –name redis -e MYSQL_ROOT_PASSWORD=123456 -p 3306:3306 \n -v /Users/dahui/docker_env/mysql/conf/my.cnf:/etc/mysql/my.cnf \n -v /Users/dahui/docker_env/mysql/logs:/logs \n -v /Users/dahui/docker_env/mysql/mysql/data/mysql:/var/lib/mysql \n -d mysql:8.0.22</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/popular_reactive_libs" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-12T14:05:29.000Z"><a href="/2020/10/12/reactive/popular_reactive_libs/">2020-10-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/10/12/reactive/popular_reactive_libs/">Reactive Streams规范及常见库</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="什么是Reactive-Streams"><a href="#什么是Reactive-Streams" class="headerlink" title="什么是Reactive Streams:"></a>什么是<a target="_blank" rel="noopener" href="https://www.reactive-streams.org/">Reactive Streams</a>:</h2><blockquote>
+<p>Reactive Streams is an initiative to provide a standard for asynchronous stream processing with non-blocking back pressure. This encompasses efforts aimed at runtime environments (JVM and JavaScript) as well as network protocols.</p>
+</blockquote>
+<p>概括的说，Reactive Streams 是个(Java 世界里的)规范，它规范了“有非阻塞背压机制的异步的流处理”。挺简单的定义，但是能够真正正确理解异步、非阻塞并不容易，以后单独开写一篇。实际上 Reactive Streams 规范或者说其实现包含的内容更加丰富：除了 non-blocking，还有：Composable、Deferred、Flow Controll、Resilient、Interruptible。</p>
+<p>其中 Composable 就是函数式编程思想的用武之地。 可体会下 Java8 里的 Stream API 各种算子的参数，所以 Lamda 表达式是进行 Reactive Streams 实现的基本前提，否则很难想象臃肿的面向对象的 Composable。有了 JDK8 的铺垫，Reactive Streams 接口被 JDK9 定义在 Flow 里才是可能的。</p>
+<blockquote>
+<p>As of August 23rd, 2019 we have released version 1.0.3 of Reactive Streams for the JVM, including Java API, a textual Specification, a TCK and implementation examples.</p>
+</blockquote>
+<p>这个规范由三部分组成：Java API（org.reactive-streams）、以文字描述的规范、技术兼容工具包。<br>Reactive Streams 规范 仅限于 Java（JavaScript、网络协议）世界，其它语言虽然也有 Reactive 这样的工具<a target="_blank" rel="noopener" href="https://github.com/ReactiveX">（参考这里： ReactiveX）</a>实现，但好像没有类似的规范。</p>
+<h2 id="为什么要有-Reactive-Streams"><a href="#为什么要有-Reactive-Streams" class="headerlink" title="为什么要有 Reactive Streams"></a>为什么要有 Reactive Streams</h2><p>因为很多厂商开发了 reactive 库，但是它们直接很难/不可能互操作。用 Reactive Streams 进行规范就使得它们可以互操作，也就让它们串起来形成一个 reactive 链成为了可能。</p>
+<h2 id="为什么要用-Reactive"><a href="#为什么要用-Reactive" class="headerlink" title="为什么要用 Reactive"></a>为什么要用 Reactive</h2><p>因为 reactive 可以榨干 CPU…，所以从老板的角度讲是省钱、从环保的角度讲是省电、从码农的角度讲是有意思。</p>
+<h2 id="Java-世界里的-Reactive-库"><a href="#Java-世界里的-Reactive-库" class="headerlink" title="Java 世界里的 Reactive 库"></a>Java 世界里的 Reactive 库</h2><h3 id="RxJava"><a href="#RxJava" class="headerlink" title="RxJava"></a><strong>RxJava</strong></h3><p>从 Reactive 宣言、到 Reactive Streams 规范，再到各种 Reactive 库是很自然的一个脉络。<br>但现实是大家先有了 Reactive 系统的思想，聪明的程序员开发出各种蕴含着 reactive 思想的库(比如 RxJava 1.0)。为了各个库之间的统一性、可操作行，大家一起协商出了 Reactive Streams 规范。继而这些已经存在的 reactive 库便改进自己的 API 设计，向 reactive streams 规范靠拢并提供各种转化 api 让用户在原生 api 和 reactive streams 接口直接转换。比如 RxJava 2.0 的 Flowable 就直接继承自 org.reactive-streams.Publisher 并提供了 toObservable() toFlowable()。因为各个库的实现细节不同，用到具体转换 api 需要参考其手册。</p>
+<h3 id="JDK"><a href="#JDK" class="headerlink" title="JDK"></a><strong>JDK</strong></h3><p>这个规范被的 API 形式定义从 JDK 9 这个版本开始，以 java.util.concurrent.Flow 静态子类的形式被定义。其实，既然已经有了 org.reactive-streams 这样的规范，为什么还要在 JDK 中弄出个 Flow 来再重新定义一次。难道就是要宣示 JDK 自身有支持 reactive streaming 的东西？这个思路的本意应该就像 JDBC 接口一样，让 Flow 里定义的接口成为 SPI，让不同的 reactive sreams 库供应商可互操作吧。所以 JDK 里的 Flow 中定义的东西不能算是库，而是个 SPI：Service Provider Interface。</p>
+<h3 id="Vert-x、MongoDB-响应式流驱动"><a href="#Vert-x、MongoDB-响应式流驱动" class="headerlink" title="Vert.x、MongoDB 响应式流驱动"></a><strong>Vert.x、MongoDB 响应式流驱动</strong></h3><p>这些都做了改进以符合 org.reactive-streams 中的 API 定义。其中<a target="_blank" rel="noopener" href="https://vertx.io/">Vert.x</a>不仅提供了对 java 的 reactive 库，还有 JavaScritp、Ruby、Scala 等。</p>
+<h3 id="Spring-的-Project-Reactor"><a href="#Spring-的-Project-Reactor" class="headerlink" title="Spring 的 Project Reactor"></a><strong>Spring 的 Project Reactor</strong></h3><p>Project Reactor 主页：<a target="_blank" rel="noopener" href="https://projectreactor.io/docs/core/release/reference/">https://projectreactor.io/docs/core/release/reference/</a><br>既然 Spring 都提供了对 Reactive Streams 的实现，感觉其实上面列出的几个库已经没有太多的意义。各家对 Reactive Streams 规范的实现在细节上都有很大不同，因为 Spring 的生态太强大了，如果没有特殊的需求，比如 JDK 小于 8，那么我们的项目基本于 Project Reactor，那么应该是较好的选择。这个网页 <a target="_blank" rel="noopener" href="https://tech.io/playgrounds/929/reactive-programming-with-reactor-3/Intro">https://tech.io/playgrounds/929/reactive-programming-with-reactor-3/Intro</a> 可以帮助操练 Reactor Api。</p>
+<p>Project Reactor 到目前为止经历了 1.0, 2.0, 3.3。其中 1.0 这个阶段还没有 Reactive Stream 是规范。在 2.0 开始 follow 规范并基本定型。3.0 感觉是个重构版，形成 reactive-streams-commons 库。这里是 3.0 的 release 文档: <a target="_blank" rel="noopener" href="https://github.com/reactor/reactor-core/releases?after=v3.0.0.RELEASE">https://github.com/reactor/reactor-core/releases?after=v3.0.0.RELEASE</a> 。</p>
+<p>有了 Project Reactor 这样的基础库，整个 Spring 组件基本都有了 Reactive Style 的版本，再这个基础上<br>用 Netty（或 Servet 3.1 Containe）+ Reactive Streams 适配层 + Spring Security Reactive + WebFlux + Spring Data Reactive Repository，就可以构建出重头到尾的 Reactive 应用。</p>
+<p>从 Spring Cloud 的组件角度讲，也衍生出 Reactive Discovery Client, Reactive Load Balancer, Blockhound, Reactor Debug, Improved Reactor Micrometer Support, Reactor Netty Metric …</p>
+<p>Stephane 是实现 Project Reactor 的主力，下面是他的两个视频：​<br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=Tr04KiJdAXQ">https://www.youtube.com/watch?v=Tr04KiJdAXQ</a><br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=zls8ZLry68M">https://www.youtube.com/watch?v=zls8ZLry68M</a></p>
+<h2 id="其它编程语言的-Reative-库"><a href="#其它编程语言的-Reative-库" class="headerlink" title="其它编程语言的 Reative 库"></a>其它编程语言的 Reative 库</h2><p>其它编程语言的 Reative 库可参考：<a target="_blank" rel="noopener" href="https://github.com/ReactiveX">https://github.com/ReactiveX</a><br>另，Akka Stream：<a target="_blank" rel="noopener" href="https://doc.akka.io/docs/akka/current/stream/stream-introduction.html">https://doc.akka.io/docs/akka/current/stream/stream-introduction.html</a></p>
+<p><em>Reference:</em><br><a target="_blank" rel="noopener" href="https://www.reactive-streams.org/">https://www.reactive-streams.org/</a><br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=Cj4foJzPF80&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=4&amp;t=2940s">https://www.youtube.com/watch?v=Cj4foJzPF80&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=4&amp;t=2940s</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/about_reactive_stream" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-06T14:12:12.000Z"><a href="/2020/10/06/reactive/about_reactive_stream/">2020-10-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/10/06/reactive/about_reactive_stream/">从观察者模式到reactive stream规范</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。</p>
+<p>正如 Reactive Manifesto 说的：</p>
+<blockquote>
+<p>Systems built as Reactive Systems are more flexible, loosely-coupled and scalable.</p>
+</blockquote>
+<p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不必知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-events">https://www.baeldung.com/spring-events</a><br><a target="_blank" rel="noopener" href="https://reflectoring.io/spring-boot-application-events-explained/">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+<p><strong>响应式流 = 观察者 + 迭代器</strong></p>
+<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，只能是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<E> {<br>E next();<br>boolean hasNext();<br>}</p>
+<p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p>
+<pre><code>public interface RxObserver&lt;T&gt; &#123;
+  void onNext(T next);
+  void onComplete();
+  void onError();
+&#125;
+</code></pre>
+<p>以 on 形式的前缀开头的方法名让我很明显的感受到一种“通知”的味道。上游组件告诉我们有新数据了、结束了、出错了！一种“推”的味道。</p>
+<p>演进到这一步是不是就完美了呢？不。<br>如果 RxObserver 与上游组件是跨网络通信，那么我们可以想象每次的 onNext 通过网络一次处理一个数据的这种模式并不高效。而且 RxObserver 不能想上游表达自己的需求(比如需要几个数据？不再需要数据等)，这就很容易延伸到 RxObserver 作为消费者的处理速度与上游不匹配时如何与上游协调工作这样的问题。<br>Reactive Stream 规范对以上需求进行了标准化，如下。其中 Subscription 就可用于向上游 Publisher 表达是否还需要、需要多少数据这样的请求。如果每次 request(1)，整个模式就相当于“拉”模型；request(Integer.MAX_VALUE)就相当于“推”模型了。</p>
+<pre><code>public interface Publisher&lt;T&gt; &#123;
+    public void subscribe(Subscriber&lt;? super T&gt; s);
+&#125;
+
+public interface Subscriber&lt;T&gt; &#123;
+    public void onSubscribe(Subscription s);
+    public void onNext(T t);
+    public void onError(Throwable t);
+    public void onComplete();
+&#125;
+
+public interface Subscription &#123;
+    public void request(long n);
+    public void cancel();
+&#125;
+
+public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt;R&gt; &#123;
+&#125;
+</code></pre>
+<hr>
+<p><em>Reference：</em></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md">https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md</a></p>
+<p><a target="_blank" rel="noopener" href="http://reactivex.io/">http://reactivex.io/</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=WKore-AkisY&list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&index=14">A Playful Introduction to Rx by Erik Meijer</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-events">https://www.baeldung.com/spring-events</a><br><a target="_blank" rel="noopener" href="https://reflectoring.io/spring-boot-application-events-explained/">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/about_reactive_manifesto" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-05T12:36:22.000Z"><a href="/2020/10/05/reactive/about_reactive_manifesto/">2020-10-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/10/05/reactive/about_reactive_manifesto/">关于 Reactive Manifesto</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>反应 or 响应？还是反应吧。Reactive Manifesto 的中文版都已经是“反应式宣言”了。看来公众号也要择机改名了。</p>
+<p>反应式宣言英文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/">https://www.reactivemanifesto.org/</a><br>反应式宣言中文版：<a target="_blank" rel="noopener" href="https://www.reactivemanifesto.org/zh-CN">https://www.reactivemanifesto.org/zh-CN</a></p>
+<p>前几年开始看到这些没有一行代码的宣言感觉好飘渺，但是随着自己看的代码、用的代码慢慢多起来，感觉这个宣言蛮不简单的。说上去就是这个几个词、几句话，但在实际项目中往往都对应着某个解决方案的思想原则。</p>
+<p><img src="/2020/10/05/reactive/about_reactive_manifesto/reactive-traits.png" alt="反应式"></p>
+<p>反应式宣言最关键的四个单词：Responsive、Resilient、Elastic、Message Driven。<br>其中<strong>Reponsive</strong>是我们的终极目标，我们理想的系统是能对用户的请求尽可能地做出及时的响应。因为一个系统如果没有响应了基本就意味挂了，因此能够及时响应用户的请求是一个系统健康运行的标志。<br>系统要满足可响应的特性，那么这个系统就应该能够有：“回弹性”<strong>Resilient</strong>、“弹性”<strong>Elastic</strong>。</p>
+<p><strong>Resilient</strong>——回弹性，强调的是系统的子模块出现问题时系统仍旧能够响应客户请求。</p>
+<blockquote>
+<p>回弹性是通过复制、 遏制、 隔离以及委托来实现的。</p>
+</blockquote>
+<p>举个例子来说“隔离”，Spring Cloud 的 Hystrix 断路器模式就是使用了<strong>隔离</strong>的思路。被@HystrixCommand 标注了的方法实际上是被 spring 动态生成的代理包装并由一个单独的线程池上的线程驱动运行。这样如果被@HystrixCommand 标注的方法出现了问题，不会直接影响调用方。系统框架从更高的层次就能感知到这个调用失败从而进行必要的处理。</p>
+<p><strong>Elastic</strong>——弹性，强调的是系统的负载发生变化时系统能够响应客户请求。之所以这里不用 Scalable，是想强调这里的负载可以是变大也可以是变小。</p>
+<p><strong>Message Driven</strong>——消息驱动，因为消息驱动的特点，它是天然实现回弹性、弹性的技术手段。</p>
+<blockquote>
+<p>Reactive Systems rely on asynchronous message-passing to establish a boundary between components that ensures loose coupling, isolation and location transparency.</p>
+</blockquote>
+<p>反应式系统依赖异步地消息传递机制在组件间建立边界，这就保证了组件之间的松耦合、隔离、以及位置透明。【感觉官方中文版翻译的有问题 ：）】</p>
+<p>组件之间的松耦合、隔离、位置透明是实现回弹性、回弹的条件。消息驱动是实现这些特性的很好的技术手段，但不是唯一的手段，比如就位置透明这点来说：Spring Cloud 的服务就是通过服务注册[使能 Eureka 服务、在服务的 bootstrap 文件中把服务注册到 Eureka]、服务发现[1, 原始的 EnableDiscoveryClient 到 2，@LoadBalanced+直接使用服务名的 rest template exchange]来对客户端实现了位置透明性。</p>
+<p>从 Message Driven（异步非阻塞的消息）这点来讲，AKKA 才是最优的解决方案。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/4/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/6/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

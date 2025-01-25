@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>glimpse of saga | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="项目中遇到多个微服务调用需要考虑和处理某个环节失败时的处理。虽然这里不需要很强的事务概念，但是需要对失败的动作进行重试等操作。这里的重试本质上就是rollback的另一种形式，在saga里算是“forward recovery”。借机又翻看了一下相关的文章，贴到了文末。
+Saga vs TCC
+Sa">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="glimpse of saga"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-micro_service/glimpse-of-saga" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.270Z"><a href="/2025/01/25/micro_service/glimpse-of-saga/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">glimpse of saga</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>项目中遇到多个微服务调用需要考虑和处理某个环节失败时的处理。虽然这里不需要很强的事务概念，但是需要对失败的动作进行重试等操作。这里的重试本质上就是rollback的另一种形式，在saga里算是“forward recovery”。<br>借机又翻看了一下相关的文章，贴到了文末。</p>
+<h3 id="Saga-vs-TCC"><a href="#Saga-vs-TCC" class="headerlink" title="Saga vs TCC"></a>Saga vs TCC</h3><ol>
+<li>Saga相比TCC的缺点是缺少预留动作，所以某些情况补偿的实现比较麻烦甚至无法撤销只能补救。不过没有预留动作也意味着不必担心资源释放的问题。</li>
+<li>TCC最少通信次数为2n，Saga为n（n=sub-transaction的数量）。</li>
+<li>第三方服务没需要提供有Try接口。<br>总体感觉下来SAGA更适合微服务的多数场景。</li>
+</ol>
+<h3 id="Simple-Saga"><a href="#Simple-Saga" class="headerlink" title="Simple Saga"></a>Simple Saga</h3><p>解决这类问题当然可以直接引入一些已存在的saga框架，不过这里存在学习、部署等成本。如果只是小范围的解决问题，或许可以使用下面的形式。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/poc.jpg" alt="示意图"><br>上面示意图针对的场景是：服务的执行都需要较长时间、并且是异步调用。<br>如果各个服务执行时间都不长，一个调用链下来小于几百毫秒，那么直接使用reactive style的编码也应该可以。<br>因为各服务执行时间较长，所以不能使用同步调用。这里耗时指的是对于有UI的程序至少影响到到UI前的用户，如果是后台应用那么至少阻塞的时长影响到系统的资源可用性。<br>即使服务执行时间短，同步调用也会使调用链的availability降低，所以微服务的场景下使用异步调用有天然的好处。  </p>
+<p>从这个示意图其实可以看作是Chris演讲中提到的最最原始的模式。可以把callback看作是saga事务参与方发送消息到message broker。而调用链的第一个节点就充当了saga的协调者。<br>各个微服务的updateStatus端点就是message的listner，只不过这里直接通过callback实现而没有利用消息队列。<br>最开始的endpoint负责生成一个transactionId并依次传递给每个下游服务，每个下游服务通过callback把自己的状态更新给上游。</p>
+<ol>
+<li><p>getStatus() 端点提供给UI获取当前状态。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/ui_option.png" alt="UI上的状态显示"></p>
+</li>
+<li><p>transCheckAndAmend(trans_n) 每个服务暴露的业务方法都需要提供一个补偿方法。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/tc.png" alt="Compensating transactions"></p>
+</li>
+<li><p>服务的入口方法其实充当了协调者, 更像orchestration的，而不是choreography的。</p>
+</li>
+<li><p>Timer 是个后台定时器不停的检查服务状态，如果状态不成功就调用compensating endpoint.</p>
+</li>
+</ol>
+<p><em>Reference:</em><br>[1]: Saga的经典论文 <a target="_blank" rel="noopener" href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf</a><br>[2]: 《Microservice Pattern》”Chapter4, Managing transactions with sagas”<br>[3]: Chris Richardson 在2017年的演讲：<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=YPbGW3Fnmbc">https://www.youtube.com/watch?v=YPbGW3Fnmbc</a>   </p>
+<p>一些中文网文：<br>[3] 分布式事务：Saga模式 <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/e4b662407c66">https://www.jianshu.com/p/e4b662407c66</a><br>[4] 七种分布式事务的解决方案 <a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1806989">https://cloud.tencent.com/developer/article/1806989</a><br>[5] 分布式事务六种解决方案 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/183753774">https://zhuanlan.zhihu.com/p/183753774</a>   </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/SAGA/">SAGA</a>, <a href="/tags/MicroService/">MicroService</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/25/micro_service/glimpse-of-saga/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

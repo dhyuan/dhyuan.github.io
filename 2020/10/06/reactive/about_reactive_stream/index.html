@@ -1,0 +1,260 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>从观察者模式到reactive stream规范 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。
+正如 Reactive Manifesto 说的：
+
+Systems built as Reactive Systems are more flexible, loosely-coupled and scalable">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="从观察者模式到reactive stream规范"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-reactive/about_reactive_stream" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-06T14:12:12.000Z"><a href="/2020/10/06/reactive/about_reactive_stream/">2020-10-06</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">从观察者模式到reactive stream规范</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Reactive 的系统就是通过实现回弹性、弹性能够对客户请求进行及时响应的系统。</p>
+<p>正如 Reactive Manifesto 说的：</p>
+<blockquote>
+<p>Systems built as Reactive Systems are more flexible, loosely-coupled and scalable.</p>
+</blockquote>
+<p>说到松耦合，最基本的模式之一就算是“观察者模式”了。从观察者模式更进一步，可以衍生出“发布订阅模式”。较之前者，发布订阅模式多了一个‘事件通道’的角色。通过这个通道，使得订阅者不必知道发布者——即两者解耦。Spring 在应用层面对“发布-订阅”模式进行了不错的支持(同步的、异步的)，诸如@EventListener 等的日常用法参见：<br><a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-events">https://www.baeldung.com/spring-events</a><br><a target="_blank" rel="noopener" href="https://reflectoring.io/spring-boot-application-events-explained/">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+<p><strong>响应式流 = 观察者 + 迭代器</strong></p>
+<p>从 Iterator 定义看，这是一个“拉”模型，当我们需要数据时通过调用 next()拉取，hasNext()是查询是否还有数据可用。如果上游数据有什么异常情况，只能是通过 next()抛出的异常感知甚至感知不知道。<br>public interface Iterator<E> {<br>E next();<br>boolean hasNext();<br>}</p>
+<p>以 RxJava 的 RxObserver 为例，感受下其接口语义上的改进：</p>
+<pre><code>public interface RxObserver&lt;T&gt; &#123;
+  void onNext(T next);
+  void onComplete();
+  void onError();
+&#125;
+</code></pre>
+<p>以 on 形式的前缀开头的方法名让我很明显的感受到一种“通知”的味道。上游组件告诉我们有新数据了、结束了、出错了！一种“推”的味道。</p>
+<p>演进到这一步是不是就完美了呢？不。<br>如果 RxObserver 与上游组件是跨网络通信，那么我们可以想象每次的 onNext 通过网络一次处理一个数据的这种模式并不高效。而且 RxObserver 不能想上游表达自己的需求(比如需要几个数据？不再需要数据等)，这就很容易延伸到 RxObserver 作为消费者的处理速度与上游不匹配时如何与上游协调工作这样的问题。<br>Reactive Stream 规范对以上需求进行了标准化，如下。其中 Subscription 就可用于向上游 Publisher 表达是否还需要、需要多少数据这样的请求。如果每次 request(1)，整个模式就相当于“拉”模型；request(Integer.MAX_VALUE)就相当于“推”模型了。</p>
+<pre><code>public interface Publisher&lt;T&gt; &#123;
+    public void subscribe(Subscriber&lt;? super T&gt; s);
+&#125;
+
+public interface Subscriber&lt;T&gt; &#123;
+    public void onSubscribe(Subscription s);
+    public void onNext(T t);
+    public void onError(Throwable t);
+    public void onComplete();
+&#125;
+
+public interface Subscription &#123;
+    public void request(long n);
+    public void cancel();
+&#125;
+
+public interface Processor&lt;T, R&gt; extends Subscriber&lt;T&gt;, Publisher&lt;R&gt; &#123;
+&#125;
+</code></pre>
+<hr>
+<p><em>Reference：</em></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md">https://github.com/reactive-streams/reactive-streams-jvm/blob/master/README.md</a></p>
+<p><a target="_blank" rel="noopener" href="http://reactivex.io/">http://reactivex.io/</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=WKore-AkisY&list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&index=14">A Playful Introduction to Rx by Erik Meijer</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-events">https://www.baeldung.com/spring-events</a><br><a target="_blank" rel="noopener" href="https://reflectoring.io/spring-boot-application-events-explained/">https://reflectoring.io/spring-boot-application-events-explained/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Reactive/">Reactive</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/10/06/reactive/about_reactive_stream/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

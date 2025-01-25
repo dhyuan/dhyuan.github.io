@@ -1,0 +1,244 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>SpringSecurity里的filer们 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="这段文字主要源于对 https://docs.spring.io/spring-security/reference/servlet/architecture.html 的学习和理解，其实就是对下图的理解。上图表达了下面几个类之间的关系：DelegatingFilterProxy,  FilterC">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="SpringSecurity里的filer们"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-spring/filters-In-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.299Z"><a href="/2025/01/25/spring/filters-In-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">SpringSecurity里的filer们</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/securityfilterchain.png" alt="SecurityFilterChain"><br>上图表达了下面几个类之间的关系：<br><strong>DelegatingFilterProxy,  FilterChainProxy (springSecurityFilterChain),   SecurityFilterChain (security filter)</strong><br>通过调用 SecurityFilterChain API 把 Security Filters 组装成一个或多个chain，再设置给FilterChainProxy使用。   </p>
+<p>对于下图这样FilterChainProxy有多个SecurityFilterChain的情况，只会触发第一个匹配的securityFilterChain。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
+<h3 id="1）使用-Spring-Security"><a href="#1）使用-Spring-Security" class="headerlink" title="1）使用 Spring Security"></a>1）使用 Spring Security</h3><p>要使用Spring Security，如果是在Spring Boot环境那么只需要导入security的starter，Spring Boot就会自动做下面的事。<br><strong>Creates a servlet Filter as a bean named springSecurityFilterChain</strong>. This bean is responsible for all the security (protecting the application URLs, validating submitted username and passwords, redirecting to the log in form, and so on) within your application.<br><strong>Registers the Filter with a bean named springSecurityFilterChain</strong> with the Servlet container for every request.<br><strong>Creates a UserDetailsService bean with a username of user and a randomly generated password</strong> that is logged to the console.</p>
+<p>不使用Spring Boot的情况下，就需要自己在web.xml文件中定义springSecurityFilterChain。</p>
+<pre><code>&lt;filter&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.springframework.web.filter.DelegatingFilterProxy&lt;/filter-class&gt;
+&lt;/filter&gt;
+&lt;filter-mapping&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+&lt;/filter-mapping&gt;
+</code></pre>
+<h3 id="2）入口-DelegatingFilterProxy"><a href="#2）入口-DelegatingFilterProxy" class="headerlink" title="2）入口 DelegatingFilterProxy"></a>2）入口 DelegatingFilterProxy</h3><p>下面通过源码简单看下DelegatingFilterProxy实例化的过程。<br>Tomcat启动时会在 web 容器中初始化 DelegatingFilterProxy 实例，<br><img src="/2025/01/25/spring/filters-In-Spring-Security/registerDelegatingFilterProxy-as-bean.jpg"></p>
+<p>DelegatingFilterProxy 本身既是一个Filter也是一个ServletContextAware的实例。 Spring 使用 ContextLoaderListener 来加载spring的bean。org.springframework.web.context.support.GenericWebApplicationContext 则是servlet context和spring context真正交汇的地方。<br>从下面DelegatingFilterProxy实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context的桥梁</strong>。<br>因为Spring要等web context初始化完成才能初始化自己的context，所以在spring中定义的filter beans就要延迟初始化才行。通过延迟初始化就解决了Filter必须定义在Servlet Container中的问题。 Spring很巧妙的通过FilterChain接口把这些filter beans串在一起</p>
+<pre><code>public class DelegatingFilterProxy extends GenericFilterBean
+</code></pre>
+<p>而 ServletContextAware 是Spring的一个接口。</p>
+<pre><code>public abstract class GenericFilterBean implements Filter, BeanNameAware, EnvironmentAware,
+    EnvironmentCapable, ServletContextAware, InitializingBean, DisposableBean 
+</code></pre>
+<p>从DelegatingFilterProxy的两个关键fields：WebApplicationContext webApplicationContext 和 Filter delegate，也能知道DelegatingFilterProxy桥梁作用。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/DelegatingFilterProxy-properties.jpg"><br>上图中的delegate是FilterChainProxy的实例。</p>
+<h3 id="3）-FilterChainProxy-包装了-filers。"><a href="#3）-FilterChainProxy-包装了-filers。" class="headerlink" title="3） FilterChainProxy 包装了 filers。"></a>3） FilterChainProxy 包装了 filers。</h3><p>下图中filterChian包含的filters是不做任何特殊配置时的16个filters。FilerChainProxy就是通过调用它拥有的filters起到了对request做filter处理的作用，这就是称它为代理的原因.<br><img src="/2025/01/25/spring/filters-In-Spring-Security/construct-FilterChainProxy.jpg"></p>
+<h3 id="4）springSecurityFilterChain-进入-DelegatingFilterProxy"><a href="#4）springSecurityFilterChain-进入-DelegatingFilterProxy" class="headerlink" title="4）springSecurityFilterChain 进入 DelegatingFilterProxy"></a>4）springSecurityFilterChain 进入 DelegatingFilterProxy</h3><p>上面提到 DelegatingFilterProxy 对filter延迟初始化的作用，所以对delegate的赋值只发生处理第一个http request时。被命名为springSecurityFilterChain的FilterChainProxy会从spring context中被找出来并设置到DelegatingFilterProxy的delegate field。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy0.jpeg"></p>
+<p><img src="/2025/01/25/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy.jpeg"></p>
+<p>至此，应该对文首的第一个图能说出点儿什么了吧… …</p>
+<p><code>DelegatingFilterProxy</code> 的 field ‘Filter delegate’ 就是<code>名为springSecurityFilterChain 的 FilterChainProxy实例</code>。<br>而springSecurityFilterChain默认包含16个<code>SecurityFilterChain</code>。</p>
+<hr>
+<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters">https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Java/">Java</a>, <a href="/tags/Spring/">Spring</a>, <a href="/tags/Security/">Security</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/25/spring/filters-In-Spring-Security/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

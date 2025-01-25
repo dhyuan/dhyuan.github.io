@@ -1,0 +1,1059 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 4 页 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/jenkins_pipeline_maven" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-05-09T12:49:50.000Z"><a href="/2021/05/09/devops/jenkins_pipeline_maven/">2021-05-09</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/05/09/devops/jenkins_pipeline_maven/">通过Jenkins pipeline build Maven项目</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>如之前的文章<a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/" title="安装 CoreDNS、GitLab、Jenkins 容器">安装 CoreDNS、GitLab、Jenkins 容器</a> 所述熟悉了基本的容器安装之后就可以配置 Jenkins pipeline 构建基于 maven 的 Java 项目了。</p>
+<h3 id="1）安装-JDK-及-Maven"><a href="#1）安装-JDK-及-Maven" class="headerlink" title="1）安装 JDK 及 Maven"></a>1）安装 JDK 及 Maven</h3><p>不要通过 apt install 的方式安装，而通过下载 zip 解压的方式安装。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/tools/
+cd /home/devops/dockerSrvStorage/jenkins/tools/
+wget https://download.java.net/openjdk/jdk11/ri/openjdk-11+28_linux-x64_bin.tar.gz
+tar xvzf openjdk-11+28_linux-x64_bin.tar.gz
+wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.zip
+unzip apache-maven-3.8.1-bin.zip
+</code></pre>
+<h3 id="2）启动-GitLab、Jenkins-容器。"><a href="#2）启动-GitLab、Jenkins-容器。" class="headerlink" title="2）启动 GitLab、Jenkins 容器。"></a>2）启动 GitLab、Jenkins 容器。</h3><p>停止并删除旧的 Jenkins, GitLab 容器：</p>
+<pre><code>docker stop jenkins gitlab
+docker rm jenkins gitlab
+</code></pre>
+<p>Jenkins 和 GitLab 容器的互联互通至少有下面两种方式。一种是通过先定义出一个 network，然后 Jenkins 和 GitLab 加入这个网络来完成，这时容器间的访问是在 docker 自己内部网络上完成的而与宿主机 IP 无关。。一种是通过外部 DNS Server 完成容器间域名字的解析，这时容器间的访问是通过宿主机的 IP+映射到宿主机的端口完成的。</p>
+<p>docker 网络内部互联的方式，如果是跨主机容器间通讯可以通过 overlay 完成。（如果跨主机这种方式，就没有理由不上 K8S 了。）下面是用于在同一宿主机下的命令：<br>首先创建一个网络：</p>
+<pre><code>docker network create devopNet
+</code></pre>
+<p>启动 Jenkins 和 GitLab 容器，注意这里通过–net 设定它们的网络都是 devNet</p>
+<pre><code>docker run --detach \
+--name jenkins \
+--net devopNet \
+--hostname jenkins.telbox.cn \
+--publish 9183:8080 --publish 9184:50000 \
+--restart always \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+jenkins/jenkins:2.277.4-lts-jdk11
+
+docker run --detach \
+--name gitlab \
+--net devopNet \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--restart always \
+-v /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+-v /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+-v /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.11.3-ce.0
+</code></pre>
+<p>通过 DNS 来通许的容器，相当于容器可以使用传入的 DNS 服务，也就可以通过 DNS 中定义的机器名通讯了。这样 jenkins 容器和 gitlab 容器运行在不同的主机，DNS 解析不同宿主机 IP/域名。这种情形， Jenkins 容器 ssh 到非 22 的 GitLab 上（假设 gitlab 容器映射 22 端口到其宿主机的 9182 端口），那么就需要设置 Jenkins 里 ssh config 文件。比如下面的/home/devops/dockerSrvStorage/jenkins/.ssh/config 这样：</p>
+<pre><code>Host gitlab.telbox.cn
+    Hostname gitlab.telbox.cn
+    Port 9182
+    User dhyuan
+</code></pre>
+<p>这样在 jenkins 容器的 ssh 才能默认连接到 gitlab 容器宿主机的 9182 端口。</p>
+<pre><code>docker run --detach \
+--name jenkins \
+--dns 192.168.0.114 \
+--hostname jenkins.telbox.cn \
+--publish 9183:8080 --publish 9184:50000 \
+--restart always \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+jenkins/jenkins:2.277.4-lts-jdk11
+
+docker run --detach \
+--name gitlab \
+--dns 192.168.0.114 \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--restart always \
+-v /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+-v /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+-v /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.11.3-ce.0
+</code></pre>
+<p>另外，之前使用的 GitLab 容器镜像 gitlab/gitlab-ce:13.9.2-ce.0 的 Integration-Jenkins CI 部分有 bug，换用 gitlab/gitlab-ce:13.11.3-ce.0 后 webhook 就可以工作了。</p>
+<h3 id="3）配置-Jenkins-使用-JDK、Maven-如图："><a href="#3）配置-Jenkins-使用-JDK、Maven-如图：" class="headerlink" title="3）配置 Jenkins 使用 JDK、Maven, 如图："></a>3）配置 Jenkins 使用 JDK、Maven, 如图：</h3><p>配置 JDK<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_tool_jdk.png" alt="设置JDK"></p>
+<p>配置 Maven<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_tool_maven.png" alt="设置JDK"></p>
+<h3 id="4）通过-ssh-gen-生成-RSA-公私钥对，并配置-Jenkins-和-GitLab"><a href="#4）通过-ssh-gen-生成-RSA-公私钥对，并配置-Jenkins-和-GitLab" class="headerlink" title="4）通过 ssh-gen 生成 RSA 公私钥对，并配置 Jenkins 和 GitLab"></a>4）通过 ssh-gen 生成 RSA 公私钥对，并配置 Jenkins 和 GitLab</h3><pre><code>ssh-keygen -t rsa -b 2048 -C &quot;Used for dhyuan GitLab&quot;
+</code></pre>
+<p>把生成的私钥通过 Jenkins 界面：Dashboard –&gt; Credentials –&gt; System Global credentials 设置为 GitLab 账号的私钥。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_to_gitlab_privatekey.png"></p>
+<p>把生成的公钥通过 GitLab 界面进行设置, 如下图：<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_to_gitlab_publickey.png"></p>
+<h3 id="4）创建一个-Pipeline-项目并以从-GitLab-获取-Jenkinsfile-的形式定义-pipeline。"><a href="#4）创建一个-Pipeline-项目并以从-GitLab-获取-Jenkinsfile-的形式定义-pipeline。" class="headerlink" title="4）创建一个 Pipeline 项目并以从 GitLab 获取 Jenkinsfile 的形式定义 pipeline。"></a>4）创建一个 Pipeline 项目并以从 GitLab 获取 Jenkinsfile 的形式定义 pipeline。</h3><p>设置 pipeline 文件来自 git 管理的仓库：<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/pipeline_setting_jenkinsfile.png"></p>
+<p>需要注意的是，如果 branch 设置为*/master，那么就不要勾选 Lightweight checkout。如果勾选了 Lightweight checkout<br>，可把 branch 设置为*/*。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/pipeline_setting_lightweight_checkout.png"></p>
+<p>设置 pipeline 可由 GitLab 代码仓库事件触发执行，并在其高级选项中生成 Secret token。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_pipeline_triggered_by_push.png"></p>
+<h3 id="5-设置当-GitLab-发生-push-等操作是触发-Jenkins-Pipeline-运行。"><a href="#5-设置当-GitLab-发生-push-等操作是触发-Jenkins-Pipeline-运行。" class="headerlink" title="5) 设置当 GitLab 发生 push 等操作是触发 Jenkins Pipeline 运行。"></a>5) 设置当 GitLab 发生 push 等操作是触发 Jenkins Pipeline 运行。</h3><p>如图设置完毕就可以通过点击测试按钮发送“push”消息来触发 pipeline 的运行了。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/gitlab_webhook_to_jenkins.png"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/spring_security_reactive_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/16/reactive/spring_security_reactive_csrf/">2021-04-16</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/16/reactive/spring_security_reactive_csrf/">Spring响应式CSRF相关源码</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇介绍了 CSRF 及 Spring Security 对防范 CSRF 所做的支持。Spring Security 实现了基于 Session 和 Cookie 的 Sychronizer Token Pattern，以防范 CSRF。并且默认是基于 session 的。</p>
+<p>Spring Security 基于 Servlet 和 WebFlux 技术分别进行了实现。<br>其中，基于 Servlet 技术栈的实现代码是：</p>
+<pre><code>CsrfFilter：执行过滤、验证。
+CsrfTokenRepository：存储 csrf token 的接口。
+CookieCsrfTokenRepository： 用 cookie 保存 csrf token
+HttpSessionCsrfTokenRepository：用session 保存csrf token
+CsrfAuthenticationStrategy.onAuthentication() 每次请求生成新 csrf token
+</code></pre>
+<p>基于 WebFlux 技术栈的实现代码没有与 CsrfAuthenticationStrategy 对应的类，而是直接在 CsrfWebFilter.filter()–&gt; continueFilterChain() –&gt; … this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange)) 完成了。</p>
+<p>Filter 和 TokenRepository 都有对应的类，如下：</p>
+<pre><code>CsrfWebFilter
+ServerCsrfTokenRepository
+  CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+</code></pre>
+<p>CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository 的逻辑更直接一些。下面以注释的方式解读一下 CsrfWebFilter 代码。</p>
+<p>除了基本的 fitler，flatMap 这些 operators，可以特别留意以下几个 operators：<br>switchIfEmpty()<br>filterWhen()<br>delayUntil()<br>Mono.defer()</p>
+<pre><code>public class CsrfWebFilter implements WebFilter &#123;
+
+  public static final ServerWebExchangeMatcher DEFAULT_CSRF_MATCHER = new DefaultRequireCsrfProtectionMatcher();
+
+  /**
+  * The attribute name to use when marking a given request as one that should not be
+  * filtered.
+  *
+  * To use, set the attribute on your &#123;@link ServerWebExchange&#125;: &lt;pre&gt;
+  *     CsrfWebFilter.skipExchange(exchange);
+  * &lt;/pre&gt;
+  */
+  private static final String SHOULD_NOT_FILTER = &quot;SHOULD_NOT_FILTER&quot; + CsrfWebFilter.class.getName();
+
+  private ServerWebExchangeMatcher requireCsrfProtectionMatcher = DEFAULT_CSRF_MATCHER;
+
+  // 默认基于Session保存csrf token。
+  private ServerCsrfTokenRepository csrfTokenRepository = new WebSessionServerCsrfTokenRepository();
+
+  private ServerAccessDeniedHandler accessDeniedHandler = new HttpStatusServerAccessDeniedHandler(
+      HttpStatus.FORBIDDEN);
+
+  private boolean isTokenFromMultipartDataEnabled;
+
+  public void setAccessDeniedHandler(ServerAccessDeniedHandler accessDeniedHandler) &#123;
+    Assert.notNull(accessDeniedHandler, &quot;accessDeniedHandler&quot;);
+    this.accessDeniedHandler = accessDeniedHandler;
+  &#125;
+
+  public void setCsrfTokenRepository(ServerCsrfTokenRepository csrfTokenRepository) &#123;
+    Assert.notNull(csrfTokenRepository, &quot;csrfTokenRepository cannot be null&quot;);
+    this.csrfTokenRepository = csrfTokenRepository;
+  &#125;
+
+  /**
+  * 如果我们的应用GET，HEAD，TRACE，OPTIONS 这些方法会改变应用的状态，就需要自定义matcher。
+  * 自定义的matcher可以有更复杂的匹配逻辑，而不仅仅限于DefaultRequireCsrfProtectionMatcher 中所用的request method。
+  * 可参考 DefaultRequireCsrfProtectionMatcher。
+  *
+  * @param requireCsrfProtectionMatcher
+  */
+  public void setRequireCsrfProtectionMatcher(ServerWebExchangeMatcher requireCsrfProtectionMatcher) &#123;
+    Assert.notNull(requireCsrfProtectionMatcher, &quot;requireCsrfProtectionMatcher cannot be null&quot;);
+    this.requireCsrfProtectionMatcher = requireCsrfProtectionMatcher;
+  &#125;
+
+  /**
+  * Specifies if the &#123;@code CsrfWebFilter&#125; should try to resolve the actual CSRF token
+  * from the body of multipart data requests.
+  * @param tokenFromMultipartDataEnabled true if should read from multipart form body,
+  * else false. Default is false
+  */
+  public void setTokenFromMultipartDataEnabled(boolean tokenFromMultipartDataEnabled) &#123;
+    this.isTokenFromMultipartDataEnabled = tokenFromMultipartDataEnabled;
+  &#125;
+
+  @Override
+  public Mono&lt;Void&gt; filter(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    // 如果代码通过调用 CsrfWebFilter.skipExchange(exchange) 设置无需进行CSRF保护，则继续chain的下一个节点。
+    if (Boolean.TRUE.equals(exchange.getAttribute(SHOULD_NOT_FILTER))) &#123;
+      return chain.filter(exchange).then(Mono.empty());
+    &#125;
+
+    return this.requireCsrfProtectionMatcher.matches(exchange) // 根据 requireCsrfProtectionMatcher 进行匹配
+        .filter(MatchResult::isMatch) // 如果需要CSRF保护。
+        // 这里matchResult只是个占位符。过滤出已经设置了CsrfToken的exchange。
+        .filter((matchResult) -&gt; !exchange.getAttributes().containsKey(CsrfToken.class.getName()))
+        // 验证这个csrf token，这个验证逻辑是CSRF的核心。根据csrf token是保存在session还是cookie，逻辑不同。
+        // 详细逻辑参考 ServerCsrfTokenRepository 的两个实现 CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+        .flatMap((m) -&gt; validateToken(exchange))
+        // 校验文csrf token，继续chain的下个节点处理。
+        .flatMap((m) -&gt; continueFilterChain(exchange, chain))
+        // switchIfEmpty实际是继续.filter(MatchResult::isMatch).filter((matchResult) -&gt; 。。。) 这两个filter之后的情况。
+        .switchIfEmpty(continueFilterChain(exchange, chain).then(Mono.empty()))
+        .onErrorResume(CsrfException.class, (ex) -&gt; this.accessDeniedHandler.handle(exchange, ex));
+  &#125;
+
+  public static void skipExchange(ServerWebExchange exchange) &#123;
+    exchange.getAttributes().put(SHOULD_NOT_FILTER, Boolean.TRUE);
+  &#125;
+
+  private Mono&lt;Void&gt; validateToken(ServerWebExchange exchange) &#123;
+    return this.csrfTokenRepository.loadToken(exchange) // 从session或者cookie中得到csrf token，作为比较基准。
+        // 如果没有找到csrf token则抛出异常没有找到期望的csrf token。（之前版本的错误信息有误 https://github.com/spring-projects/spring-security/commit/a1083d9a5ce3fef8fa458a47e5a6b7a6576ec01e#diff-9c109ef13a33c07de3231051c08e424e664985d142f54ccd7830169d4adcadb1）
+        // 注意这里用的defer而不是just用来避免不必要的对象创建。
+        // switchIfEmpty() 感觉上就是reactive stream里的的if语句：如果是空流，则用另一个publisher。
+        .switchIfEmpty(
+            Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;An expected CSRF token cannot be found&quot;))))
+        /**
+        * 判断用户从页面提交的csrf token和从session/cookie中保存的是否一致。
+        * 注意，这里用了filterWhen而不是filter。表面的原因是containsValidCsrfToken()的返回值是Mono&lt;Boolean&gt;而不是Boolean。
+        * 而更深层的原因应该是CsrfWebFilter不应该是阻塞的，因为这个filter要处理所有的request，所以需要异步地测试、过滤。
+        * 感觉上也有点像flatMap，都是接收Publisher参数。
+        **/
+        .filterWhen((expected) -&gt; containsValidCsrfToken(exchange, expected))
+        // 如果没有找到有效的csrf token，那么就抛出异常。
+        .switchIfEmpty(Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;Invalid CSRF Token&quot;)))).then();
+  &#125;
+
+  private Mono&lt;Boolean&gt; containsValidCsrfToken(ServerWebExchange exchange, CsrfToken expected) &#123;
+    // 先从form里找用户提交的csrf token。
+    return exchange.getFormData().flatMap((data) -&gt; Mono.justOrEmpty(data.getFirst(expected.getParameterName())))
+        // form 表单里没有，就从header里找
+        .switchIfEmpty(Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(expected.getHeaderName())))
+        // 最后从multipart里找
+        .switchIfEmpty(tokenFromMultipartData(exchange, expected))
+        // 如果找到了，则和从session或cookie里得到的csrf token做比较
+        .map((actual) -&gt; equalsConstantTime(actual, expected.getToken()));
+  &#125;
+
+  private Mono&lt;String&gt; tokenFromMultipartData(ServerWebExchange exchange, CsrfToken expected) &#123;
+    if (!this.isTokenFromMultipartDataEnabled) &#123;
+      return Mono.empty();
+    &#125;
+    ServerHttpRequest request = exchange.getRequest();
+    HttpHeaders headers = request.getHeaders();
+    MediaType contentType = headers.getContentType();
+    if (!contentType.includes(MediaType.MULTIPART_FORM_DATA)) &#123;
+      return Mono.empty();
+    &#125;
+    return exchange.getMultipartData().map((d) -&gt; d.getFirst(expected.getParameterName())).cast(FormFieldPart.class)
+        .map(FormFieldPart::value);
+  &#125;
+
+  private Mono&lt;Void&gt; continueFilterChain(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    return Mono.defer(() -&gt; &#123;
+      Mono&lt;CsrfToken&gt; csrfToken = csrfToken(exchange);
+      exchange.getAttributes().put(CsrfToken.class.getName(), csrfToken);
+      return chain.filter(exchange);
+    &#125;);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; csrfToken(ServerWebExchange exchange) &#123;
+    // 如果从repository中找到了csrf token就返回，否则就生成一个token返回。
+    return this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange));
+  &#125;
+
+  /**
+  * Constant time comparison to prevent against timing attacks.
+  * @param expected
+  * @param actual
+  * @return
+  */
+  private static boolean equalsConstantTime(String expected, String actual) &#123;
+    if (expected == actual) &#123;
+      return true;
+    &#125;
+    if (expected == null || actual == null) &#123;
+      return false;
+    &#125;
+    // Encode after ensure that the string is not null
+    byte[] expectedBytes = Utf8.encode(expected);
+    byte[] actualBytes = Utf8.encode(actual);
+    return MessageDigest.isEqual(expectedBytes, actualBytes);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; generateToken(ServerWebExchange exchange) &#123;
+    // 委托给csrfTokenRepository 产生一个新token。
+    return this.csrfTokenRepository.generateToken(exchange)
+        // 注意这里的delayUntil()用法：直到token保存好之后，上步由csrfTokenRepository产生的Mono&lt;CsrfToken&gt;才继续走流水线。
+        .delayUntil((token) -&gt; this.csrfTokenRepository.saveToken(exchange, token));
+  &#125;
+
+  private static class DefaultRequireCsrfProtectionMatcher implements ServerWebExchangeMatcher &#123;
+
+    // 如果我们应用在保证GET，HEAD，TRACE，OPTIONS等方法不改变系统状态，不需要进行CSRF保护，就可使用这个默认的matcher类。
+    private static final Set&lt;HttpMethod&gt; ALLOWED_METHODS = new HashSet&lt;&gt;(
+        Arrays.asList(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.TRACE, HttpMethod.OPTIONS));
+
+    @Override
+    public Mono&lt;MatchResult&gt; matches(ServerWebExchange exchange) &#123;
+      return Mono.just(exchange.getRequest()) // 从exchagne得到request对象
+          .flatMap((r) -&gt; Mono.justOrEmpty(r.getMethod())) // 得到http request的method。
+          .filter(ALLOWED_METHODS::contains) // 仅保留无需CSRF保护的方法
+          .flatMap((m) -&gt; MatchResult.notMatch()) // 过滤后，有无需CSRF保护的方法则不匹配（无需CSRF保护）。
+          .switchIfEmpty(MatchResult.match()); // 过滤后，没有匹配到方法，则匹配（需CSRF保护）。
+    &#125;
+
+  &#125;
+
+&#125;
+</code></pre>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/webflux_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/14/reactive/webflux_csrf/">2021-04-14</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/14/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这篇基本上是<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/">Spring Security Reference</a>关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。</p>
+<h3 id="什么是-CSRF"><a href="#什么是-CSRF" class="headerlink" title="什么是 CSRF"></a>什么是 CSRF</h3><p>跨站请求伪造。经典场景是：</p>
+<h5 id="1）受害者首先登录了银行网站"><a href="#1）受害者首先登录了银行网站" class="headerlink" title="1）受害者首先登录了银行网站"></a>1）受害者首先登录了银行网站</h5><h5 id="2）用户没有-longout-的情况下"><a href="#2）用户没有-longout-的情况下" class="headerlink" title="2）用户没有 longout 的情况下"></a>2）用户没有 longout 的情况下</h5><h5 id="3）用同一个浏览器访问了“坏”网站"><a href="#3）用同一个浏览器访问了“坏”网站" class="headerlink" title="3）用同一个浏览器访问了“坏”网站"></a>3）用同一个浏览器访问了“坏”网站</h5><h5 id="4）“坏”网站有一个向银行网站提交业务请求的页面"><a href="#4）“坏”网站有一个向银行网站提交业务请求的页面" class="headerlink" title="4）“坏”网站有一个向银行网站提交业务请求的页面"></a>4）“坏”网站有一个向银行网站提交业务请求的页面</h5><h5 id="5）诱使用户发送这个请求。"><a href="#5）诱使用户发送这个请求。" class="headerlink" title="5）诱使用户发送这个请求。"></a>5）诱使用户发送这个请求。</h5><p>实际上利用有 XSS 漏洞，完全可以无需受害者参与利用 javascript 而自动触发第 4 第 5 步。</p>
+<h4 id="这个场景背后有些逻辑："><a href="#这个场景背后有些逻辑：" class="headerlink" title="这个场景背后有些逻辑："></a><strong>这个场景背后有些逻辑：</strong></h4><p>这里我们把浏览器等同于用户，有些数据是用户自己可见的，有些数据是浏览器自动处理、发送而用户对这些数据是无感知的（比如 SessionId）。<br>银行网站以 cookie 的形式把 sessionId 发送给浏览器（set-cookie），浏览器每次请求都会再自动带上 cookie（cookie）。<br>上面场景第 5 步虽然“坏”表单不是源于银行网站页面而是在第三方网站的页面上，但是<strong>浏览器</strong>发现目标地址是银行网站，因此会自动带上响应的 cookie，比如 JSESSION 就会随带着被发送了。从服务器的角度看，来自第 4 步的数据与正常数据没有任何差别，因为这个业务请求便会被执行。</p>
+<p>归根结底，这种 CSRF 的问题是 cookie 和浏览器工作方式引起的。</p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>一个是主流的“Synchronizer Token Pattern”方法，另一个是渐成主流的“SameSite Attribute”。</p>
+<p>因为<strong>SameSite Attribute</strong>的方式实施和理解比较容易，我们先说。<br>服务端利用 cookie 的 SameSite 属性可以禁止浏览器从外部站点发送请求时带上 cookie。比如下面的 cookie 就不会被放在由在第三方网页发起而目标是银行网站的请求上。这就自然解决了上面的 CSRF 的问题。</p>
+<pre><code>Set-Cookie: JSESSIONID=randomid; Domain=bank.example.com; Secure; HttpOnly; SameSite=Lax
+</code></pre>
+<p><strong>Synchronizer Token Pattern</strong><br>这个解决办法的原理是对来自浏览器的请求我们都回送一个随机数，下次浏览器再请求业务时需要在 header 里或者表单里带上这个随机数。这个随机数就是 csrf token。<br>这个办法之所以能防范 CSRF，是因为 sessionId 来自 cookie，而 csrf token 来自 header 或者 form。相当于分别在两条不同的路径上传递。</p>
+<p>Spring Security 模块生成 csrf token 后可放在两个地方。Spring 默认的，随机数与 sessionId 关联，放在 session 里。另一个方式：随机数放在 cookie 里。</p>
+<h3 id="基于-Session-保存-csrf-token"><a href="#基于-Session-保存-csrf-token" class="headerlink" title="基于 Session 保存 csrf token"></a>基于 Session 保存 csrf token</h3><p>与 session 关联比较容易理解，下次浏览器发送请求过来，服务端就可以从 header 或 form 里取出来的 csrf token 与 session 中的随机数相比较来进行判断。</p>
+<h3 id="基于-Cookie-保存-csrf-token"><a href="#基于-Cookie-保存-csrf-token" class="headerlink" title="基于 Cookie 保存 csrf token"></a>基于 Cookie 保存 csrf token</h3><p>通过 cookie 保存 csrf 是怎么回事呢？如果 csrf token 通过 cookie 发送给浏览器，那这个随机数不就跟 JSESSIONID 一样了会被浏览器自动传回到服务器了吗？<br>是的，这个 csrf 会被浏览器传回给服务器，我们也正是利用这一点“保存”了 csrf token。之所以使用基于 cookie 的方式，是因为要针对前后端分离的情形让前端可以使用 javascript 获得 csrf token，并把这个 token 作为下次请求的 header 参数或者 form 参数传递给服务端。服务端所要做的就是对比来自 cookie 的 csrf token 和来自 header/form 里的 csrftoken 来做出判断。</p>
+<p>下面代码设置使用 cookie 保存，注意使用 cookie 传递 token 需要把 cookie 的 HttpOnly 属性设置为 false，以便让 javascript 能读到此值。</p>
+<pre><code>@EnableWebSecurity
+public class WebSecurityConfig extends
+        WebSecurityConfigurerAdapter &#123;
+
+    @Override
+    protected void configure(HttpSecurity http) &#123;
+        http
+            .csrf(csrf -&gt; csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            );
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">2021-04-13</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">响应式流的生命周期</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这里所说的响应式流的生命周期是说我们从定义响应式流到触发这个流的处理所经历的不同阶段。<br>总的来说，就是三个阶段。组装时、订阅时、运行时。</p>
+<h2 id="组装时"><a href="#组装时" class="headerlink" title="组装时"></a>组装时</h2><p>这个阶段就是我们建立处理模型的阶段。基本上是解决了下面 3 个方面的问题。</p>
+<h3 id="1）定义这个-reactive-stream-的数据来源是什么。Publisher"><a href="#1）定义这个-reactive-stream-的数据来源是什么。Publisher" class="headerlink" title="1）定义这个 reactive stream 的数据来源是什么。Publisher"></a>1）定义这个 reactive stream 的数据来源是什么。Publisher</h3><p>这个阶段我们通过使用诸如 just(), range(), fromArray(), push(), create(), generate()等方法来设置数据源头。</p>
+<h3 id="2）这个数据流的最终订阅者是谁？Subscriber"><a href="#2）这个数据流的最终订阅者是谁？Subscriber" class="headerlink" title="2）这个数据流的最终订阅者是谁？Subscriber"></a>2）这个数据流的最终订阅者是谁？Subscriber</h3><p>我们在最下游 publisher 上通过调用 subscribe()方法把 subscriber 从下游到上游依次传递到最上游的包含数据源的 publisher。</p>
+<h3 id="3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator"><a href="#3）数据到达最终订阅者那里时需要做哪些转换、处理？-Operator" class="headerlink" title="3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator"></a>3）数据到达最终订阅者那里时需要做哪些转换、处理？ Operator</h3><p>以上两个调用解决了数据来源于哪里、被谁最终接收的问题。但是在数据从上游被传递到下游的过程中，我们往往需要对数据做各种处理。这个阶段就各种 operator 大显身手的地方，比如 map(), flatMap(), filter(), reduce(), scan(), concatMap(), usingWhen()… …<br>实际上每经历一个 operator，就生成了一个新的中间级别的 publisher，这就是 reactive stream 的不可变性。</p>
+<p>组装时基本就是我们写出的代码定义出的静态逻辑这部分。<br>程序运行起来，才会进入下面的两个阶段：订阅时、运行时，所以说这两个阶段是程序的动态表现。</p>
+<h2 id="订阅时"><a href="#订阅时" class="headerlink" title="订阅时"></a>订阅时</h2><p>通过组装时我们定义了什么数据(publisher)经过怎样的处理(operator)最后传递给谁(subscriber)。而订阅时这个阶段，解决的问题是把调用下游 publisher 时传入的 subscriber 依次传递给上游的的 publisher。可以想象 Project Reactor 在传递 subscriber 的时候是依次进行封装之后传递的而不会是直接把下游的 subscriber 传递上去，因为以 operator 串联起来的各个 publisher 都需要“自己”的 subscriber。可以体会下这里“Subscriber 链”的概念。<br>这个传递过程很重要，因为 subscriber 中的 onSubscribe(Subscription s)提供了上游 publisher 把 Subscription 传递给下游 Subscriber 的机制。<br>因为 Subscriber 只有通过 subsciption 的 request 方法才能启动数据的流动。</p>
+<h2 id="运行时"><a href="#运行时" class="headerlink" title="运行时"></a>运行时</h2><p>经过组装时、订阅时，数据流已经“一触即发”。我们只有通过上游传递给我们的 Subscription 调用 request()方法就可以触发数据的流动了。<br>通过（在 Subscirberd 的 onSubscription(), onNext()被回调时）向 Subscription 的 request()传入不同的数字，我们分别可以实现拉模型、推模型、拉-推模型。<br>响应式流的运行时所强调的就是这种 Publisher 和 Subscriber 之间的信号交换。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/keywords_of_cipher" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-08T12:50:59.000Z"><a href="/2021/04/08/micro_service/keywords_of_cipher/">2021-04-08</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/08/micro_service/keywords_of_cipher/">与加密相关的一些名词</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="1-密码学"><a href="#1-密码学" class="headerlink" title="1) 密码学"></a>1) 密码学</h2><h3 id="机密性、真实性、完整性"><a href="#机密性、真实性、完整性" class="headerlink" title="机密性、真实性、完整性"></a>机密性、真实性、完整性</h3><p>plantext 明文 cipher 密钥 ciphertext 密文</p>
+<h3 id="散列函数"><a href="#散列函数" class="headerlink" title="散列函数"></a>散列函数</h3><p>将任意长度的输入转化为定长输出的算法。抗原像性、抗第二原像性、强抗碰撞性。指纹、摘要。</p>
+<h3 id="消息验证代码：MAC-HMAC-Keyed-hash-Message-Authentication-Code"><a href="#消息验证代码：MAC-HMAC-Keyed-hash-Message-Authentication-Code" class="headerlink" title="消息验证代码：MAC HMAC(Keyed-hash Message Authentication Code)"></a>消息验证代码：MAC HMAC(Keyed-hash Message Authentication Code)</h3><p>MAC：核心是带密钥的 Hash 算法。<br>HMAC：两轮 Hash，其中一个是密钥是“预共享密钥”。<br>Msg + K –&gt;MAC 算法 –&gt; MAC 随消息发送<br>参考：<a target="_blank" rel="noopener" href="https://blog.csdn.net/pz641/article/details/110876060">https://blog.csdn.net/pz641/article/details/110876060</a></p>
+<h3 id="对称加密（私钥加密）"><a href="#对称加密（私钥加密）" class="headerlink" title="对称加密（私钥加密）"></a>对称加密（私钥加密）</h3><p>对称密钥算法相关主流协议：DES、3DES、AES、RC4。<br>序列密码(Stream Cipher)、分组密码(Block Cipher)<br>RC4 属于序列密码，AES 算是最流行的分组密码，无线安全技术 WPA2 就是使用 AES。<br>分组密码：ECB、CBC。CBC 引入了初始向量 IV 让每即使相同的输入输出也不同。（IV 与明文第一块进行异或过后加密，加密后的密文作为下一个块的 IV）</p>
+<h3 id="非对称加密（公钥加密）"><a href="#非对称加密（公钥加密）" class="headerlink" title="非对称加密（公钥加密）"></a>非对称加密（公钥加密）</h3><p>公钥加密只有私钥可以解密。<br>私钥加密公钥解密。无私密性、可做数字签名。<br>RAS 使用最多的非对称加密算法。 RAS 推荐强度 2048，相当于 112 的对称加密。</p>
+<h3 id="数字签名"><a href="#数字签名" class="headerlink" title="数字签名"></a>数字签名</h3><p>MAC 是一种电子签名，但需要双方预先设定一样的加密密码。<br>RSA 情况下的数字签名。<br>发送方<br>1）求文档 Hash 值<br>2）对 结果散列 + hash 算法 + 其它元数据 进行编码<br>3）用私钥加密编码后的数据，形成签名<br>接收方<br>1）使用相同 Hash 算法计算文档散列<br>2）用公钥解密发送方的签名，并与自己计算的进行对比。<br>RAS 只是公钥加密的一种，不同的公钥加密有不同的签名流程。</p>
+<h3 id="密钥交换"><a href="#密钥交换" class="headerlink" title="密钥交换"></a>密钥交换</h3><p>密钥交换的目的是先得到 预主密钥。<br>密钥交换算法：RSA、DHE_RSA、。。。<br>RSA 不支持前向保密</p>
+<p>下图是 Diffie-Hellman 密钥交换示意图：<br><img src="/2021/04/08/micro_service/keywords_of_cipher/DH.jpeg"></p>
+<h3 id="证书"><a href="#证书" class="headerlink" title="证书"></a>证书</h3><p>证书是包含公钥、订阅人信息、证书颁发者数字签名的数字文件，是存储、传递、使用公钥的容器。</p>
+<h3 id="RSA-公钥、私钥的生成"><a href="#RSA-公钥、私钥的生成" class="headerlink" title="RSA 公钥、私钥的生成"></a>RSA 公钥、私钥的生成</h3><p><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h2 id="2）SSL-TLS"><a href="#2）SSL-TLS" class="headerlink" title="2）SSL/TLS"></a>2）SSL/TLS</h2><p>TLS 是一种密码学协议以保证双方会话安全。TLS 是在 TCP 协议之上、HTTP 协议之下–处于表示层。<br>TLS 主要分为两层，底层的是 TLS 记录协议，主要负责使用对称密码对消息进行加密。上层的是 TLS 握手协议，主要分为握手协议，密码规格变更协议和应用数据协议 4 个部分。</p>
+<p>SSL 1.0， 2.0 1994-11 月<br>SSL 3.0 1995 年底<br>TLS 1.0 1999-1<br>TLS 1.1 2006-4<br>TLS 1.2 2008-8<br>TLS 1.3 2018-8 1）握手更快；2）淘汰了一些基元 RC4, SHA-1, DES, MD5 …<br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/133375078">https://zhuanlan.zhihu.com/p/133375078</a></p>
+<h3 id="握手流程"><a href="#握手流程" class="headerlink" title="握手流程"></a>握手流程</h3><p>有三种握手流程：对服务器进行身份验证的完整握手、用于恢复会话的简短握手、对服务器客户端进行双向验证的握手。<br>这里仅简短描述下“对服务器进行身份验证的完整握手”，如下图：<br><img src="/2021/04/08/micro_service/keywords_of_cipher/TLS_Handshake.png"></p>
+<h4 id="1）ClientHello"><a href="#1）ClientHello" class="headerlink" title="1）ClientHello"></a>1）ClientHello</h4><p>很明显，第一条消息始于 Client。客户端需要提供自己 TLS 版本、随机数、加密套件、压缩方法、扩展信息给服务端，让服务端进行选择。</p>
+<h4 id="2）ServerHello"><a href="#2）ServerHello" class="headerlink" title="2）ServerHello"></a>2）ServerHello</h4><p>这条消息是服务器根据 Client 上报的选项并结合自己的的情况把选择告诉 Client。这个消息中也包括一个随机数。注意 ClientHello、ServerHello 中的随机数不是用于生成预主密钥，而是用于防止消息伪造。</p>
+<h4 id="3）Certificate"><a href="#3）Certificate" class="headerlink" title="3）Certificate"></a>3）Certificate</h4><p>这是服务器给客户端的证书链。注意，这里是证书链而不仅仅是服务器的主证书。主证书排第一个、随后依次是中间证书，根证书无需在此链中。<br>因为客户端发送的密码套件、服务器最终选择的密码套件未必需要身份认证，同时不是所有身份认证都需要证书，所以，这个消息是可选的。</p>
+<h4 id="4）ServerKeyExchange"><a href="#4）ServerKeyExchange" class="headerlink" title="4）ServerKeyExchange"></a>4）ServerKeyExchange</h4><p>这个消息是为服务器为密钥交换向客户端提供数据。如是 DH 算法，那么这个参数就是 如上“Diffie-Hellman 密钥交换示意图”中所示的 g、p、A。<br>微观到代码，就是大致如下的定义：</p>
+<pre><code>struct &#123;
+          opaque dh_p&lt;1..2^16-1&gt;;
+          opaque dh_g&lt;1..2^16-1&gt;;
+          opaque dh_Ys&lt;1..2^16-1&gt;;
+      &#125; ServerDHParams;     /* Ephemeral DH parameters */
+</code></pre>
+<p>对于需要两次消息确定预主密钥的算法，首先由服务器发起也很容易理解。因为是 Client 首先提供选项而 Server 进行选择，那么 Server 自然是首先发出 DH 密钥交换消息就是很正常的了。<br>如果协商的密钥交换算法是 RSA 密钥交换算法，那么服务器就无需发送这条消息，而是由 Client 通过在 ClientKeyExchange 中携带一个 46 字节的随机数作为预主密钥即可。</p>
+<h4 id="5）ServerHelloDone"><a href="#5）ServerHelloDone" class="headerlink" title="5）ServerHelloDone"></a>5）ServerHelloDone</h4><p>这个消息表示 Server 这边的握手相关的消息都发送完了。</p>
+<h4 id="6）ClientKeyExchange"><a href="#6）ClientKeyExchange" class="headerlink" title="6）ClientKeyExchange"></a>6）ClientKeyExchange</h4><p>这个消息是为了 Sever 提供密钥交换的数据。<br>如果是 RSA 密钥交换算法，Client 用 46 字节的随机数作为预主密钥发送给 Server 即可。如果是 DH 算法，就是如“Diffie-Hellman 密钥交换示意图”中所示的数字 B。<br>至此，预主密钥(premaster secret)就协商完毕了。真正用于加密的 master secret 是由预主密钥经过进一步变化而生成。</p>
+<h4 id="7）ChangeCipherExchange"><a href="#7）ChangeCipherExchange" class="headerlink" title="7）ChangeCipherExchange"></a>7）ChangeCipherExchange</h4><p>这个消息表示已经生成加密密钥了，即将切换到的加密模式。</p>
+<h4 id="8）Finished"><a href="#8）Finished" class="headerlink" title="8）Finished"></a>8）Finished</h4><p>这个消息表示握手结束，消息内容即将加密。这个消息中很重要的一个字段是 verify_data, 其值是用<strong>协商得到的主密钥</strong>结合<strong>协商确定的 MAC 算法</strong>对所有<strong>按序排列的握手消息</strong>进行计算得到的散列值。这里可以体会下 CilentHello、ServerHello 这些握手消息中的随机数的作用。</p>
+<h4 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h4><p>《HTTPS 权威指南》<br>《IPSec VPN 实战指南》<br><a target="_blank" rel="noopener" href="https://tools.ietf.org/html/rfc5246">https://tools.ietf.org/html/rfc5246</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/http_nginx_to_https_upstream" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-07T12:21:32.000Z"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">2021-04-07</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">Nginx以HTTP反向代理HTTPS服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。</p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 作为反向代理向外提供服务。<br>Nginx 和 Web 应用部署在同一台机器，IP 为 10.115.6.165。Web 应用以 HTTPS 协议监听在端口 19026。<br>如果是 Windows 环境，推荐在 <a target="_blank" rel="noopener" href="http://nginx-win.ecsds.eu/">http://nginx-win.ecsds.eu/</a> 下载编译带入了更多模块的 Nginx，因为在下面我们会需要 headers more 模块中的 more_set_headers 指令。如果是 Linux 环境，也请确认 headers more 模块的 more_set_headers 指令可用。</p>
+<h3 id="Nginx-以-HTTP-的方式反向代理。"><a href="#Nginx-以-HTTP-的方式反向代理。" class="headerlink" title="Nginx 以 HTTP 的方式反向代理。"></a>Nginx 以 HTTP 的方式反向代理。</h3><p>用以下配置运行 Ngnix， 使其用 HTTP 协议在 9080 端口反向代理 19026 上的 HTTPS 服务。</p>
+<pre><code>server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+    &#125;
+&#125;
+</code></pre>
+<p>但是如果我们用浏览器访问<a target="_blank" rel="noopener" href="http://10.115.6.165:9080/databoard/login%EF%BC%8C%E5%B0%B1%E4%BC%9A%E5%8F%91%E7%8E%B0%E5%A6%82%E4%B8%8B%E5%9B%BE%E6%89%80%E7%A4%BA%E7%9A%84%E4%B8%A4%E9%97%AE%E9%A2%98%EF%BC%9A">http://10.115.6.165:9080/databoard/login，就会发现如下图所示的两问题：</a><br><img src="/2021/04/07/micro_service/http_nginx_to_https_upstream/nginxSetting.png"></p>
+<h4 id="1）后端服务使用-redirect-重定向导致的问题"><a href="#1）后端服务使用-redirect-重定向导致的问题" class="headerlink" title="1）后端服务使用 redirect 重定向导致的问题"></a>1）后端服务使用 redirect 重定向导致的问题</h4><p>浏览器地址栏上显示被重定向到了<a target="_blank" rel="noopener" href="https://10.115.6.165/databoard/dataCmder%E3%80%82%E8%BF%99%E6%98%AF%E5%9B%A0%E4%B8%BA%E5%90%8E%E7%AB%AFWeb%E5%BA%94%E7%94%A8%E6%89%A7%E8%A1%8C%E4%BA%86redirect%E9%87%8D%E5%AE%9A%E5%90%91%E8%AF%AD%E5%8F%A5%EF%BC%8C%E8%80%8C%E9%87%8D%E5%AE%9A%E5%90%91%E7%9A%84%E5%8D%8F%E8%AE%AE%E3%80%81%E5%9C%B0%E5%9D%80%E6%98%AF%E5%9F%BA%E4%BA%8Eweb%E5%BA%94%E7%94%A8%E4%B8%8A%E4%B8%8B%E6%96%87%E7%9A%84%EF%BC%8C%E8%80%8Cnginx%E5%B9%B6%E6%B2%A1%E6%9C%89%E5%81%9A%E7%89%B9%E5%88%AB%E7%9A%84%E5%A4%84%E7%90%86%E5%B0%B1%E8%BD%AC%E5%8F%91%E7%BB%99%E4%BA%86%E6%B5%8F%E8%A7%88%E5%99%A8%EF%BC%8C%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E7%84%B6%E4%B8%8D%E8%83%BD%E8%AE%BF%E9%97%AE%E5%88%B0%E8%BF%99%E4%B8%AA%E5%9C%B0%E5%9D%80%E3%80%82%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95%E5%A6%82%E4%B8%8B%EF%BC%9A">https://10.115.6.165/databoard/dataCmder。这是因为后端Web应用执行了redirect重定向语句，而重定向的协议、地址是基于web应用上下文的，而nginx并没有做特别的处理就转发给了浏览器，浏览器自然不能访问到这个地址。解决办法如下：</a></p>
+<pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+</code></pre>
+<h4 id="2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。"><a href="#2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。" class="headerlink" title="2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。"></a>2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。</h4><p>有 Secure 属性的 Cookie 意味着如果浏览器不是用 HTTPS 与服务建立链接，那么这个 cookie 里的值不会随请求一起向服务器发送。所以要解决这个问题就需要在 Nginx 中把 cookie 中的 Secure 属性去掉再传给浏览器。解决办法如下：</p>
+<pre><code>map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+</code></pre>
+<h4 id="完整的相关配置"><a href="#完整的相关配置" class="headerlink" title="完整的相关配置"></a>完整的相关配置</h4><pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="Nginx-以-HTTPS-的方式反向代理。"><a href="#Nginx-以-HTTPS-的方式反向代理。" class="headerlink" title="Nginx 以 HTTPS 的方式反向代理。"></a>Nginx 以 HTTPS 的方式反向代理。</h3><p>如果 nginx 是以 HTTPS 协议向外提供反向代理，那么无论使用七层代理还是四层代理配置起来都很简单，如下：</p>
+<h4 id="3）四层反向代理。"><a href="#3）四层反向代理。" class="headerlink" title="3）四层反向代理。"></a>3）四层反向代理。</h4><pre><code>stream &#123;
+    upstream databoardServer &#123;
+        hash $remote_addr consistent;
+        server 10.115.6.165:19026 weight=5;
+    &#125;
+
+    server &#123;
+        listen 9082;
+        proxy_connect_timeout 1s;
+        proxy_timeout 3s;
+        proxy_pass databoardServer;
+    &#125;
+&#125;
+</code></pre>
+<h4 id="4）七层反向代理。"><a href="#4）七层反向代理。" class="headerlink" title="4）七层反向代理。"></a>4）七层反向代理。</h4><pre><code>server &#123;
+    listen       443 ssl;
+    server_name  10.115.6.165;
+    ssl_certificate D:\\tmp\\opensslCrt\\demoAppChain.crt;
+    ssl_certificate_key D:\\tmp\\opensslCrt\\demoApp.key;
+
+    location / &#123;
+        proxy_pass https://10.115.6.165:19026;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Referer https://10.115.6.165;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="关于-Spring-Session-Cookie-Secure-配置"><a href="#关于-Spring-Session-Cookie-Secure-配置" class="headerlink" title="关于 Spring Session Cookie Secure 配置"></a>关于 Spring Session Cookie Secure 配置</h3><p>当时想直接配置 Spring Web 应用不让 Cookie 带上 Secure 属性，这样就不用在 Nginx 上处理 Cookie 了。于是直接修改配置 application.properties 如下，但是返回给 nginx 的 Cookie 还是带 Secure 属性。</p>
+<pre><code>server.session.cookie.secure=true
+</code></pre>
+<p>通过跟踪 Spring 源码发现，只要应用是运行在 HTTPS 协议下的，那么就会让生成的 Cookie 是 Secure 的。<br><img src="/2021/04/07/micro_service/http_nginx_to_https_upstream/secureOverride.png"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/secure_your_service_with_https" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">2021-04-01</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">创建基于HTTPS的服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="关于私钥、公钥的生成"><a href="#关于私钥、公钥的生成" class="headerlink" title="关于私钥、公钥的生成"></a>关于私钥、公钥的生成</h3><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/charlesblc/p/6130433.html">https://www.cnblogs.com/charlesblc/p/6130433.html</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_41259576/article/details/91356419">https://blog.csdn.net/qq_41259576/article/details/91356419</a></p>
+<h3 id="KeyStore-vs-OpenSSL"><a href="#KeyStore-vs-OpenSSL" class="headerlink" title="KeyStore vs OpenSSL"></a>KeyStore vs OpenSSL</h3><h3 id="KeyStore-with-keytool"><a href="#KeyStore-with-keytool" class="headerlink" title="KeyStore with keytool"></a>KeyStore with keytool</h3><p>KeyStor 有三种类型（格式）：JKS， PKCS12 。。</p>
+<h4 id="1-创建一个自签名证书和密钥"><a href="#1-创建一个自签名证书和密钥" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><pre><code>keytool -genkeypair -keystore demoAppKeyStore.jks \
+-alias demoAppServer \
+-keyalg RSA \
+-keysize 3072 \
+-validity 36500 \
+-storepass demoApp
+</code></pre>
+<h4 id="2-导出证书"><a href="#2-导出证书" class="headerlink" title="2. 导出证书"></a>2. 导出证书</h4><pre><code>keytool -export -alias demoAppServer -file demoApp.crt -keystore demoAppKeyStore.keystore
+</code></pre>
+<h4 id="1-创建一个自签名证书和密钥-1"><a href="#1-创建一个自签名证书和密钥-1" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-2"><a href="#1-创建一个自签名证书和密钥-2" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><h4 id="1-创建一个自签名证书和密钥-3"><a href="#1-创建一个自签名证书和密钥-3" class="headerlink" title="1. 创建一个自签名证书和密钥"></a>1. 创建一个自签名证书和密钥</h4><p>docker run –name nginx -v ~/devEnv/dockerSrvStorage/nginx.conf:/etc/nginx/nginx.conf:ro -d nginx</p>
+<h3 id="什么是跨站请求伪造"><a href="#什么是跨站请求伪造" class="headerlink" title="什么是跨站请求伪造"></a>什么是跨站请求伪造</h3><p>例子：A 是受害用户，B 是银行，C 是恶意代码。C 利用浏览器里存在的有效 A 到 B 的 session(cookie)来伪造请求。再加上利用 XSS 漏洞，用户可以子在无感知的情况下被伤害。<br>Cross-Site Scripting (XSS)</p>
+<p><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf-explained</a></p>
+<p>Reference:</p>
+<p>What is keystore: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/23202046/what-is-keystore">https://stackoverflow.com/questions/23202046/what-is-keystore</a><br>openssl vs keystore: <a target="_blank" rel="noopener" href="https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool">https://security.stackexchange.com/questions/98282/difference-between-openssl-and-keytool</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/api_gateway" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-22T13:49:17.000Z"><a href="/2021/03/22/micro_service/api_gateway/">2021-03-22</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/22/micro_service/api_gateway/">API网关</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/dfs" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-21T06:51:25.000Z"><a href="/2021/03/21/micro_service/dfs/">2021-03-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/21/micro_service/dfs/">文件管理服务</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这个服务基于 FastDFS 实现文件的上传、下载、删除，文件元数据维护的功能。</p>
+<p>FastDFS 官方客户端地址：<a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs-client-java">https://github.com/happyfish100/fastdfs-client-java</a><br>简单的关于 fastdfs-client-java 使用 demo：<a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1407660">https://cloud.tencent.com/developer/article/1407660</a></p>
+<p>一些关于使用 FastDFS 的文档：<a target="_blank" rel="noopener" href="https://blog.csdn.net/dingcai12003/article/details/96046404">https://blog.csdn.net/dingcai12003/article/details/96046404</a><br>有些库又做了二次封装（比如 com.github.tobato:fastdfs-client），但是感觉官方客户端库里已经有了简单的连接管理，所以小并发量使用看不到再池化的意义。</p>
+<p>项目使用 Gradle 做构建工具，在 Gradle 仓库中找不到 FastDFS 的库。因此要把 mavenLocal()设置到 repositories 里。<br>如果手工安装特定 FastDFS 库到本地 maven 仓库，可以执行如下命令：</p>
+<pre><code>git clone git@github.com:happyfish100/fastdfs-client-java.git
+cd fastdfs-client-java
+git fetch --all --tags
+git checkout tags/V1.28 -b V1.28
+mvn clean source:jar install
+</code></pre>
+<p>mkdir -p /home/devops/dockerSrvStorage/mysql<br>docker run –name mysql -e MYSQL_ROOT_PASSWORD=password -p 3306:3306 <br> –restart=always <br> -v /home/devops/dockerSrvStorage/mysql/conf.d:/etc/mysql/conf.d <br> -v /home/devops/dockerSrvStorage/mysql/logs:/logs <br> -v /home/devops/dockerSrvStorage/mysql/data/mysql:/var/lib/mysql <br> -d mysql:8.0.22 <br> –character-set-server=utf8mb4 <br> –collation-server=utf8mb4_unicode_ci</p>
+<p>官方 MySQL docker 文档：<a target="_blank" rel="noopener" href="https://hub.docker.com/_/mysql">https://hub.docker.com/_/mysql</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_FastDFS_dev_env" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-20T10:19:36.000Z"><a href="/2021/03/20/devops/setup_FastDFS_dev_env/">2021-03-20</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/20/devops/setup_FastDFS_dev_env/">在Ubuntu20上安装FastDFS环境</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>应用中一般会有文件上传、下载相关业务。这里通过使用 FastDFS 构建一个简单的分布式文件系统满足一般的需求。实际项目中分布式文件系统的选择根据业务需求、团队技术栈具体选择。</p>
+<p>安装环境依旧是利用 KVM 虚拟机完成。开发环境使用 FastDFS 的单机部署就可以。生成环境使用分布式部署提高性能及可靠性。<br>单机模式就是把 tracker 和 storage 都安装在同一台机器上，虽然 IP 相同但是可以通过使用不同 port 来在单机实习集群功能。<br>分布式部署就是在不同机器安装安装不同的 Tracker、Storage 节点。</p>
+<h3 id="1-构建-Ubuntu20-虚拟机，用于安装-FastDFS。"><a href="#1-构建-Ubuntu20-虚拟机，用于安装-FastDFS。" class="headerlink" title="1. 构建 Ubuntu20 虚拟机，用于安装 FastDFS。"></a>1. 构建 Ubuntu20 虚拟机，用于安装 FastDFS。</h3><h4 id="虚拟机设置"><a href="#虚拟机设置" class="headerlink" title="虚拟机设置"></a>虚拟机设置</h4><p>如前几篇文章一样，在 virt-infra-ansible/inventory 目录下设置 FastDFS 服务器配置。因为这是用于原型验证，所以这里硬盘配置仅仅是 20G。给每个虚拟机设置 mac 是为了对 IP 进行绑定、DNS 设置。<br>因为安装 FastDFS 需要编译环境，所以通过 virt_infra_disk_cmd 让虚拟机预先执行必要安装：</p>
+<pre><code>apt -y install git gcc g++ make automake autoconf libtool pcre2-utils libpcre2-dev libpcre3 libpcre3-dev  zlib1g zlib1g-dev openssl libssh-dev wget vim
+</code></pre>
+<p>所以</p>
+<pre><code>fastDfsServers:
+  hosts:
+    dfsServer0:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:10&quot;
+    dfsServer1:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:11&quot;
+    dfsServer2:
+      ansible_python_interpreter: /usr/bin/python3
+      virt_infra_networks:
+        - name: br0
+          type: bridge
+          mac: &quot;52:54:00:81:45:12&quot;
+  vars:
+    virt_infra_state: running
+    virt_infra_distro: ubuntu
+    virt_infra_distro_image: focal-server-cloudimg-amd64.img
+    virt_infra_autostart: yes
+    ansible_python_interpreter: /usr/bin/python3
+    virt_infra_timezone: &quot;Asia/Shanghai&quot;
+    virt_infra_root_password: password
+    virt_infra_disk_size: 20
+    virt_infra_ram: 4094
+    virt_infra_ram_max: 8192
+    virt_infra_cpus: 4
+    virt_infra_cpus_max: 8
+    virt_infra_networks:
+      - name: br0
+        type: bridge
+    virt_infra_disk_cmd:
+      - apt update
+      - apt install -y net-tools
+      - apt -y install git gcc g++ make automake autoconf libtool pcre2-utils libpcre2-dev libpcre3 libpcre3-dev  zlib1g zlib1g-dev openssl libssh-dev wget vim
+</code></pre>
+<h4 id="一键创建虚拟机"><a href="#一键创建虚拟机" class="headerlink" title="一键创建虚拟机"></a>一键创建虚拟机</h4><p>依旧是按照老套路创建虚拟机。登录 KVM HOST，执行：</p>
+<pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,fastDfsServers
+</code></pre>
+<h4 id="设置-DHCP-服务绑定-mac-和-IP，设置-DNS-服务绑定-IP-和域名"><a href="#设置-DHCP-服务绑定-mac-和-IP，设置-DNS-服务绑定-IP-和域名" class="headerlink" title="设置 DHCP 服务绑定 mac 和 IP，设置 DNS 服务绑定 IP 和域名"></a>设置 DHCP 服务绑定 mac 和 IP，设置 DNS 服务绑定 IP 和域名</h4><p>因为这里是直接利用无线路由提供的 DHCP 服务，为了绑定 MAC、IP 直接登录无线网关通过 Web 页面进行。</p>
+<p>如上篇所述，我们的环境中已经安装了 CoreDNS 服务，所以我们可以为 fastDFS 服务器们设置域名。<br>因为 virt-infra-ansible 工具会在成功创建虚拟机后把 IP 写入 hosts 文件，所以可通过 KVM HOST 上的 hosts 文件查看刚刚创建出虚拟机的 IP。</p>
+<p>登录 repositoryServer，</p>
+<pre><code>cd /home/devops/dockerSrvStorage/coredns
+vi hostsfile
+</code></pre>
+<p>添加 IP 到机器名/域名的映射。</p>
+<pre><code>192.168.0.116 dfsServer0 dfsTracker
+192.168.0.104 dfsServer1 dfsStorage0
+192.168.0.117 dfsServer2 dfsStorage1
+</code></pre>
+<h3 id="2-安装-FastDFS"><a href="#2-安装-FastDFS" class="headerlink" title="2. 安装 FastDFS"></a>2. 安装 FastDFS</h3><p>参照官方安装指南 <a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs/wiki">https://github.com/happyfish100/fastdfs/wiki</a> 很容易安装。</p>
+<p>创建文件夹 /home/fastdfs 用于保存 fastdfs 管理的文件和日志。<br>利用目录 /usr/local/src 保存需要编译的源码。<br>这里 checkout v6.07 版本的 fastDFS 进行安装，其它步骤与官方文档基本一直。</p>
+<pre><code>cd /usr/local/src
+git clone https://github.com/happyfish100/fastdfs.git --depth 1
+cd fastdfs/
+git fetch --all --tags
+git checkout tags/V6.07 -b V6.07
+git pull
+./make.sh &amp;&amp; ./make.sh install
+</code></pre>
+<h3 id="3-启动-FastDFS"><a href="#3-启动-FastDFS" class="headerlink" title="3. 启动 FastDFS"></a>3. 启动 FastDFS</h3><h4 id="启动-tracke、storage-服务："><a href="#启动-tracke、storage-服务：" class="headerlink" title="启动 tracke、storage 服务："></a>启动 tracke、storage 服务：</h4><pre><code>/etc/init.d/fdfs_trackerd start
+/etc/init.d/fdfs_storaged start
+</code></pre>
+<h4 id="查看-fastDFS-服务状态："><a href="#查看-fastDFS-服务状态：" class="headerlink" title="查看 fastDFS 服务状态："></a>查看 fastDFS 服务状态：</h4><pre><code>/usr/bin/fdfs_monitor /etc/fdfs/storage.conf
+</code></pre>
+<h4 id="设置开机自启动"><a href="#设置开机自启动" class="headerlink" title="设置开机自启动"></a>设置开机自启动</h4><p>vi /lib/systemd/system/rc-local.service 并添加如下内容：</p>
+<pre><code>[Install]
+WantedBy=multi-user.target
+Alias=rc-local.servic
+</code></pre>
+<p>创建/etc/rc.local，并添加如下内容：</p>
+<pre><code>touch /etc/rc.local
+chmod +x /etc/rc.local
+
+#!/bin/sh
+
+/etc/init.d/fdfs_trackerd start
+/etc/init.d/fdfs_storaged start
+</code></pre>
+<h3 id="4-测试-fastDFS"><a href="#4-测试-fastDFS" class="headerlink" title="4. 测试 fastDFS"></a>4. 测试 fastDFS</h3><p>修改 /etc/fdfs/client.conf 中如下配置：</p>
+<pre><code>base_path=/home/fastdfs
+tracker_server=dfsServer0
+</code></pre>
+<p>测试上传</p>
+<pre><code>fdfs_upload_file /etc/fdfs/client.conf /usr/local/src/nginx-1.15.4.tar.gz
+</code></pre>
+<p>Reference:</p>
+<p>官网：<a target="_blank" rel="noopener" href="https://github.com/happyfish100/fastdfs/">https://github.com/happyfish100/fastdfs/</a><br>一般性介绍：<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/1c71ae024e5e">https://www.jianshu.com/p/1c71ae024e5e</a><br>FastDFS 在 Ubuntu 的安装配置: <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29133587">https://zhuanlan.zhihu.com/p/29133587</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/3/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/5/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

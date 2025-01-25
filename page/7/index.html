@@ -1,0 +1,752 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 7 页 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-网站环境设置（1）" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-16T13:53:29.000Z"><a href="/2020/09/16/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/">2020-09-16</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/16/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/">网站环境设置（1）</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.ssh
+ssh-keygen -t rsa
+</code></pre>
+<h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip
+</code></pre>
+<h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IP
+HostName Server_Name
+IdentityFile YOUR_PRIVATE_KEY_FILE_PATH
+</code></pre>
+<h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p>
+<h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p>
+<h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p>
+<h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p>
+<pre><code>root /home/devop/linkedall/web;
+index index.html index.htm;
+
+server_name www.linkedall.netlinkedall.net *.linkedall.net;
+
+location / &#123;
+  try_files $uri $uri/ =404;
+&#125;
+location ~* \.(html)$ &#123;
+  access_log off;
+  add_header  Cache-Control  max-age=no-cache;
+&#125;
+
+location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#123;
+  access_log off;
+  add_header    Cache-Control  max-age=360000;
+&#125;
+... ...
+</code></pre>
+<h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server &#123;
+  listen 80 default_server;
+  listen [::]:80 default_server ipv6only=on;
+  root /usr/share/nginx/html;
+  index index.html index.htm;
+
+  # Make site accessible from http://localhost/
+  server_name www.telbox.cn;
+
+  location / &#123;
+          proxy_pass http://localhost:8080;
+          # First attempt to serve request as file, then
+          # as directory, then fall back to displaying a 404.
+  # try_files $uri $uri/ =404;
+          # Uncomment to enable naxsi on this location
+          # include /etc/nginx/naxsi.rules
+  &#125;
+</code></pre>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://juejin.im/post/6844903604034240525">https://juejin.im/post/6844903604034240525</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-read-text-file-in-reactive-way" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-05-21T07:29:16.000Z"><a href="/2020/05/21/read-text-file-in-reactive-way/">2020-05-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/05/21/read-text-file-in-reactive-way/">read text file in reactive way</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。<br>Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。<br>stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.fromStream 提供了方便的接口，直接把 stream 转为 flux。考虑到对文件这种资源使用之后都要有 close 这种操作，那么直接使用 Flux.using 就再合适不过了，免去了手动释放资源这种模版式的代码。</p>
+<p>private static Flux<String> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</p>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://simonbasle.github.io/2017/10/file-reading-in-reactor/">https://simonbasle.github.io/2017/10/file-reading-in-reactor/</a><br>这篇文章里有关于的 window 各种用法的解释：<a target="_blank" rel="noopener" href="https://blog.51cto.com/liukang/2094073%E3%80%82">https://blog.51cto.com/liukang/2094073。</a><br>通过 Jackson 流式解析 Json：<a target="_blank" rel="noopener" href="https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/">https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/</a></p>
+<p>Flux 的 create 和 generate 的区别。</p>
+<p>Mokito <a target="_blank" rel="noopener" href="https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit">https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-用CountDownLatch做并发练习题" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-04-11T07:55:38.000Z"><a href="/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/">2020-04-11</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/">用CountDownLatch做并发练习题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>拿CountDownLatch对比着Semaphore来学习会简单很多。<br>CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说</p>
+<h5 id="1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"><a href="#1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。" class="headerlink" title="1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"></a>1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。</h5><h5 id="2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。"><a href="#2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。" class="headerlink" title="2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。"></a>2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。</h5><p>所以，对于LeetCode多线程练习题，只有1114题可以用CountDownLatch来完成。 <a target="_blank" rel="noopener" href="https://leetcode-cn.com/problemset/concurrency/">https://leetcode-cn.com/problemset/concurrency/</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Concurrency-in-LeetCode" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-04-10T10:03:53.000Z"><a href="/2020/04/10/Concurrency-in-LeetCode/">2020-04-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/10/Concurrency-in-LeetCode/">用Semaphore解决LeetCode并发练习题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h4><p>Semaphore不像是内部锁那样要求你在调用wait，notify之前要先拥有锁。信号量的方法对被哪个线程调用没有限制，任何线程都可调用Semaphore的acquire, release，只是信号数量如果不够的话那么线程会在调用acquire时被block而已。另外，一个信号量可以用0初始化，通过release(), release(n)调用给它添加可用信号的数量。 </p>
+<p>比如，下面的代码通过release(3)给信号量添加了3个许可。我自己心里总是把一个信号隐喻到一个许可证。就应付这几道练习题来说，这种理解似乎还能自圆其说。</p>
+<p>Semaphore semaphore = new Semaphore(0);<br>semaphore.release(3);<br>int i = semaphore.availablePermits();<br>System.out.println(“i = “ + i);</p>
+<p>利用信号量协调线程的执行其核心是通过在业务逻辑的（当然是由不同线程驱动的）进口、出口来调节信号/许可的数量。</p>
+<p>利用下面的知识点应该就足够团灭这几道题了。</p>
+<ol>
+<li><p>线程只有通过acquire(n)拿到所需信号才能继续执行，如果信号数量不够就会被阻塞。</p>
+</li>
+<li><p>调用release(n)会释放指定数量的信号。释放信号的线程不必是之前acquire信号的线程。</p>
+</li>
+<li><p>因此一般的套路是：对于需要首先在某线程执行的逻辑我们可以初始化适量的信号，而对需要阻塞的线程则把信号初始化为0.</p>
+</li>
+</ol>
+<p>4）某个线程执行完一步，就释放信号给下一步让下一步的逻辑可以获得许可在线程中运行起来。如此递推下去。</p>
+<p>LeetCode并发专栏的六道题都有多种解法，都可以用信号量刷一遍。</p>
+<p>下面的练习我把Semaphore变量都命名成了permission来强调这种基于信号的允许、禁止的感觉。</p>
+<p>LeetCode 1114, 多线程按序打印1，2，3。</p>
+<pre><code>public class FooBySemaphore &#123;
+
+    public FooBySemaphore() &#123;&#125;
+
+    // 先打印 one， 所以这个初始化为放行。
+    private Semaphore firstPermission = new Semaphore(1);
+    // 初始化 0许可，在任务的不同阶段 ‘添加许可’ 以 ‘放行线程’
+    private Semaphore secondPermission = new Semaphore(0);
+    private Semaphore thirdPermission = new Semaphore(0);
+
+    public void first(Runnable printFirst) throws InterruptedException &#123;
+        firstPermission.acquire();
+        printFirst.run();
+        secondPermission.release(); // 放行第二个线程
+    &#125;
+
+    public void second(Runnable printSecond) throws InterruptedException &#123;
+        secondPermission.acquire();
+        printSecond.run();
+        thirdPermission.release(); // 放行第三个线程
+    &#125;
+
+    public void third(Runnable printThird) throws InterruptedException &#123;
+        thirdPermission.acquire();
+        printThird.run();
+        firstPermission.release(); // 放行第一个线程
+    &#125;
+&#125;
+</code></pre>
+<p>LeetCode 1117,  多线程生成水分子。</p>
+<pre><code>public class H2OBySemaphore &#123;
+    /**
+     * 1个O原子需要2个H原子，就是说，O不能被生产直到有两个H原子被生产出来。
+     *
+     * 可以定义一个信号量 oSemaphore，每当一个氢原子被生产出来，就把这个信号量加1。
+     * 生产出2个氢原子后oSemaphore的信号数量就是2。
+     * 而生产O原子的线程需要被阻塞，直到能够 acquire 到两个信号(对应到有2个氢原子了)。
+     *
+     * 同样，氢原子不能被生产，直到有一个氧原子被产生出来。
+     */
+    public H2OBySemaphore() &#123;
+    &#125;
+
+    private Semaphore hPermission = new Semaphore(2); //_ 这个设置是让氢原子有优先权先生产。
+    private Semaphore oPermission = new Semaphore(0); //_ 如果是把这个信号量初始化为2，就是让氧原子先生产。
+    public void hydrogen(Runnable releaseHydrogen) throws InterruptedException &#123;
+        hPermission.acquire();
+        releaseHydrogen.run();
+        oPermission.release();
+    &#125;
+
+    public void oxygen(Runnable releaseOxygen) throws InterruptedException &#123;
+        oPermission.acquire(2);
+
+        releaseOxygen.run();
+        hPermission.release(2);
+    &#125;
+&#125;
+</code></pre>
+<p>LeetCode 1226, 哲学家就餐问题。</p>
+<pre><code>public class DiningPhilosophers &#123;
+
+    private Semaphore[] forksPermission = new Semaphore[5];
+
+    public DiningPhilosophers() &#123;
+        for (int i = 0; i &lt; 5; i ++) &#123;
+            forksPermission[i] = new Semaphore(1);
+        &#125;
+    &#125;
+
+    // call the run() method of any runnable to execute its code
+    public void wantsToEat(int philosopher,
+                           Runnable pickLeftFork,
+                           Runnable pickRightFork,
+                           Runnable eat,
+                           Runnable putLeftFork,
+                           Runnable putRightFork) throws InterruptedException &#123;
+
+        int leftFork = philosopher;
+        //_ 右边的叉子编号应该比左边的小1，为了防止溢出 (5 + philosopher - 1) % 5
+        int rightFork = (philosopher + 4) % 5;
+        while (true) &#123;
+            // 尝试拿左叉，再拿右叉。如果同时抢左右则有死锁可能性。
+            if (forksPermission[leftFork].tryAcquire()) &#123; 
+                // pickLeftFork.run(); //_ 其实应该这样更有道理，拿到左叉许可就应可执行。
+                // 拿到左叉，尝试拿右叉。
+                if (forksPermission[rightFork].tryAcquire()) &#123;
+                    // 左叉，右叉都拿到了。开吃！ 
+                    pickLeftFork.run();
+                    pickRightFork.run();
+                    
+                    eat.run();
+
+                    putLeftFork.run();
+                    forksPermission[leftFork].release();
+                    putRightFork.run();
+                    forksPermission[rightFork].release();
+                    
+                    break; // 吃完退出(线程)
+                &#125; else &#123;
+                    // 抢到左叉却没拿到右叉，则释放左叉给别人。自己也再重新抢。
+                    forksPermission[leftFork].release();
+                    Thread.sleep(1); //_ 为什么必须sleep？
+                &#125;
+            &#125; else &#123;
+                // 没抢到左叉，歇歇继续试。
+                Thread.sleep(1);  //_ 为什么必须sleep？
+            &#125;
+        &#125;
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Nonblocking-comes-from-CAS" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-04-02T07:39:09.000Z"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">2020-04-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/04/02/Nonblocking-comes-from-CAS/">锁这个词太有意思了，有几个意思？</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>读了第15章，大致感觉到了CAS的乐观锁特性。锁这个词太有意思了，有几个意思？</p>
+<p>并发(多线程)编程的挑战之一就是解决对共享数据的竞争读写。各种Synchronizer的实现构成了解决这个问题的工具箱。<br>从更一般的、更笼统的意义上讲锁跟synchronizer其实一个意思，都可以看作是协调线程、控制线程的对象。这里所谓的更一般是说，我们可以把CountDownLatch、Semphore这些不带Locak字眼的Synchronizer也化分到锁这个概念里。</p>
+<p>这样把概念统一到锁上之后，我们就可以把锁/Synchronizer分成耳熟能详的两类了：悲观锁、乐观锁。<br>对于乐观锁正如数据库事务解决方案里提到的乐观锁的概念，核心就是与观察旧值是否有变化而决定是否成功修改。<br>所以乐观锁想成基于“compare and set”的算法更好。更进一步把锁想成算法就好，具体的门锁那种感觉有点二狭隘了。<br>从最根本的提供“锁“算法实现的CPU指令上讲：对于乐观锁是CAS(LL, SC)提供了最核心的支持，对于悲观锁(对应到OS的互斥量，java的thread都一一映射到OS的thread)是lock指令前缀。除了这些CPU指令还有混存一致性协议这样的技术一起向上层提供了实现各种Syncrhonizer(悲观锁/乐观锁)的最基础支持。更详细内容可以参考文末的引用链接。</p>
+<p>基于CAS实现的乐观锁其实不牵扯到什么类似mutex这样<strong>具体的锁</strong>，把它当作一种synchronizer就好(怎么有点儿金刚经的感觉)。我们可以利用CAS指令实现了非阻塞的多线程协调工作的各种算法。比如，列用CAS实现非阻塞计数器、非阻塞栈、非阻塞队列。JDK中的ConcurrentLinkedQueue就是利用原子化域更新器实现的支持并发(多线程)操作的非阻塞数据结构。</p>
+<p>基于CAS cpu指令的有ABA问题。而load-linked/store-condition这样的cpu指令可以避免ABA问题。<br>从API的角度，可以用AtomicMarkableReference, AtomicStampedReference避免CAS下的ABA。<br><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/ABA_problem%E3%80%82">https://en.wikipedia.org/wiki/ABA_problem。</a></p>
+<p>References:<br>《Java并发编程实践》<br><a target="_blank" rel="noopener" href="https://www.ibm.com/developerworks/cn/java/j-jtp04186/">https://www.ibm.com/developerworks/cn/java/j-jtp04186/</a></p>
+<p>0、<a target="_blank" rel="noopener" href="https://blog.csdn.net/Saintyyu/article/details/94493694">https://blog.csdn.net/Saintyyu/article/details/94493694</a><br>1、<a target="_blank" rel="noopener" href="https://blog.csdn.net/zacklin/article/details/7445442">https://blog.csdn.net/zacklin/article/details/7445442</a> 原子操作与 x86 上的 lock 指令前缀<br>2、<a target="_blank" rel="noopener" href="https://www.cnblogs.com/xrq730/p/7048693.html">https://www.cnblogs.com/xrq730/p/7048693.html</a> 就是要你懂Java中volatile关键字实现原理<br>3、<a target="_blank" rel="noopener" href="https://blog.csdn.net/u011244446/article/details/52574369">https://blog.csdn.net/u011244446/article/details/52574369</a> Linux 互斥锁、原子操作实现原理<br>4、<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/6745203ae1fe">https://www.jianshu.com/p/6745203ae1fe</a> 关于volatile、MESI、内存屏障、#Lock<br>5、<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/61490effab35">https://www.jianshu.com/p/61490effab35</a> 操作系统中锁的原理<br>6、<a target="_blank" rel="noopener" href="https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html">https://www.cnblogs.com/XiaoHDeBlog/p/3740270.html</a> Linux中同步互斥机制研究之原子操作<br>7、<a target="_blank" rel="noopener" href="https://blog.csdn.net/Saintyyu/article/details/100838503">https://blog.csdn.net/Saintyyu/article/details/100838503</a> cas vs mutex</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-About-Lock-and-Synchronizer" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-03-30T12:48:33.000Z"><a href="/2020/03/30/About-Lock-and-Synchronizer/">2020-03-30</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/03/30/About-Lock-and-Synchronizer/">About Lock and Synchronizer</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>引子：说AbstractQueuedSynchronizer（AQS）是构建锁和Synchronizer的框架。锁，好像大家都知道，至少自以为都知道 ：）。那什么是synchronizer呢？ Lock和Synchronize是什么关系？</p>
+<p>Synchronizer，它是一个根据自身状态调节线程执行的对象。就是用来协调(多)线程执行的对象。从这个角度讲Java的内置锁就是一种synchronizer，它以互斥的可重入的方式协调/控制线程的执行。<br>Java的阻塞队列也是一种synchronizser。<br>再比如：信号量Semaphore、闭锁Latch、关卡Barrier都是不同类型的synchronizer。</p>
+<h4 id="信号量"><a href="#信号量" class="headerlink" title="信号量"></a>信号量</h4><p><strong>Semaphore</strong>可以用来控制<strong>同时</strong>访问某资源的线程数量。把对这些资源的获取操作包装起来，获取资源前先调用信号量的acquire()申请许可，资源使用使用完毕后通过release()释放许可。对池化资源的管理一般可用信号量完成。</p>
+<h4 id="闭锁"><a href="#闭锁" class="headerlink" title="闭锁"></a>闭锁</h4><p>英文<strong>Latch</strong>有门闩的意思，门闩就是用来把门关紧不让出入。在并发编程里也是这个意思，我们用latch这个对象禁止线程的执行，什么时候允许线程通过这个门闩呢？对于CountDownLatch来说，就是计数变为0的时候。对于FutureTask来说就是可以拿到计算结果的时候(当然也可能是计算异常了)。一个应用场景：可以把闭锁当作一个发令枪，它可以让线程等到信号后一起运行。</p>
+<h4 id="关卡"><a href="#关卡" class="headerlink" title="关卡"></a>关卡</h4><p><strong>Barrier</strong>中文就是“障碍物、栅栏”的意思，文绉绉的翻译就是“关卡”。它其实像极了闭锁，与闭锁不同的是：闭锁等待的是事件，而关卡等待的是线程。从API调用的感觉感觉上讲，Barrier是在工作线程正儿八经的工作都执行完毕后(取决于业务场景)，调用barrier.await()使工作线程阻塞住，直到所有其它工作线程也都完成个各自的任务并都调用了barrier.await()，这个时候关卡就被冲破。这里等待的条件是有线程调用barrier.await()。而Latch是在工作线程中调用latch.await()，等待闭锁被开启来执行。闭锁是怎样被开启的？它是依靠latch.countDown()到0后被开启的，谁countdown跟哪个线程没什么直接关系。而barrier.await()是需要实实在在的线程阻塞，这就是为什么说barrier等待的是线程，latch等的是信号。<br>经常使用关卡到场景是，一个任务分成n个子任务后，等待这n个子任务<strong>都</strong>完成后再做下一步工作。<br>CyclicBarrier的构造函数接受一个线程数以及一个关卡被突破后要执行的动作。<br>Exchanger是另一种关卡，用来为两个线程交换数据，当然是以线程安全的方式交换。</p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://web.mit.edu/6.005/www/fa15/classes/23-locks/">https://web.mit.edu/6.005/www/fa15/classes/23-locks/</a><br>《Java并发编程实践》<br><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Synchronization_(computer_science)">https://en.wikipedia.org/wiki/Synchronization_(computer_science)</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Ordered-and-Ordering" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-03-10T02:01:29.000Z"><a href="/2020/03/10/Ordered-and-Ordering/">2020-03-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/03/10/Ordered-and-Ordering/">Ordered and Ordering</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Java关于比较有两个基础接口：Comparable，Comparator。<br>其中Comparatable接口只定义了一个方法</p>
+<pre><code>public int compareTo(T o);
+</code></pre>
+<p>而Comparator相对复杂:</p>
+<pre><code>int compare(T o1, T o2);
+thenComparing() ... 
+</code></pre>
+<p>Scala与之对应的比较是Ordered，Ordering。<br>Ordered类似Comparable，并多出</p>
+<p><a target="_blank" rel="noopener" href="https://www.scala-lang.org/api/current/scala/math/Ordering.html">https://www.scala-lang.org/api/current/scala/math/Ordering.html</a></p>
+<p>This trait and scala.math.Ordered both provide this same functionality, but in different ways. A type T can be given a single way to order itself by extending Ordered. Using Ordering, this same type may be sorted in many other ways. Ordered and Ordering both provide implicits allowing them to be used interchangeably.</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Future-s-mail-box-Promise" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-03-05T15:46:39.000Z"><a href="/2020/03/05/Future-s-mail-box-Promise/">2020-03-05</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/03/05/Future-s-mail-box-Promise/">未来的邮箱：Promise</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>按照Erik的介绍，我们可以把Promise当作是装Future的邮箱/容器。<br>可从它的两个方法签名可以体会下，你可以向邮箱里放成功的数据或者失败的Exception。</p>
+<pre><code>def successful[T](result: T): Promise[T]
+def failed[T](exception: Throwable): Promise[T]
+</code></pre>
+<p>放了值之后，可以调用Promise的future() 得到一个已经完成了的Future。<br>Promise最核心的就是这个逻辑：你可以通过Promise.future()得到一个Future对象，而future里的计算结果是在什么其它地方(当然一般情况是在其它线程里、回调代码里)计算好放进去的。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line"><span class="keyword">val</span> f = p.future</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">produce</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  <span class="type">Thread</span>.sleep(<span class="number">500</span>)</span><br><span class="line">  p.success(<span class="number">1</span>)</span><br><span class="line">  println(<span class="string">&quot;Produce done&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">consume</span></span>() = <span class="type">Future</span> &#123;</span><br><span class="line">  f.foreach(r =&gt; println(<span class="string">s&quot;Get <span class="subst">$r</span>&quot;</span>))</span><br><span class="line">  println(<span class="string">s&quot;Consume done&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">produce()</span><br><span class="line">consume()</span><br><span class="line"><span class="type">StdIn</span>.readLine(<span class="string">&quot;End?\n&quot;</span>)</span><br></pre></td></tr></table></figure>
+<p>这段代码的打印如下内容，可以看到consume()方法已经执行完了才打印出“Get 1”。</p>
+<pre><code>Consume done
+End?
+Produce done
+Get 1
+</code></pre>
+<p>这个也好理解，foreach只是针对future Success的情况提供了callback机制。需要注意的是Future可以通过onComplete, foreach注册多个callback，但是这些callback运行先后以及运行所在线程是没有保证的。这点区别于map、flatMap。</p>
+<p>本来想试着用Promise实现 List[Future[T]] 到 Future[List[T]]的转换，找到foldLeft这种方式。如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts.foldLeft(<span class="type">Future</span>&#123; <span class="type">List</span>.empty[<span class="type">T</span>]&#125;)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>画蛇添足地再体验下promise：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequenceByPromise</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">List</span>[<span class="type">T</span>]]()</span><br><span class="line">  <span class="keyword">val</span> result = p.success(<span class="type">List</span>.empty[<span class="type">T</span>]).future</span><br><span class="line"></span><br><span class="line">  fts.foldLeft(result)((acc, ft) =&gt; acc.flatMap(ts =&gt; ft.map(t =&gt; ts :+ t)))</span><br><span class="line">  result</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>下面代码演示了如何把callback风格代码转为Future风格。在Akka actor框架里，如果需要异步的执行代码并且后面的代码需要这个异步执行的结果，我们就可以通过Promise把结果封装到Future里。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">CallbackBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(continuation: <span class="type">Try</span>[<span class="type">Int</span>] =&gt; <span class="type">Unit</span>): <span class="type">Unit</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">trait</span> <span class="title">FutureBasedApi</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>(): <span class="type">Future</span>[<span class="type">Int</span>]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">futurize</span></span>(callbackBasedApi: <span class="type">CallbackBasedApi</span>): <span class="type">FutureBasedApi</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> p = <span class="type">Promise</span>[<span class="type">Int</span>]()</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 体会下把“Try=&gt;Unit”当做complete的参数。</span></span><br><span class="line">  callbackBasedApi.computeIntAsync( t =&gt; p.complete(t))</span><br><span class="line"></span><br><span class="line">  <span class="keyword">new</span> <span class="type">FutureBasedApi</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">computeIntAsync</span></span>() = p.future</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://docs.scala-lang.org/overviews/core/futures.html">https://docs.scala-lang.org/overviews/core/futures.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Future-sequence" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-03-02T13:21:09.000Z"><a href="/2020/03/02/Future-sequence/">2020-03-02</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/03/02/Future-sequence/">Try Future sequence</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这两天重新看了点儿Erik Meijer讲Try和Future，自己对他所讲内容没有什么违和感了，蛮开心的。</p>
+<h3 id="1）关于Option-T-Either-E-R-和-Try-T-的使用场景。"><a href="#1）关于Option-T-Either-E-R-和-Try-T-的使用场景。" class="headerlink" title="1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。"></a>1）关于Option[T], Either[E, R] 和 Try[T]的使用场景。</h3><p>这三种type很容易让人想到处理Exception的场景。这些types如果只是针对Exception就略显狭隘了。现在我的感觉是：<br>1）Option适于处理业务逻辑上需要空值的地方，这里不一定是因为Exception导致。往往是业务上需要表达这种“空”/“没值”。<br>2）Either的左值不一定是Exception，表示一个计算可能有两种结果比较好，右值按照惯例表示正确/正常路径下的结果。左值是另个分支的结果。当然，也可以放Exception，Error什么的。STTP的Response body部分就是一个Either[Error, T]。<br>3）Try，其实才是最适合表示一个计算可能出现Exception的type。Try的apply()接受的就是一个代码块并运行，对异常封装到子类Failure。<br>最后的感觉是Option，Either更像标量，是结果的一个静态表示。而Try是动态的，包含了代码的执行及对结果的封装。看Try的定义体会下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">object</span> <span class="title">Try</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>[<span class="type">T</span>](r: =&gt; <span class="type">T</span>): <span class="type">Try</span>[<span class="type">T</span>] =</span><br><span class="line">    <span class="keyword">try</span> <span class="type">Success</span>(r) <span class="keyword">catch</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">NonFatal</span>(e) =&gt; <span class="type">Failure</span>(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2）Future’s-sequence-的实现。"><a href="#2）Future’s-sequence-的实现。" class="headerlink" title="2）Future’s sequence()的实现。"></a>2）Future’s sequence()的实现。</h3><p>1）这是Erik喜欢的递归方式的实现。<br>其中两个flatMap都是Future上的flatMap。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).flatMap(ts =&gt; <span class="type">Future</span>(t::ts)))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>2）通过类型推导，我发现把flatMap()换成了map()也符合类型检查，似乎也也没有大的问题。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fts: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = &#123;</span><br><span class="line">  fts <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Nil</span> =&gt; <span class="type">Future</span>(<span class="type">Nil</span>)</span><br><span class="line">    <span class="keyword">case</span> ft::fts =&gt; ft.flatMap( t =&gt; sequence(fts).map(ts =&gt; t::ts))</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>3）Erik通过async，await实现的sequence。<br>这种方式似乎更容易理解，但风格太不FP了。Erik警告说，如果是基于Future编程，那么不要wait。但是在async块里除外，因为async本身是异步的所以不会阻塞。另外，async/await在模块scala-async里，需要加到sbt的依赖里。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scala.async.<span class="type">Async</span>.&#123;async, await&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sequence</span></span>[<span class="type">T</span>](fs: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">T</span>]]): <span class="type">Future</span>[<span class="type">List</span>[<span class="type">T</span>]] = async &#123;</span><br><span class="line">  <span class="keyword">var</span> _fs = fs</span><br><span class="line">  <span class="keyword">val</span> result = <span class="type">ListBuffer</span>[<span class="type">T</span>]()</span><br><span class="line">  <span class="keyword">while</span> (_fs != <span class="type">Nil</span>) &#123;</span><br><span class="line">    result += await &#123; _fs.head &#125;</span><br><span class="line">    _fs = _fs.tail</span><br><span class="line">  &#125;</span><br><span class="line">  result.toList</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>4）还可以通过Promise来实现。<br>等磕完promise再说吧。。。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-List-of-Future-of-Either" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-02-27T09:30:59.000Z"><a href="/2020/02/27/List-of-Future-of-Either/">2020-02-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/27/List-of-Future-of-Either/">STTP的基本使用(3)：把List[Future[Either[Error, T]]]转为Future[(List[Throwable], List[T])]</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>如果使用 AkkaHttp 作为 STTP 的 backend 来并发地处理 list of url，就会得到类似 List[Future[Response[Either[ResponseError[io.circe.Error], T]]]]，这样的结果。</p>
+<p>一般地，我们更期望给上层调用者返回 Future[(List[Exception], List[T])]这样的类型。</p>
+<p>下面代码演示了如何把：<br>List[Future[Response[Either[ResponseError[io.circe.Error], NasaData]]]]<br>准换为<br>Future[(List[Throwable], List[NasaData])]。<br>其中 tuple 的第一部分表示 response 中所有的 exception，第二部分表示所有正常数据。</p>
+<p>几个技术关键点是：<br>1）Future.sequence 用于把 List[Future] 转为 Future[List]。<br>2）忽略 STTP Response 里除去 body 数据的其它部分，并把 response 转为 Either[Throwable, NasaData]。<br>3）经过步骤 1，2，数据类型已经是 Future[List[Either[Throwable, NasaData]]]。<br>4）List[Either[Throwable, NasaData]] 转为 (List[Throwable], List[NasaData])的思路是:<br>a) 构造一个空的 Tuple (List[Throwable(), List<a href="">NasaData</a>)作为一个累计器。<br>b) 使用 List.folderLeft()遍历元素，根据是 left 还是 right 累加到累计器的_1 或_2。</p>
+<p>下面链接的文章演示了两种转换方式，一种是 Scala 原生手写，一种是使用 CAT。 <a target="_blank" rel="noopener" href="https://pbassiner.github.io/blog/composing_future,_list_and_either.html%E3%80%82">https://pbassiner.github.io/blog/composing_future,_list_and_either.html。</a><br>但是，其中语句 case Left(err) =&gt; acc.left.map(_ =&gt; err) 的逻辑似乎与期望不符。如果 list of either 中有 Left，并不能工作。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> erA: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">1</span>)</span><br><span class="line"><span class="keyword">val</span> erB: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">2</span>)</span><br><span class="line"><span class="keyword">val</span> erC: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Right</span>(<span class="number">3</span>)</span><br><span class="line"><span class="keyword">val</span> elA: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Left</span>(<span class="string">&quot;error1&quot;</span>)</span><br><span class="line"><span class="keyword">val</span> elB: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">Int</span>] = <span class="type">Left</span>(<span class="string">&quot;error2&quot;</span>)</span><br><span class="line"><span class="keyword">val</span> listOfEither = <span class="type">List</span>(erA, elA, erB, erC, elB)</span><br><span class="line"><span class="keyword">private</span> <span class="keyword">val</span> eitherOfList: <span class="type">Either</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]] = listOfEither.foldLeft(<span class="type">Right</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]](<span class="type">List</span>()).asInstanceOf[<span class="type">Either</span>[<span class="type">String</span>, <span class="type">List</span>[<span class="type">Int</span>]]])((acc, elem) =&gt; &#123;</span><br><span class="line">  elem <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Right</span>(v) =&gt; acc.map(l =&gt; l :+ v)</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Left</span>(e) =&gt; acc.left.map(_ + e)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line">println(<span class="string">s&quot;eitherOfList: <span class="subst">$eitherOfList</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<pre><code>输出为：eitherOfList: Right(List(1, 2, 3))
+</code></pre>
+<p>下面的代码演示了并发发出100个RestAPi请求获取数据的处理代码，结果保存在Tuple里，分别是所有失败和成功的数据。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> io.circe.generic.auto._</span><br><span class="line"><span class="keyword">import</span> sttp.client._</span><br><span class="line"><span class="keyword">import</span> sttp.client.akkahttp.<span class="type">AkkaHttpBackend</span></span><br><span class="line"><span class="keyword">import</span> sttp.client.circe._</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">Future</span></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.duration._</span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">Await</span></span><br><span class="line"><span class="keyword">import</span> scala.concurrent.<span class="type">ExecutionContext</span>.<span class="type">Implicits</span>.global</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> <span class="type">NASA_API_KEY</span> = <span class="string">&quot;XXXXXXXXXXXXXXX&quot;</span></span><br><span class="line"><span class="keyword">val</span> baseUrl = <span class="string">s&quot;https://api.nasa.gov/neo/rest/v1/neo/browse?api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> pageSize = <span class="number">10</span></span><br><span class="line"><span class="keyword">var</span> pageNumb = <span class="number">100</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">Links</span>(<span class="params">self: <span class="type">String</span>, next: <span class="type">String</span></span>)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">Page</span>(<span class="params">number: <span class="type">Int</span>, size: <span class="type">Int</span>, total_elements: <span class="type">Int</span>, total_pages: <span class="type">Int</span></span>)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">NearEarthObject</span>(<span class="params">absolute_magnitude_h: <span class="type">Double</span>, designation: <span class="type">String</span></span>)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">NasaData</span>(<span class="params">links: <span class="type">Links</span>, page: <span class="type">Page</span>, near_earth_objects: <span class="type">List</span>[<span class="type">NearEarthObject</span>]</span>)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">implicit</span> <span class="keyword">val</span> sttpBackend = <span class="type">AkkaHttpBackend</span>()</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: List[Future[Response[Either[ResponseError[io.circe.Error], NasaData]]]] ---&gt; Future[Either[String, List[NasaData]]]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> listOfFutureResult: <span class="type">List</span>[<span class="type">Future</span>[<span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]]]] =</span><br><span class="line">  (<span class="number">0</span> until pageNumb).toList.map(pageIndex =&gt; &#123;</span><br><span class="line">    <span class="keyword">val</span> pageUrl = <span class="string">s&quot;http://www.neowsapp.com/rest/v1/neo/browse?page=<span class="subst">$pageIndex</span>&amp;size=<span class="subst">$pageSize</span>&amp;api_key=<span class="subst">$&#123;NASA_API_KEY&#125;</span>&quot;</span></span><br><span class="line">    basicRequest.get(<span class="string">uri&quot;<span class="subst">$pageUrl</span>&quot;</span>)</span><br><span class="line">      .response(asJson[<span class="type">NasaData</span>])</span><br><span class="line">      .send()</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: Future[List] --&gt; List[Future]</span></span><br><span class="line"><span class="keyword">val</span> futureOfList: <span class="type">Future</span>[<span class="type">List</span>[<span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]]]] = <span class="type">Future</span>.sequence(listOfFutureResult)</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: 把Response[Either[ResponseError[io.circe.Error], NasaData]] 转为了 Either[Throwable, NasaData]</span></span><br><span class="line"><span class="keyword">val</span> respOfEither2Either: <span class="type">Response</span>[<span class="type">Either</span>[<span class="type">ResponseError</span>[io.circe.<span class="type">Error</span>], <span class="type">NasaData</span>]] =&gt; <span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>] = resp =&gt; &#123;</span><br><span class="line">  println(<span class="string">s&quot;resp==&gt;  code:<span class="subst">$&#123;resp.code.code&#125;</span>  <span class="subst">$&#123;resp.statusText&#125;</span>&quot;</span>)</span><br><span class="line">  <span class="keyword">val</span> newEither: <span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>] = resp.body <span class="keyword">match</span> &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Left</span>(respErr) =&gt; <span class="type">Left</span>(respErr.getCause)</span><br><span class="line">    <span class="keyword">case</span> <span class="type">Right</span>(nasaData) =&gt; <span class="type">Right</span>(nasaData)</span><br><span class="line">  &#125;</span><br><span class="line">  newEither</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> futureOfListOfEither: <span class="type">Future</span>[<span class="type">List</span>[<span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>]]] = futureOfList.map(listOfResp =&gt; &#123;</span><br><span class="line">  listOfResp.map(respOfEither2Either)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> listOfEither2TupleOfList: <span class="type">List</span>[<span class="type">Either</span>[<span class="type">Throwable</span>, <span class="type">NasaData</span>]] =&gt; (<span class="type">List</span>[<span class="type">Throwable</span>], <span class="type">List</span>[<span class="type">NasaData</span>]) = listE =&gt; &#123;</span><br><span class="line">  listE.foldLeft(<span class="type">List</span>[<span class="type">Throwable</span>](), <span class="type">List</span>[<span class="type">NasaData</span>]())((acc, eData) =&gt; &#123;</span><br><span class="line">    eData <span class="keyword">match</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> <span class="type">Right</span>(nasaData) =&gt; (acc._1, acc._2 :+ nasaData)</span><br><span class="line">      <span class="keyword">case</span> <span class="type">Left</span>(t) =&gt; (acc._1 :+ t, acc._2)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> futureOfEitherOfList = futureOfListOfEither map listOfEither2TupleOfList</span><br><span class="line"></span><br><span class="line"><span class="keyword">val</span> result = <span class="type">Await</span>.result(futureOfEitherOfList, <span class="number">1.</span>minute)</span><br><span class="line">println(<span class="string">s&quot;Exceptions in Response: <span class="subst">$result</span>._1&quot;</span>)</span><br><span class="line">println(<span class="string">s&quot;Data in Response: <span class="subst">$result</span>._2&quot;</span>)</span><br><span class="line"> </span><br></pre></td></tr></table></figure>
+
+
+<p>另，Akka HTTP默认主机连接持是32个，所以需要修改applicaiton.confg配置以支持更多连接数。<br>    akka.http.host-connection-pool.max-open-requests = 128</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/6/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/8/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Authorization in Spring Security（1） | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="1. 根据什么数据进行授权认证成功后以GrantedAuthority 的形式保存在Authentication对象中的authorities会别用来进行授权运算。  
+请求被 AuthenticationManager 认证之后，其 Principal 的 authorities 以一组 Gran">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Authorization in Spring Security（1）"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-spring/Authorization-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.288Z"><a href="/2025/01/25/spring/Authorization-in-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Authorization in Spring Security（1）</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-根据什么数据进行授权"><a href="#1-根据什么数据进行授权" class="headerlink" title="1. 根据什么数据进行授权"></a>1. 根据什么数据进行授权</h3><p><strong>认证成功后以GrantedAuthority 的形式保存在Authentication对象中的authorities会别用来进行授权运算。</strong>  </p>
+<p>请求被 AuthenticationManager 认证之后，其 Principal 的 authorities 以一组 GrantedAuthority 的形式被保存在 Authentication 对象里。</p>
+<pre><code>public interface GrantedAuthority extends Serializable &#123;
+    String getAuthority();
+&#125;
+</code></pre>
+<p>在是否可以对security object （比如一个方法的调用、一个web request的处理）进行访问之前，需要使用 AuthorizationManager 来决定是否可以invoke 这些security objects。<br>如果这些授权不能以String的形式表达出来，那么就用返回null的形式告诉 AuthorizationManager/AccessDecisionManager 需要自己进行特殊的处理。  Spring Security 源码里就有一个这样的例子，请参阅： WebExpressionConfigAttribute， WebExpressionVoter。</p>
+<h3 id="2-通过-AuthorizationManager-体会设计的改进"><a href="#2-通过-AuthorizationManager-体会设计的改进" class="headerlink" title="2. 通过 AuthorizationManager 体会设计的改进"></a>2. 通过 AuthorizationManager 体会设计的改进</h3><p>AuthorizationManager 是在 <a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-security/releases/tag/5.5.0-M2">spring security 5.5</a> 中被加入。从spring-security-core-6.0开始，AccessDecisionManager AccessDecisionVoter 已经被 deprecated，由 AuthorizationManager 取代其作用。 对于之前定制化AccessDecisionManager AccessDecisionVoter的代码应该考虑迁移到AuthorizationManager。  </p>
+<p>AuthorizationManager<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AuthorizationManager.jpg" alt="AuthorizationManager"></p>
+<p>AccessDecisionManager<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AccessDecisionManager.jpg" alt="AccessDecisionManager"></p>
+<p>AccessDecisionVoter<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AccessDecisionVoter.jpg" alt="AccessDecisionVoter"></p>
+<ol>
+<li>之前AccessDecisionManager 通过抛出异常，现在default的verify也是通过exception。</li>
+<li>明确返回AuthorizationDecision来标识。</li>
+<li>之前有support方法，跟AuthenticationProvider的思路很像。<br>从方法签名可以直接看出上面这几点。官方文档列出了更有意义的变化：</li>
+<li>AuthorizationManager的API相对于之前FilterSecurityInterCepter/AccessDecisionManager要使用metadata sources, config attributes, decison managers, voters进行授权判断要简化很多。</li>
+<li>因为通过把AuthenticationManger放在Supplier中实现了对认证数据的延迟访问，这对一些无需认证的授权是有好处的。</li>
+<li>支持基于Bean的配置。</li>
+</ol>
+<h3 id="3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor"><a href="#3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor" class="headerlink" title="3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor"></a>3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor</h3><p>AuthorizationManagers 被 AuthorizationFilter 来使用，负责做出是否允许访问的决定。<br>为了保证向后兼容，FilterSecurityInterceptor 作为用于授权的security fitler依旧是默认的 Spring Security Filters 之一，在倒数第二的位置上。</p>
+<pre><code>... ...
+SessionManagementFilter
+ExceptionTranslationFilter
+FilterSecurityInterceptor
+SwitchUserFilter
+</code></pre>
+<h3 id="4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？"><a href="#4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？" class="headerlink" title="4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？"></a>4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？</h3><p>在通过HttpSecurity构建SecurityFilterChain的时候调用<strong>authorizeHttpRequests()</strong> 就会在security fitler chain中插入<code>AuthorizationFilter</code>，而调用****authorizeRequests()****则会插入 security filter <code>FilterSecurityInterceptor</code>。  </p>
+<pre><code>@Bean
+SecurityFilterChain web(HttpSecurity http) throws AuthenticationException &#123;
+    http
+        .authorizeHttpRequests((authorize) -&gt; authorize
+            .anyRequest().authenticated();
+        )
+        // ...
+
+    return http.build();
+&#125;
+</code></pre>
+<h3 id="5-详细的使用范式"><a href="#5-详细的使用范式" class="headerlink" title="5. 详细的使用范式"></a>5. 详细的使用范式</h3><p>关于AuthorizationFilter/AuthorizationManger，可参考：<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html</a>   </p>
+<p>关于 FilterSecurityInterceptor，可参考： <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html</a>  </p>
+<br>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/index.html">https://docs.spring.io/spring-security/reference/servlet/authorization/index.html</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Spring/">Spring</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/25/spring/Authorization-in-Spring-Security/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

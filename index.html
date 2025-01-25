@@ -1,0 +1,830 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-spring/spring_jdbc_and_data" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.316Z"><a href="/2025/01/25/spring/spring_jdbc_and_data/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/spring_jdbc_and_data/">Spring提供的对数据(库)访问的几个套路</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>不使用Spring框架的情况下，Java访问RDBMS会通过原始的JDBC或者借助MyBatis、Hibernate、Jooq这些能够进行对象封装的库。<br>MyBatis在国内挺流行的，在欧美背景的企业里基本没有使用。</p>
+<p>在Spring的世界里进行SQL数据库访问，基本可分为三种方式：1）Spring JDBC；2）Spring Data JDBC；3）Spring Data JPA。</p>
+<h3 id="1）Spring-JDBC；"><a href="#1）Spring-JDBC；" class="headerlink" title="1）Spring JDBC；"></a>1）Spring JDBC；</h3><p>使用JdbcTemplate进行各种数据库操作。对于实体类不用加注任何annotation。在@Repository类中通过jdbcTemplate操作数据库数据。</p>
+<h3 id="2）Spring-Data-JDBC；"><a href="#2）Spring-Data-JDBC；" class="headerlink" title="2）Spring Data JDBC；"></a>2）Spring Data JDBC；</h3><p>这个就有些领域对象的味道。每个实体类需要定义@Id (org.springframework.data.annotation.Id)字段。<br>定义接口@Repository 继承CrudRepository&lt;T, R&gt;，在方法上标注@Query定义查询语句，而无需实现。有Spring自动生成实现类，底层就是借助JdbcTemplate、NamedParameterJdbcTemplate。<br>在pom中需导入spring-data-jdbc，并使用@EnableJdbcRepositories进行配置。。</p>
+<h3 id="3）Spring-Data-JPA。"><a href="#3）Spring-Data-JPA。" class="headerlink" title="3）Spring Data JPA。"></a>3）Spring Data JPA。</h3><p>Spring Data JPA内部基于Hibernate这样的ORM实现，可以看作是spring对JPA的封装(解决方案)。<br>实体类需要标注@Entity、@Table定义对应的表，还需要有个@Id（javax.persistence.Id）字段。<br>定义的@Repository接口中可以通过@Query标注查询语句之外还可以通过约定的metho name自动生成查询。</p>
+<p>对于NoSQL数据库，Spring对不同的数据库提供对应的模块进行支持。对于MongoDB来说就是spring-boot-starter-data-mongodb。</p>
+<h3 id="4）MongoRepository"><a href="#4）MongoRepository" class="headerlink" title="4）MongoRepository"></a>4）MongoRepository</h3><p>实体类上使用标注@Document，属性字段上可使用@Id（org.bson.types.ObjectId），@Indexed，@Field 等。<br>定义的@Repository接口继承MongoRepository&lt;T, R&gt;，同Spring Data JPA一样：方法名上加@Query定义查询、也可通过约定的metho name自动生成查询。spring自动生成实现类。</p>
+<h3 id="5）ReactiveMongoRepository"><a href="#5）ReactiveMongoRepository" class="headerlink" title="5）ReactiveMongoRepository"></a>5）ReactiveMongoRepository</h3><p>MongoDB驱动是支持reactive的。Spring通过spring-boot-starter-data-mongo-reactive进行支持。<br>实体类如使用MongoRepository一样，通过@Document、@org.bson.types.ObjectId标识自己。@Repository接口继承ReactiveMongoRepository&lt;T, R&gt;即可。这样就可以愉快地使用Flux、Mono了。</p>
+<p>上面简单的罗列了一下是Spring对数据访问支持的几个方案。没有特殊要求，作为业务开发使用相对高层的JPA应该是不错的选择。如果进行响应式编程，根据后台数据服务的不同选用 ReactiveMongoRepository、ReactiveCRUDRepository。</p>
+<h3 id="6）测试-ReactiveMongoRepository"><a href="#6）测试-ReactiveMongoRepository" class="headerlink" title="6）测试 ReactiveMongoRepository"></a>6）测试 ReactiveMongoRepository</h3><p>如果是使用Junit5，通过org.junit.jupiter.api.Test测试，那么只要在测试类上标注@DataMongoTest即可。<br>如果是基于Junit4，则需要在测试类上除了@DataMongoTest还需再标注@RunWith(SpringRunner.class)。<br>@DataMongoTest的作用是“disable full auto-configuration and instead apply only configuration relevant to MongoDB tests.” 因为对DAO这个层面进行测试完全没必要引入类似WebContext这样耗能的上下文环境，如下所示即可。</p>
+<pre><code>@DataMongoTest
+public class UserDaoTest &#123;
+
+    @Autowired
+    private ReactiveMongoUserRepository userRepository;
+
+    @Test
+    public void testCreateUser() &#123; 
+      ... ...
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/filters-In-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.299Z"><a href="/2025/01/25/spring/filters-In-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/filters-In-Spring-Security/">SpringSecurity里的filer们</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/securityfilterchain.png" alt="SecurityFilterChain"><br>上图表达了下面几个类之间的关系：<br><strong>DelegatingFilterProxy,  FilterChainProxy (springSecurityFilterChain),   SecurityFilterChain (security filter)</strong><br>通过调用 SecurityFilterChain API 把 Security Filters 组装成一个或多个chain，再设置给FilterChainProxy使用。   </p>
+<p>对于下图这样FilterChainProxy有多个SecurityFilterChain的情况，只会触发第一个匹配的securityFilterChain。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
+<h3 id="1）使用-Spring-Security"><a href="#1）使用-Spring-Security" class="headerlink" title="1）使用 Spring Security"></a>1）使用 Spring Security</h3><p>要使用Spring Security，如果是在Spring Boot环境那么只需要导入security的starter，Spring Boot就会自动做下面的事。<br><strong>Creates a servlet Filter as a bean named springSecurityFilterChain</strong>. This bean is responsible for all the security (protecting the application URLs, validating submitted username and passwords, redirecting to the log in form, and so on) within your application.<br><strong>Registers the Filter with a bean named springSecurityFilterChain</strong> with the Servlet container for every request.<br><strong>Creates a UserDetailsService bean with a username of user and a randomly generated password</strong> that is logged to the console.</p>
+<p>不使用Spring Boot的情况下，就需要自己在web.xml文件中定义springSecurityFilterChain。</p>
+<pre><code>&lt;filter&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.springframework.web.filter.DelegatingFilterProxy&lt;/filter-class&gt;
+&lt;/filter&gt;
+&lt;filter-mapping&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+&lt;/filter-mapping&gt;
+</code></pre>
+<h3 id="2）入口-DelegatingFilterProxy"><a href="#2）入口-DelegatingFilterProxy" class="headerlink" title="2）入口 DelegatingFilterProxy"></a>2）入口 DelegatingFilterProxy</h3><p>下面通过源码简单看下DelegatingFilterProxy实例化的过程。<br>Tomcat启动时会在 web 容器中初始化 DelegatingFilterProxy 实例，<br><img src="/2025/01/25/spring/filters-In-Spring-Security/registerDelegatingFilterProxy-as-bean.jpg"></p>
+<p>DelegatingFilterProxy 本身既是一个Filter也是一个ServletContextAware的实例。 Spring 使用 ContextLoaderListener 来加载spring的bean。org.springframework.web.context.support.GenericWebApplicationContext 则是servlet context和spring context真正交汇的地方。<br>从下面DelegatingFilterProxy实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context的桥梁</strong>。<br>因为Spring要等web context初始化完成才能初始化自己的context，所以在spring中定义的filter beans就要延迟初始化才行。通过延迟初始化就解决了Filter必须定义在Servlet Container中的问题。 Spring很巧妙的通过FilterChain接口把这些filter beans串在一起</p>
+<pre><code>public class DelegatingFilterProxy extends GenericFilterBean
+</code></pre>
+<p>而 ServletContextAware 是Spring的一个接口。</p>
+<pre><code>public abstract class GenericFilterBean implements Filter, BeanNameAware, EnvironmentAware,
+    EnvironmentCapable, ServletContextAware, InitializingBean, DisposableBean 
+</code></pre>
+<p>从DelegatingFilterProxy的两个关键fields：WebApplicationContext webApplicationContext 和 Filter delegate，也能知道DelegatingFilterProxy桥梁作用。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/DelegatingFilterProxy-properties.jpg"><br>上图中的delegate是FilterChainProxy的实例。</p>
+<h3 id="3）-FilterChainProxy-包装了-filers。"><a href="#3）-FilterChainProxy-包装了-filers。" class="headerlink" title="3） FilterChainProxy 包装了 filers。"></a>3） FilterChainProxy 包装了 filers。</h3><p>下图中filterChian包含的filters是不做任何特殊配置时的16个filters。FilerChainProxy就是通过调用它拥有的filters起到了对request做filter处理的作用，这就是称它为代理的原因.<br><img src="/2025/01/25/spring/filters-In-Spring-Security/construct-FilterChainProxy.jpg"></p>
+<h3 id="4）springSecurityFilterChain-进入-DelegatingFilterProxy"><a href="#4）springSecurityFilterChain-进入-DelegatingFilterProxy" class="headerlink" title="4）springSecurityFilterChain 进入 DelegatingFilterProxy"></a>4）springSecurityFilterChain 进入 DelegatingFilterProxy</h3><p>上面提到 DelegatingFilterProxy 对filter延迟初始化的作用，所以对delegate的赋值只发生处理第一个http request时。被命名为springSecurityFilterChain的FilterChainProxy会从spring context中被找出来并设置到DelegatingFilterProxy的delegate field。<br><img src="/2025/01/25/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy0.jpeg"></p>
+<p><img src="/2025/01/25/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy.jpeg"></p>
+<p>至此，应该对文首的第一个图能说出点儿什么了吧… …</p>
+<p><code>DelegatingFilterProxy</code> 的 field ‘Filter delegate’ 就是<code>名为springSecurityFilterChain 的 FilterChainProxy实例</code>。<br>而springSecurityFilterChain默认包含16个<code>SecurityFilterChain</code>。</p>
+<hr>
+<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters">https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.289Z"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>因为MongoDB数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下exception</p>
+<blockquote>
+<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
+</blockquote>
+<p>我们可以通过一下几步解决这个问题：</p>
+<h3 id="1）我们首先需要分析是什么情况导致数据中存在undefined值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在undefined值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在undefined值。"></a>1）我们首先需要分析是什么情况导致数据中存在undefined值。</h3><p>从BSON的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined已经是depricated。数据库中出现undefined的多半说明程序有问题，所以需要找出是在哪里、什么情况下向MongoDB写入了undefined value并进行修改。</p>
+<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
+<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个converter类 </p>
+<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt; 
+</code></pre>
+<p>把undefined 转为__任意类型__对象的null，就可以避免如上的Exception。代码如stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把Converter 传给mongoTemplate，我们就需要定义一个MongoCustomConversions Bean。为什么需要这样的Bean，可以参考 AbstractMongoClientConfiguration的源代码。因为AbstractMongoClientConfiguration中已经定义了一个MongoCustomConversions bean，我们就需要给自己的Bean加上@Primary，以便让spring-data-mongo优先使用我们设置了自定义converter的 MongoCustomConversions bean。</p>
+<p>如果你的spring application还是通过XML方式进行beans定义与组装的，那么你就不能通过定义一个ConverterFactory来方便地把undefined 转为__任意类型__对象的null了。这是因为XML不支持类型化参数。这时，只能把converter一个个地定义出来。XML的组装大致如下：</p>
+<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
+    &lt;mongo:custom-converters&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+    &lt;/mongo:custom-converters&gt;
+&lt;/mongo:mapping-converter&gt;
+</code></pre>
+<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个converter才能避免exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在converter 返回 o -&gt; null 之前，执行下面的代码就可以通过log看到是哪个DAO触发了这个转换，进而可以分析出哪个collection存在脏数据。如果我们清理了这个collection的所有脏数据之后这种undefined脏数据还是会产生出来，那么我们就应该好好review一下之前的代码是哪里有问题并进行修改了。</p>
+<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
+for(StackTraceElement st : causes)&#123;
+    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
+        log.warn(st.toString());
+    &#125; else &#123;
+        log.info(st.toString());
+    &#125;
+&#125;
+</code></pre>
+<p>如果是使用JDK9及以上，那么可以使用StackWalker避免getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a> </p>
+<p>写了个Demo来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
+<p><em>Reference:</em></p>
+<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/HttpSecurity-class-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.289Z"><a href="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/">The HttpSecurity class in Spring Security</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在项目中实际使用Spring Security时，我们的大部分工作其实都是配置HttpSecurity。要么通过spring的 http xml element 来配置，要么通过配置类里的HttpSecurity class来配置，所以在理解了DelegatingFilterProxy，FilterChainProxy，SecurityFilterChain之间的关系之后就很有必要了解一下HttpSecurity类了。</p>
+<p>HttpSecurity这个类的名称与它的实际功用相差甚远，其实把它称为HttpSecurityFilterChainBuiler应该更合适，因为它的作用就是利用构造器模式构造出SecurityFilterChain的一个实例供FilterChainProxy使用。这点从它的类签名就能看出来。</p>
+<p>如果有多个 SecurityFilterChain 被配置、构造出来，它们的顺序可以通过注解 @Order来设定。没有@Order注解的优先级最低。同一order层级的，就可以通过 SecurityFilterChain 中的RequestMatcher 来决定了该chain是否与http request匹配了。我们应该尽量把特殊的匹配放在前面，通用的放在后面。</p>
+<h3 id="1-体会下HttpSecurity源码的定义部分："><a href="#1-体会下HttpSecurity源码的定义部分：" class="headerlink" title="1) 体会下HttpSecurity源码的定义部分："></a>1) 体会下HttpSecurity源码的定义部分：</h3><p><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/HttpSecurity_class.jpeg" alt="HttpSecurity"></p>
+<h3 id="2-用xml配置http-security："><a href="#2-用xml配置http-security：" class="headerlink" title="2) 用xml配置http security："></a>2) 用xml配置http security：</h3><p>虽然现在基于Spring的开发都是基于注解的了，但是如果遇到遗留系统里通过http元素来定义HttpSecurity，那么俯视一下下面的schema应该也能大致了然了。。。<br><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/http-element-for-HttpSecurity.jpeg" alt="http element in security namespace">  </p>
+<h3 id="3-fitlers-的顺序定义："><a href="#3-fitlers-的顺序定义：" class="headerlink" title="3) fitlers 的顺序定义："></a>3) fitlers 的顺序定义：</h3><p><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/FilterOrderRegistration.jpeg" alt="FilterOrderRegistration"></p>
+<h3 id="4-HttpSecurity-build-filter的套路"><a href="#4-HttpSecurity-build-filter的套路" class="headerlink" title="4) HttpSecurity build filter的套路"></a>4) HttpSecurity build filter的套路</h3><p>看看与 authentication 相关的两个fitler的构建。</p>
+<h4 id="1）从两个filter看规律"><a href="#1）从两个filter看规律" class="headerlink" title="1）从两个filter看规律"></a>1）从两个filter看规律</h4><p>Filter都是根据Configurer构建出来的。我们以BasicAuthenticationFilter和UsernamePasswordAuthenticationFilter的Configurer举例。<br>FormLoginConfigurer 比较“特殊”，它定义了两个filter。一个是UsernamePasswordAuthenticationFilter， 一个是DefaultLoginPageGeneratingFilter，后者提供了一个让用户输入credential页面的filter。<br>HttpBasicConfigurer 则定义了 BasicAuthenticationFilter。  </p>
+<pre><code>public FormLoginConfigurer&lt;HttpSecurity&gt; formLogin() throws Exception &#123;
+  return getOrApply(new FormLoginConfigurer&lt;&gt;());
+&#125;
+
+public HttpBasicConfigurer&lt;HttpSecurity&gt; httpBasic() throws Exception &#123;
+  return getOrApply(new HttpBasicConfigurer&lt;&gt;());
+&#125;
+</code></pre>
+<p>  FormLoginConfigurer 是 AbstractAuthenticationFilterConfigurer 的子类， HttpBasicConfigurer是AbstractHttpConfigurer。这是因为basic的认证方式比起form形式的认证要简单得多。</p>
+<pre><code>public final class FormLoginConfigurer&lt;H extends HttpSecurityBuilder&lt;H&gt;&gt; extends
+    AbstractAuthenticationFilterConfigurer&lt;H, FormLoginConfigurer&lt;H&gt;, UsernamePasswordAuthenticationFilter&gt; &#123;
+
+public abstract class AbstractAuthenticationFilterConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;, T extends AbstractAuthenticationFilterConfigurer&lt;B, T, F&gt;, F extends AbstractAuthenticationProcessingFilter&gt;
+    extends AbstractHttpConfigurer&lt;T, B&gt; &#123;
+
+public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;&gt; extends AbstractHttpConfigurer&lt;HttpBasicConfigurer&lt;B&gt;, B&gt; &#123;
+</code></pre>
+<p>负责根据这些configuer构造出对象来的类是AbstractConfiguredSecurityBuilder。</p>
+<pre><code>public abstract class AbstractConfiguredSecurityBuilder&lt;O, B extends SecurityBuilder&lt;O&gt;&gt; extends AbstractSecurityBuilder&lt;O&gt; &#123;   
+</code></pre>
+<h4 id="2-没有被使用的AuthenticationFilter"><a href="#2-没有被使用的AuthenticationFilter" class="headerlink" title="2) 没有被使用的AuthenticationFilter"></a>2) 没有被使用的AuthenticationFilter</h4><p>很奇怪在Spring Security 的源码里没有看到 AuthenticationFilter 被使用。估计这是要让程序员通过提供自定义的 authenticationConverter 和 authenticationManagerResolver 来使用吧。<br>对比三个与authentication相关的fitler体会下。</p>
+<p>BasicAuthenticationFilter<br><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/authnMgr_in_BasicAuthenticationFilter.jpg"></p>
+<p>UsernamePasswordAuthenticationFitler<br><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/authn_inUsernamePasswordAuthenticationFitler.jpg" alt="UsernamePasswordAuthenticationFitler"></p>
+<p>AuthenticationFilter<br><img src="/2025/01/25/spring/HttpSecurity-class-in-Spring-Security/authn_inAuthenticationFilter.jpg" alt="AuthenticationFilter"></p>
+<br/>  
+<br/> 
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a><br>[4]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-onceperrequestfilter">https://www.baeldung.com/spring-onceperrequestfilter</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/Authorization-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.288Z"><a href="/2025/01/25/spring/Authorization-in-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/Authorization-in-Spring-Security/">Authorization in Spring Security（1）</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-根据什么数据进行授权"><a href="#1-根据什么数据进行授权" class="headerlink" title="1. 根据什么数据进行授权"></a>1. 根据什么数据进行授权</h3><p><strong>认证成功后以GrantedAuthority 的形式保存在Authentication对象中的authorities会别用来进行授权运算。</strong>  </p>
+<p>请求被 AuthenticationManager 认证之后，其 Principal 的 authorities 以一组 GrantedAuthority 的形式被保存在 Authentication 对象里。</p>
+<pre><code>public interface GrantedAuthority extends Serializable &#123;
+    String getAuthority();
+&#125;
+</code></pre>
+<p>在是否可以对security object （比如一个方法的调用、一个web request的处理）进行访问之前，需要使用 AuthorizationManager 来决定是否可以invoke 这些security objects。<br>如果这些授权不能以String的形式表达出来，那么就用返回null的形式告诉 AuthorizationManager/AccessDecisionManager 需要自己进行特殊的处理。  Spring Security 源码里就有一个这样的例子，请参阅： WebExpressionConfigAttribute， WebExpressionVoter。</p>
+<h3 id="2-通过-AuthorizationManager-体会设计的改进"><a href="#2-通过-AuthorizationManager-体会设计的改进" class="headerlink" title="2. 通过 AuthorizationManager 体会设计的改进"></a>2. 通过 AuthorizationManager 体会设计的改进</h3><p>AuthorizationManager 是在 <a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-security/releases/tag/5.5.0-M2">spring security 5.5</a> 中被加入。从spring-security-core-6.0开始，AccessDecisionManager AccessDecisionVoter 已经被 deprecated，由 AuthorizationManager 取代其作用。 对于之前定制化AccessDecisionManager AccessDecisionVoter的代码应该考虑迁移到AuthorizationManager。  </p>
+<p>AuthorizationManager<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AuthorizationManager.jpg" alt="AuthorizationManager"></p>
+<p>AccessDecisionManager<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AccessDecisionManager.jpg" alt="AccessDecisionManager"></p>
+<p>AccessDecisionVoter<br><img src="/2025/01/25/spring/Authorization-in-Spring-Security/AccessDecisionVoter.jpg" alt="AccessDecisionVoter"></p>
+<ol>
+<li>之前AccessDecisionManager 通过抛出异常，现在default的verify也是通过exception。</li>
+<li>明确返回AuthorizationDecision来标识。</li>
+<li>之前有support方法，跟AuthenticationProvider的思路很像。<br>从方法签名可以直接看出上面这几点。官方文档列出了更有意义的变化：</li>
+<li>AuthorizationManager的API相对于之前FilterSecurityInterCepter/AccessDecisionManager要使用metadata sources, config attributes, decison managers, voters进行授权判断要简化很多。</li>
+<li>因为通过把AuthenticationManger放在Supplier中实现了对认证数据的延迟访问，这对一些无需认证的授权是有好处的。</li>
+<li>支持基于Bean的配置。</li>
+</ol>
+<h3 id="3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor"><a href="#3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor" class="headerlink" title="3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor"></a>3. AuthorizationManagers/AuthorizationFilter 以及  AccessDecisionManager/FilterSecurityInterceptor</h3><p>AuthorizationManagers 被 AuthorizationFilter 来使用，负责做出是否允许访问的决定。<br>为了保证向后兼容，FilterSecurityInterceptor 作为用于授权的security fitler依旧是默认的 Spring Security Filters 之一，在倒数第二的位置上。</p>
+<pre><code>... ...
+SessionManagementFilter
+ExceptionTranslationFilter
+FilterSecurityInterceptor
+SwitchUserFilter
+</code></pre>
+<h3 id="4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？"><a href="#4-如何在-Security-Filters-中使用AuthorizationFilter-或-FilterSecurityInterceptor？" class="headerlink" title="4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？"></a>4. 如何在 Security Filters 中使用AuthorizationFilter 或 FilterSecurityInterceptor？</h3><p>在通过HttpSecurity构建SecurityFilterChain的时候调用<strong>authorizeHttpRequests()</strong> 就会在security fitler chain中插入<code>AuthorizationFilter</code>，而调用****authorizeRequests()****则会插入 security filter <code>FilterSecurityInterceptor</code>。  </p>
+<pre><code>@Bean
+SecurityFilterChain web(HttpSecurity http) throws AuthenticationException &#123;
+    http
+        .authorizeHttpRequests((authorize) -&gt; authorize
+            .anyRequest().authenticated();
+        )
+        // ...
+
+    return http.build();
+&#125;
+</code></pre>
+<h3 id="5-详细的使用范式"><a href="#5-详细的使用范式" class="headerlink" title="5. 详细的使用范式"></a>5. 详细的使用范式</h3><p>关于AuthorizationFilter/AuthorizationManger，可参考：<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html</a>   </p>
+<p>关于 FilterSecurityInterceptor，可参考： <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html</a>  </p>
+<br>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/index.html">https://docs.spring.io/spring-security/reference/servlet/authorization/index.html</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/Authentication-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.280Z"><a href="/2025/01/25/spring/Authentication-in-Spring-Security/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/Authentication-in-Spring-Security/">Authentication in Spring Security</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>关于Spring Security里的Authentication，<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html">官方文档</a>总结的不错。理解这些classes的作用与关系是正确使用Spring Security Authentication的前提。</p>
+<p>认证的方式不同，认证逻辑就不同，这样每个认证方式都会有对应的fitler实现。执行认证的大致流程以 AbstractAuthenticationProcessingFilter 为例描述一下。不同类别的 Authentication Filter 的处理略有差异，但大体逻辑差不多:<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/abstractauthenticationprocessingfilter.png"></p>
+<ol>
+<li>Authentication Filter 接收请求 http request。</li>
+<li>从request中获取凭证(credential)等数据，封装在<strong>Authentication</strong>对象中，比如：OAuth2LoginAuthenticationToken， UsernamePasswordAuthenticationToken等。</li>
+<li>用<strong>AuthenticationManager</strong>向对其传入的Authentication 进行实际的认证工作。</li>
+<li>认证成功的处理，比如保存设置了授权信息的Authentication到<strong>SecurityContext</strong>中。</li>
+<li>失败进行处理。</li>
+</ol>
+<h2 id="1-Authentication-Filter-接收请求"><a href="#1-Authentication-Filter-接收请求" class="headerlink" title="1) Authentication Filter 接收请求"></a>1) Authentication Filter 接收请求</h2><p>当用户发送了http request进行认证，将被负责authentication的filter处理。这些filters实际的认证工作大多数（不是全部）都是由 AuthenticationManager 完成的。比如，像AbstractPreAuthenticatedProcessingFilter这些类本身就是接收的是第三方已经认证的请求，所以无需AuthenticationManager。 另外像AnonymousAuthenticationFilter也无需AuthenticationManager的参与。<br>所以虽然都是认证，但是因为不同场景处理的逻辑不同，所以与AuthenticationFilter相关类的父类并不相同。大致可以分成以下三类。</p>
+<h3 id="1）继承自-AbstractAuthenticationProcessingFilter-的authentication-fitler-class-有3个。"><a href="#1）继承自-AbstractAuthenticationProcessingFilter-的authentication-fitler-class-有3个。" class="headerlink" title="1）继承自 AbstractAuthenticationProcessingFilter 的authentication fitler class 有3个。"></a>1）继承自 AbstractAuthenticationProcessingFilter 的authentication fitler class 有3个。</h3><p>public class UsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br>public class OAuth2LoginAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br>public class Saml2WebSsoAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/subclasses-of-AbstractAuthenticatedProcessingFilter.jpeg" alt="AbstractAuthenticationProcessingFilter"></p>
+<h3 id="2）继承自-AbstractPreAuthenticatedProcessingFilter-的类有5个。"><a href="#2）继承自-AbstractPreAuthenticatedProcessingFilter-的类有5个。" class="headerlink" title="2）继承自 AbstractPreAuthenticatedProcessingFilter 的类有5个。"></a>2）继承自 AbstractPreAuthenticatedProcessingFilter 的类有5个。</h3><p>public class RequestHeaderAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter<br>public class RequestAttributeAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/subclasses-of-AbstractPreAuthenticatedProcessingFilter.jpg" alt="AbstractPreAuthenticatedProcessingFilter"></p>
+<h3 id="3）其它分别直接继承-OncePerRequestFilter-和-GenericFilterBean，比如："><a href="#3）其它分别直接继承-OncePerRequestFilter-和-GenericFilterBean，比如：" class="headerlink" title="3）其它分别直接继承 OncePerRequestFilter 和 GenericFilterBean，比如："></a>3）其它分别直接继承 OncePerRequestFilter 和 GenericFilterBean，比如：</h3><p>OncePerRequestFilter 较 GenericFilterBean可以保证只被filters处理一次。</p>
+<pre><code>public class BearerTokenAuthenticationFilter extends OncePerRequestFilter
+public class BasicAuthenticationFilter extends OncePerRequestFilter
+
+public class AnonymousAuthenticationFilter extends GenericFilterBean
+public class RememberMeAuthenticationFilter extends GenericFilterBean
+</code></pre>
+<h2 id="2）Request-to-Authentication"><a href="#2）Request-to-Authentication" class="headerlink" title="2）Request to Authentication"></a>2）Request to Authentication</h2><p>Authentication这个类在认证前主要用于承载认证需要的凭证信息，比如用户名密码。authentication 对象也就等同于一个authentication request的event，并包含请求者进行认证所必须的信息。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/Authentication.jpg"></p>
+<h2 id="3）AuthenticationManager"><a href="#3）AuthenticationManager" class="headerlink" title="3）AuthenticationManager"></a>3）AuthenticationManager</h2><p>authentication对象会传递给<strong>AuthenticationManager</strong> 的方法authenticate()做认证。<br>AuthenticationManager是个interface，它的实现类如下图片所示。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/implements_of_AuthenticationManager.jpg"></p>
+<p>在认证后，principal的授权信息会被写在authentication对象的authorities字段。下图摘自《Spring Security in Action》，使用username password做认证。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/fg3.1_of_SpringSecurityInAction.jpg"></p>
+<p>如上图所示的，具体的认证工作是委托给<strong>AuthenticationProvider</strong>完成的。在Spring Security的代码实现中，也并不是由AuthenticationManager直接包含一组AuthenticationProvider的方式完成，中间还有一个叫做<strong>ProviderManager</strong>的类，下面列出它的两个关键字段体会下。 </p>
+<pre><code>public class ProviderManager implements AuthenticationManager, MessageSourceAware, InitializingBean &#123;
+
+    private List&lt;AuthenticationProvider&gt; providers = Collections.emptyList();
+
+    private AuthenticationManager parent;
+    ... ...
+&#125;
+</code></pre>
+<p>可以看到ProviderManager包含的不是一个provider而是a list of providers。通过提供一组providers就向用户提供了更多灵活控制的可能性。当然随之而来的就是这里就需要明确定义providers的认证结果以谁为准的规则。源码authenticate()的doc说得很明白：</p>
+<blockquote>
+<p>Attempts to authenticate the passed Authentication object.<br>The list of AuthenticationProviders will be successively tried until an AuthenticationProvider indicates it is capable of authenticating the type of Authentication object passed. Authentication will then be attempted with that AuthenticationProvider.<br>If more than one AuthenticationProvider supports the passed Authentication object, the first one able to successfully authenticate the Authentication object determines the result, overriding any possible AuthenticationException thrown by earlier supporting AuthenticationProviders. On successful authentication, no subsequent AuthenticationProviders will be tried. If authentication was not successful by any supporting AuthenticationProvider the last thrown AuthenticationException will be rethrown.</p>
+</blockquote>
+<p>让我们对比一下AuthenticationManger和AuthenticationProvider这两个interface的定义。看了下面的定义，你会不会问一个问题：既然两个接口有一个一摸一样的方法authentication()，为什么不让AuthenticationProvider继承AuthenticationManager？ 我想或许是为了明确两个类的职责吧。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/AuthenticationManager.jpg"><br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/AuthenticationProvider.jpg"></p>
+<p>以图形的方式看看它们的关系：<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/authentication-mgr-and-providers.png"></p>
+<p>如果我们要实现某个特殊的在Spring里没有的认证方式，我们就需要实现自定的AuthenticationProvider并通过覆盖WebSecurityConfigurerAdapter里的configure()方法实现。 </p>
+<pre><code>@Configuration
+public class ProjectConfig extends WebSecurityConfigurerAdapter &#123;
+
+@Autowired
+private AuthenticationProvider authenticationProvider;
+
+@Override
+protected void configure(AuthenticationManagerBuilder auth) &#123;
+    auth.authenticationProvider(authenticationProvider);
+&#125;
+</code></pre>
+<p>不过这个类已经被官方API文档标为Deprecated，并推荐使用HttpSecurity定义SecurityFilterChain的方式或者通过WebSecurityCustomizer来配置WebSecurity。参考源码：<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/registerAuthenticationProvider.jpeg"></p>
+<p>到这里我们应该已经知道具体的认证逻辑都在AuthenticationProvider里。想知道Spring Security提供了哪些开箱即用的provider吗？见下图，一共17个。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/authenticationProviders.jpg"></p>
+<p>再捋一下与认证相关的类，就结束这篇吧。虽然没有涉及过多细节，相信理解了这些脉略应该也能在copy-past代码的时候点点头了。。。<br>SecurityContextHolder：保存SecurityContext的地方。<br>SecurityContextHolderStrategy：定义SecurityContext在线程中共享的策略模式。如果要跨线越Spring管理的线程，请参考 。。。。<br>SecurityContext - 认证成功后Authentication对象就放在这里。<br>Authentication - 存放要认证的信息以及被 AuthenticationManager 认证后的结果，认证成功后被放入SecurityContext。<br>GrantedAuthority - 请求认证的principal认证成功后被赋予的权限(i.e. roles, scopes, etc.)<br>AuthenticationManager - authentication相关的filter调用这个对象做认证。<br>AbstractAuthenticationProcessingFilter：各个认证相关filter的父类。<br>ProviderManager - AuthenticationManager的一个实现.<br>AuthenticationProvider - 由ProviderManager 用来做具体的认证。<br>AuthenticationEntryPoint: 用于询问并接收用户的credentials，可以是重定向到一个网页或者发送http WWW-Authenticate response。</p>
+<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？<br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder<br>如果没有，一定是我还没描述清楚。 </p>
+<br/>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html">https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html</a><br>[2]: 《Spring Security in Action》  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/processAListOfDataInReactiveParallelWay" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.277Z"><a href="/2025/01/25/reactive/processAListOfDataInReactiveParallelWay/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/reactive/processAListOfDataInReactiveParallelWay/">响应式并发批处理</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>假设DataProcessor接口定义了方法batchProcess能够对一批数据进行处理，一批处理500个数据。现在我们需要对一个响应式数据流 Flux<DataItem> dataItems 调用 batchProcess() 进行处理。</p>
+<pre><code>public interface DataProcessor &#123;
+  Mono&lt;String&gt; batchProcess(List&lt;DataItem&gt; dataItems);
+  ... ...
+&#125;
+
+
+DataProcessor dataProcessor = ...;
+
+int batchSize = 500;
+
+Flux&lt;DataItem&gt; dataItems = ...
+</code></pre>
+<p>下面分别以串行和并行的方式展示一下Reactor API的使用。</p>
+<h3 id="1）攒够-batchSize-个数据后进行处理。"><a href="#1）攒够-batchSize-个数据后进行处理。" class="headerlink" title="1）攒够 batchSize 个数据后进行处理。"></a>1）攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems.buffer(batchSize)
+    .flatMap(dataProcessor::batchProcess)
+    .collectList();
+</code></pre>
+<h3 id="2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。"><a href="#2）以并行的方式，把流分成10股，每股攒够-batchSize-个数据后进行处理。" class="headerlink" title="2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。"></a>2）以并行的方式，把流分成10股，每股攒够 batchSize 个数据后进行处理。</h3><pre><code>Mono&lt;List&lt;String&gt;&gt; result = dataItems
+    .parallel(10)
+    .runOn(Schedulers.fromExecutor(Executors.newFixedThreadPool(10)))
+    .groups()
+    .flatMap(g -&gt; g.buffer(batchSize).flatMap(dataProcessor::batchProcess))
+    .collectList();
+</code></pre>
+<p>这里runOn接收的参数可以是Schedulers不同策略的实现，具有不同适用范围，比如适合计算密集型的ParallelScheduler、单线程的SingleScheduler。这里使用的是Executors FixedThreadPool。</p>
+<p>可以想象如果我们自己实现这样一个处理逻辑的复杂度，而通过reactor api，仅仅几行代码就完成了这么复杂高效的处理。</p>
+<h3 id="3）使用-reactive-mongo-driver需要的线程。"><a href="#3）使用-reactive-mongo-driver需要的线程。" class="headerlink" title="3）使用 reactive mongo driver需要的线程。"></a>3）使用 reactive mongo driver需要的线程。</h3><p>Spring默认到monog的链接池最大为100，但是实际上在使用reactive方式访问时使用20～10个左右的线程就足够了。因此对mongog的连接串最好明确使用适合自己情况的连接数以避免连接浪费或不够。<br>测试了一个70万条、大概250M数据的批量插入，发现无论使用串行还是并行，数据库插入时间都差不多（36s～26s）。而连接池最大连接设为200、100、50、20、10对数据库插入的性能也没有太大影响，200个线程时反而有一点下降。这个情况从mongo响应式驱动的角度去解释是完全可以理解的，如果使用传统驱动，恐怕所需的线程就不是这个量级的了。</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/tools/about-slf4j" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.277Z"><a href="/2025/01/25/notes/tools/about-slf4j/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/notes/tools/about-slf4j/">About SLF4J</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="SLF4J-是什么？"><a href="#SLF4J-是什么？" class="headerlink" title="SLF4J 是什么？"></a>SLF4J 是什么？</h3><p>Java的世界里有很多优秀的log库，比如logback，log4j2。SLF4J（Simple Logging Facade）作为一个日志框架的抽象层，以Facade模式帮助我们“无缝”地选择、切换这些log库。  </p>
+<h3 id="如何使用SLF4J？"><a href="#如何使用SLF4J？" class="headerlink" title="如何使用SLF4J？"></a>如何使用SLF4J？</h3><p>在项目中要使用SLF4J需要做的就是引入slf4j-api-2.0.7.jar，再根据你选择的底层log框架选择对应的provider。比如，<br>如果底层使用log4j2，就要导入log4j-slf4j-impl（provider/bridge）、log4j-api.jar（log4j接口）、log4j-core（log4j实现）。<br>如果底层使用logback，就要导入”ch.qos.logback:logback-classic”，这个会自动导入 slf4j-api-2.0.7.jar（provider/bridge）、logback-core-1.3.6.jar（logback实现）。  </p>
+<p>SpringBoot底层默认支持logbak，如果使用log4j2则需要显示的exclude logback。</p>
+<pre><code>&lt;dependencies&gt;
+  &lt;dependency&gt;
+      &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+      &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;
+      &lt;exclusions&gt;
+        &lt;exclusion&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-starter-logging&lt;/artifactId&gt;
+        &lt;/exclusion&gt;
+      &lt;/exclusions&gt;
+  &lt;/dependency&gt;
+  &lt;dependency&gt;
+      &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+      &lt;artifactId&gt;spring-boot-starter-log4j2&lt;/artifactId&gt;
+  &lt;/dependency&gt;
+&lt;dpendencies&gt;
+</code></pre>
+<h3 id="关于SLF4J的MDC"><a href="#关于SLF4J的MDC" class="headerlink" title="关于SLF4J的MDC"></a>关于SLF4J的MDC</h3><p>SLF4J, 在底层库支持MDC(Mapped Diagnostic Context)的情况下也是支持MDC的。<code>MDC data can also be highly helpful in filtering messages or triggering certain actions</code>, 目前也就log4j2, logback支持MDC。在当前微服务流行的情况下让各个微服务的日志格式遵循同一格式是困难的，而且MDC的跨服务传递也是不现实的，这个特性在实际工程中用的比较少。</p>
+<h3 id="关于log4j2自己的log。"><a href="#关于log4j2自己的log。" class="headerlink" title="关于log4j2自己的log。"></a>关于log4j2自己的log。</h3><ol>
+<li>如果我们希望看到log4j2自己的log，可以设置-Dlog4j2.debug=true，让它自己的log显示在console。</li>
+<li><a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration">Composite Configuration</a>, 因为可以通过 log4j2.configurationFile 设置多个逗号分隔的配置文件，log4j有一套自己的逻辑对多个配置文件进行merge。所以除非项目中有特定的需求，显示的通过log4j2.configurationFile显示的指定配置文件可以减少不必要的困惑。  </li>
+</ol>
+<br/>
+<br/>
+
+<hr>
+<p><em>References</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.slf4j.org/manual.html">https://www.slf4j.org/manual.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration">https://logging.apache.org/log4j/2.x/manual/configuration.html#CompositeConfiguration</a><br>[3]: <a target="_blank" rel="noopener" href="https://howtodoinjava.com/logback/setting-up-slf4j/">https://howtodoinjava.com/logback/setting-up-slf4j/</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/cas/Apereo-CAS-Service-Registry-Storage" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/25/notes/cas/Apereo-CAS-Service-Registry-Storage/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/notes/cas/Apereo-CAS-Service-Registry-Storage/">Apereo CAS 使用MongoDB作为Service注册的存储</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>可以以不同的方式保存Servcie的注册信息，参考这里获得完整列表：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage%E3%80%82">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage。</a><br>这里只记录下如何设置MongoDB作为存储端，官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html%E3%80%82">https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html。</a></p>
+<h3 id="1-添加依赖"><a href="#1-添加依赖" class="headerlink" title="1. 添加依赖"></a>1. 添加依赖</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
+</code></pre>
+<h3 id="2-设置"><a href="#2-设置" class="headerlink" title="2. 设置"></a>2. 设置</h3><pre><code>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db
+cas.service-registry.mongo.collection=cas_serviceregistry
+</code></pre>
+<h3 id="3-服务注册初始化"><a href="#3-服务注册初始化" class="headerlink" title="3. 服务注册初始化"></a>3. 服务注册初始化</h3><p>参数 <code>cas.service-registry.core.init-from-json</code> 用于控制在CAS系统启动时对发现的json格式的服务注册信息是否导入到对应的后端存储。默认为true，这样启动时会把用json文件定义的服务注册信息写入到后端存储，这里是cas_db 的 cas_serviceregistry collection。<br>开发初期可以使用json的方式调试，然后通过init-from-json=true把数据导入DB之后，再设置init-from-json为false。</p>
+<h3 id="4-设置CAS-Management使用MongoDB作为服务注册信息源。"><a href="#4-设置CAS-Management使用MongoDB作为服务注册信息源。" class="headerlink" title="4. 设置CAS-Management使用MongoDB作为服务注册信息源。"></a>4. 设置CAS-Management使用MongoDB作为服务注册信息源。</h3><p>CAS Management应用之前通过下面的信息找到注册的服务数据，使用MongoDDB作为存储后，需要在cas-management的 build.gradle 中添加依赖：</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
+</code></pre>
+<p>同时 删除掉cas.service-registry.json.location的设置，并把把cas-server中关于 cas.service-registry.mongo 的配置copy过来。<br>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db<br>cas.service-registry.mongo.collection=cas_serviceregistry</p>
+<h3 id="5-通过WebUI注册一个新的CAS-Service。"><a href="#5-通过WebUI注册一个新的CAS-Service。" class="headerlink" title="5. 通过WebUI注册一个新的CAS Service。"></a>5. 通过WebUI注册一个新的CAS Service。</h3><p>通过Web界面添加一个新的CAS Client之后，查看MongoDB的cas_serviceregistry collection，可以看到一个新的document数据被成功创建出来。</p>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html">https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-notes/cas/Apereo-CAS-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/25/notes/cas/Apereo-CAS-User-Authentication/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS 之 用户认证</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录cas。我们可以通过etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的authentication的校验。</p>
+<p>这里使用MongoDB作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到build.gradle文件。</p>
+<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
+    
+</code></pre>
+<h3 id="1）在MongoDb中保存用户信息"><a href="#1）在MongoDb中保存用户信息" class="headerlink" title="1）在MongoDb中保存用户信息"></a>1）在MongoDb中保存用户信息</h3><p>获得密码’md5password’的MD5值，并保存到collection。<br>    $ md5 -s ‘md5password’<br>    MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
+<pre><code>db.cas_user.insert(&#123;
+    &quot;username&quot;: &quot;casuser&quot;,
+    &quot;password&quot;: &quot;ec85070aa70e598eda72cbe82d99fabc&quot;,
+    &quot;first_name&quot;: &quot;john&quot;,
+    &quot;last_name&quot;: &quot;smith&quot;
+&#125;)
+</code></pre>
+<h3 id="2）-配置cas从MongoDB获取用户信息"><a href="#2）-配置cas从MongoDB获取用户信息" class="headerlink" title="2） 配置cas从MongoDB获取用户信息"></a>2） 配置cas从MongoDB获取用户信息</h3><p>通过直接设置client-uri表明连接到mongoDB的哪个库做认证，就不用再分别设置注入host、database这样的参数了。<br><code>cas-user</code>是保存用户数据的collection。<br>如果因为我们使用MD5作为密码摘要来验证，所以这里password-encoder.type 设置为 DEFAULT，encoding-algorithm设置为MD5。可以查看源码 DefaultPasswordEncoder 理解这个设置，诸如BCrypt是不需要encoding-algorithm的。<br>cas也支持BCRYPT、PBKDF2这样的密码编码。也可以把type设置为一个自己实现的PasswordEncoder。<br>如果密码是明文保存的，则可把 password-encoder.type 设为NONE。</p>
+<pre><code># -- Use MongoDB as the authentication data source.
+cas.authn.mongo.client-uri=mongodb://admin:password@localhost:27017/center0
+cas.authn.mongo.collection=cas_user
+# cas.authn.mongo.database-name=
+# cas.authn.mongo.host=localhost=
+# cas.authn.mongo.password=
+# cas.authn.mongo.port=27017
+# cas.authn.mongo.principal-transformation.groovy.location=
+# cas.authn.mongo.user-id=
+cas.authn.mongo.password-encoder.type=DEFAULT
+cas.authn.mongo.password-encoder.encoding-algorithm=MD5
+</code></pre>
+<h3 id="3）登录验证"><a href="#3）登录验证" class="headerlink" title="3）登录验证"></a>3）登录验证</h3><p>运行<code>./gradlew clean copyCasConfiguration build run</code>，在浏览器输入casuser / md5password 进行登录。</p>
+<h3 id="4）使用BCrypt"><a href="#4）使用BCrypt" class="headerlink" title="4）使用BCrypt"></a>4）使用BCrypt</h3><p>BCrypt是当前最通用的password encoding方式了。BCrypt会自己内部产生一个随机salt并和hash的结果保存在一起作为encode的结果。这样每次做BCrypt的结果都不同并且再校验时也无需提供salt。可参考这篇文章<a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-security-registration-password-encoding-bcrypt">spring-security-registration-password-encoding-bcrypt</a>。</p>
+<p>生成一个密码bcpassword的BCrypt值：</p>
+<pre><code>$ brew tap spring-io/tap
+$ brew install spring-boot
+$ spring encodepassword bcpassword
+&#123;bcrypt&#125;$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy
+</code></pre>
+<p>更新数据库里的password为<code>$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy</code>。</p>
+<p>设置 cas.authn.mongo.password-encoder.type=BCRYPT<br>注释掉 cas.authn.mongo.password-encoder.encoding-algorithm。</p>
+<p>重新使用新配置启动cas server，用密码bcpassword登录。这个时候cas后台就已经使用BCrypt来验证密码了。<br><code>./gradlew clean copyCasConfiguration build run</code></p>
+<p>其实Type=BCRYPT就对应到了class org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder。</p>
+<h3 id="5）使用多个不同的DataSource用于认证"><a href="#5）使用多个不同的DataSource用于认证" class="headerlink" title="5）使用多个不同的DataSource用于认证"></a>5）使用多个不同的DataSource用于认证</h3><p>可同时使用多个不同的DataSource用于认证，但是相同类型的数据源只能有一个。<br>对于同时使用多个认证源的情况，关键是要设置好authentication policy。请参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">Authentication Manager</a> 和 <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">Authentication Policy
+</a>。  </p>
+<p>同时用json file， texfile，MongoDB作为认证源的<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/commit/fc72643a88e93f1c1214e51ec3d88610b90109e1#diff-b94e97ddebc92ca55c272b4fe7917b097e9f38b4f042603370216252d0fb3494">一个例子</a>。  </p>
+<p>如果需要同时设置两个MongoDB作为认证源，就需要自己通过继承 AbstractUsernamePasswordAuthenticationHandler 来实现了。</p>
+<br>
+
+<hr>
+<p><em>References</em>：<br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://fawnoos.com/2018/06/12/cas53-authn-handlers/">https://fawnoos.com/2018/06/12/cas53-authn-handlers/</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+  
+    <a href="/page/2/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

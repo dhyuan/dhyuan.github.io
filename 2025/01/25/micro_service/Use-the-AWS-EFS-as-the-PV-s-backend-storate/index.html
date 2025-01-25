@@ -1,0 +1,315 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>使用 AWS EFS 作为EKS里PV的后端存储 (1) | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="如何在EKS手工创建AWS EFS资源预备知识AWS的EC2存储，有四种选择：
+
+Amazon Elastic Block Store
+Amazon EC2 instance store
+Use Amazon EFS with Amazon EC2
+Use Amazon S3 with Amazon">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="使用 AWS EFS 作为EKS里PV的后端存储 (1)"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.269Z"><a href="/2025/01/25/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">使用 AWS EFS 作为EKS里PV的后端存储 (1)</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h1 id="如何在EKS手工创建AWS-EFS资源"><a href="#如何在EKS手工创建AWS-EFS资源" class="headerlink" title="如何在EKS手工创建AWS EFS资源"></a>如何在EKS手工创建AWS EFS资源</h1><h2 id="预备知识"><a href="#预备知识" class="headerlink" title="预备知识"></a>预备知识</h2><p>AWS的EC2存储，有四种选择：</p>
+<ul>
+<li>Amazon Elastic Block Store</li>
+<li>Amazon EC2 instance store</li>
+<li>Use Amazon EFS with Amazon EC2</li>
+<li>Use Amazon S3 with Amazon EC2</li>
+</ul>
+<p>下面的这张概念图很好的描述各种存储的位置层次。<br><img src="/2025/01/25/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/ec2_storage_options.jpg" alt="EC2 Storage Options"><br>在EKS的node如果是基于EC2的，那么PV就可以利用以上除去S3之外的其余三种作为底层存储。<br>参考：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/eks/latest/userguide/storage.html">https://docs.aws.amazon.com/eks/latest/userguide/storage.html</a></p>
+<p>关于EC2可以使用的存储的特性、使用场景，推荐阅读官方文档：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html。</a>   </p>
+<h2 id="使用-aws-cli-创建一个EFS资源"><a href="#使用-aws-cli-创建一个EFS资源" class="headerlink" title="使用 aws cli 创建一个EFS资源"></a>使用 aws cli 创建一个EFS资源</h2><p>可以在AWS Console中创建EFS <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html。</a><br>也可以通过使用aws cli在命令行创建，<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/%E3%80%82">https://www.eksworkshop.com/beginner/190_efs/launching-efs/。</a><br>下面是根据上文得到的，通过aws cli创建EFS的脚本。<br>假设，你的aws profile是myAwsProfile、eks所在region是us-west-2、eks集群名称是myCluster，而要创建的EFS名称是 my-test-efs<br>为了使用EFS需要创建SecurityGroup来允许对NFS端口2049的使用，这里设置SG名称为 SG_efs_demo。</p>
+<h4 id="设置环境变量："><a href="#设置环境变量：" class="headerlink" title="设置环境变量："></a>设置环境变量：</h4><hr>
+<pre><code># Set the input env vars
+export AWS_PROFILE=myAwsProfile
+export AWS_REGION=us-west-2
+export CLUSTER_NAME=myCluster
+</code></pre>
+<hr>
+<pre><code># Set the output env vars
+export MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+export MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+export EFS_NAME=my-test-efs
+</code></pre>
+<h4 id="获取-VPC-ID"><a href="#获取-VPC-ID" class="headerlink" title="获取 VPC ID"></a>获取 VPC ID</h4><hr>
+<pre><code># Get eks cluster&#39;s VPC ID.
+export VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+echo $VPC_ID
+</code></pre>
+<h4 id="获取-VPC-里的-subnets"><a href="#获取-VPC-里的-subnets" class="headerlink" title="获取 VPC 里的 subnets"></a>获取 VPC 里的 subnets</h4><hr>
+<pre><code># Get the subnets&#39;s CIDR in the VPC.
+export CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+echo $CIDR_BLOCK
+</code></pre>
+<h4 id="创建-Security-Group"><a href="#创建-Security-Group" class="headerlink" title="创建 Security Group"></a>创建 Security Group</h4><hr>
+<pre><code># Create SG(allow port 2049 in ingress for all of the CIDR in VPC) for EFS
+export MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION --group-name $MOUNT_TARGET_GROUP_NAME --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; --vpc-id $VPC_ID | jq --raw-output &#39;.GroupId&#39;)
+aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+
+# Get back the security-group informaation.
+aws ec2 describe-security-groups --filters Name=group-name,Values=$MOUNT_TARGET_GROUP_NAME
+</code></pre>
+<h4 id="创建-EFS"><a href="#创建-EFS" class="headerlink" title="创建 EFS"></a>创建 EFS</h4><hr>
+<pre><code># Create EFS. https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html
+# https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli
+# If no creation-token is provied, you&#39;d better go to the AWS EFS Console 
+# to make sure the EFS is created or not to avoid too many EFS reources are created.
+# 使用efs name作为前缀加序号的方式做 creation-token 是个不错的选择，
+export FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting --tags Key=name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+</code></pre>
+<h4 id="找到-VPC-中的-pubilc-subnets"><a href="#找到-VPC-中的-pubilc-subnets" class="headerlink" title="找到 VPC 中的 pubilc subnets"></a>找到 VPC 中的 pubilc subnets</h4><hr>
+<pre><code># Find out the public subtnets from the subnets of the eks cluster.
+
+# 得到eks VPC的所有 subnetIds
+# export eksSubnetIDs=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; --output text))
+
+# 找到 Internet GW
+export IGW_ID=`aws ec2 describe-internet-gateways \
+  --filters Name=attachment.vpc-id,Values=$&#123;VPC_ID&#125; \
+  --query &quot;InternetGateways[].InternetGatewayId&quot; \
+  | jq -r &#39;.[0]&#39;`
+
+# 找到 public subnets: https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet 
+export PUBLIC_SUBNETS=`aws ec2 describe-route-tables \
+  --query  &#39;RouteTables[*].Associations[].SubnetId&#39; \
+  --filters &quot;Name=vpc-id,Values=$&#123;VPC_ID&#125;&quot; \
+    &quot;Name=route.gateway-id,Values=$&#123;IGW_ID&#125;&quot; \
+  | jq . -c`
+</code></pre>
+<h4 id="把-EFS-mount-到-public-subnets，这样EKS里的worker-nodes就都可以访问这些EFS了。"><a href="#把-EFS-mount-到-public-subnets，这样EKS里的worker-nodes就都可以访问这些EFS了。" class="headerlink" title="把 EFS mount 到 public subnets，这样EKS里的worker nodes就都可以访问这些EFS了。"></a>把 EFS mount 到 public subnets，这样EKS里的worker nodes就都可以访问这些EFS了。</h4><hr>
+<pre><code>for subnet in $&#123;PUBLIC_SUBNETS[@]&#125;
+do
+    echo &quot;creating mount target in &quot; $subnet
+    aws efs create-mount-target --profile $AWS_PROFILE --region us-west-2 --file-system-id $FILE_SYSTEM_ID --subnet-id $subnet --security-groups $MOUNT_TARGET_GROUP_ID
+done
+</code></pre>
+<hr>
+<h4 id="创建-Access-Points"><a href="#创建-Access-Points" class="headerlink" title="创建 Access Points"></a>创建 Access Points</h4><p>有了EFS之后就可以创建 AccessPoints 供应用程序使用了。关于更详细的Access Points介绍：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/efs-access-points.html">https://docs.aws.amazon.com/efs/latest/ug/efs-access-points.html</a></p>
+<pre><code>ACCESS_POING_NAME=ap_db2
+FILE_SYSTEM_ID=fs-055b5f1fcc7df3e4b
+AP_DIR_USER=&#39;&#123;&quot;Uid&quot;: 70, &quot;Gid&quot;: 70, &quot;SecondaryGids&quot;: [70]&#125;&#39;
+AP_ROOT_DIR=&#39;/mydataPath,CreationInfo=&#123;OwnerUid=70,OwnerGid=70,Permissions=0755&#125;&#39;
+
+aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
+--tags Key=name,Value=$ACCESS_POING_NAME \
+--client-token &quot;$ACCESS_POING_NAME&quot;_2 \
+--file-system-id $FILE_SYSTEM_ID \
+--posix-user $AP_DIR_USER \
+--root-directory Path=$AP_ROOT_DIR
+</code></pre>
+<p>注意：</p>
+<h5 id="1）Path的格式必须满足下面的正则"><a href="#1）Path的格式必须满足下面的正则" class="headerlink" title="1）Path的格式必须满足下面的正则"></a>1）Path的格式必须满足下面的正则</h5><pre><code>^(\/|(\/(?!\.)+[^$#&lt;&gt;;`|&amp;?&#123;&#125;^*/\n]+)&#123;1,4&#125;)$
+</code></pre>
+<p>所以path不能以 <code>/</code> 结尾。</p>
+<h5 id="2）创建的access-point-可以同名、可以同名同path，唯一标识access-point的是-Access-point-ID"><a href="#2）创建的access-point-可以同名、可以同名同path，唯一标识access-point的是-Access-point-ID" class="headerlink" title="2）创建的access point 可以同名、可以同名同path，唯一标识access point的是 Access point ID"></a>2）创建的access point 可以同名、可以同名同path，唯一标识access point的是 <code>Access point ID</code></h5><h5 id="3-根据id删除一个-access-point"><a href="#3-根据id删除一个-access-point" class="headerlink" title="3) 根据id删除一个 access point"></a>3) 根据id删除一个 access point</h5><p>aws efs delete-access-point –profile $AWS_PROFILE –region $AWS_REGION  –access-point-id fsap-0a8b1b7d9e0c1c9c3</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>, <a href="/tags/Kubernetes/">Kubernetes</a>, <a href="/tags/AWS/">AWS</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/25/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

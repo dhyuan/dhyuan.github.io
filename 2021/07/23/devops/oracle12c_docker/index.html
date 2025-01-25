@@ -1,0 +1,329 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>使用Oracle 12c容器服务创建数据库 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="1) 启动Oracle服务容器docker run -d --name oracle -p1521:1521 -v OracleDBData:/ORCL store/oracle/database-enterprise:12.2.0.1-slim
+
+参考：https://hub.docker.com">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="使用Oracle 12c容器服务创建数据库"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-devops/oracle12c_docker" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-07-23T06:37:27.000Z"><a href="/2021/07/23/devops/oracle12c_docker/">2021-07-23</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">使用Oracle 12c容器服务创建数据库</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-启动Oracle服务容器"><a href="#1-启动Oracle服务容器" class="headerlink" title="1) 启动Oracle服务容器"></a>1) 启动Oracle服务容器</h3><pre><code>docker run -d --name oracle -p1521:1521 -v OracleDBData:/ORCL store/oracle/database-enterprise:12.2.0.1-slim
+</code></pre>
+<p>参考：<a target="_blank" rel="noopener" href="https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83">https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83</a></p>
+<p>通过docker inspect oracle 可以看到被映射在 /var/lib/docker/volumes/OracleDBData</p>
+<pre><code>&quot;Mounts&quot;: [
+    &#123;
+        &quot;Type&quot;: &quot;volume&quot;,
+        &quot;Name&quot;: &quot;OracleDBData&quot;,
+        &quot;Source&quot;: &quot;/var/lib/docker/volumes/OracleDBData/_data&quot;,
+        &quot;Destination&quot;: &quot;/ORCL&quot;,
+        &quot;Driver&quot;: &quot;local&quot;,
+        &quot;Mode&quot;: &quot;z&quot;,
+        &quot;RW&quot;: true,
+        &quot;Propagation&quot;: &quot;&quot;
+    &#125;
+],
+</code></pre>
+<h3 id="2）进入Oracle，执行sqlplus。"><a href="#2）进入Oracle，执行sqlplus。" class="headerlink" title="2）进入Oracle，执行sqlplus。"></a>2）进入Oracle，执行sqlplus。</h3><p>oracle 12c 是多租户数据库，有个核心概念CDB，PDB需要理解。进入容器oracle：<br>参考： <a target="_blank" rel="noopener" href="https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236">https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236</a></p>
+<pre><code>docker exec -it oracle bash
+
+sqlplus / as sysdba
+
+show user
+show con_name
+show pdbs
+</code></pre>
+<p>查看当前用户连接到的数据库是CDB还是PDB。</p>
+<pre><code>SELECT NAME, CDB, CON_ID FROM V$DATABASE;
+</code></pre>
+<h3 id="3）创建PDB"><a href="#3）创建PDB" class="headerlink" title="3）创建PDB"></a>3）创建PDB</h3><p>创建PDB之前需要设置 FILE_NAME_CONVERT 或者 db_create_file_dest<br>参考：<a target="_blank" rel="noopener" href="https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/">https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/</a><br>     <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000038344836">https://segmentfault.com/a/1190000038344836</a><br>     <a target="_blank" rel="noopener" href="https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c">https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c</a></p>
+<p>检查PDB$SEED database文件的位置：</p>
+<pre><code>SQL&gt; alter session set container=PDB$SEED;
+
+Session altered.
+
+SQL&gt; select FILE_NAME from dba_data_files;
+
+FILE_NAME
+--------------------------------------------------------------------------------
+/u02/app/oracle/oradata/ORCL/pdbseed/system01.dbf
+/u02/app/oracle/oradata/ORCL/pdbseed/sysaux01.dbf
+/u02/app/oracle/oradata/ORCL/pdbseed/xdb01.dbf
+
+SQL&gt;
+</code></pre>
+<p>因为创建PDB时需要连接在CDB$ROOT，所以先检查当前连接。如果不是，则切换到CDB。</p>
+<pre><code>SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
+
+SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
+--------------------------------------------------------------------------------
+PDB$SEED
+
+SQL&gt;  alter session set container = CDB$ROOT;
+
+Session altered.
+
+SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
+
+SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
+--------------------------------------------------------------------------------
+CDB$ROOT
+</code></pre>
+<p>创建一个PDB: YDPDB 用户：ydhbqb</p>
+<pre><code>    SQL&gt; CREATE PLUGGABLE DATABASE YDPDB ADMIN USER ydhbqb IDENTIFIED BY ydhbqb0531 FILE_NAME_CONVERT=(&#39;/u02/app/oracle/oradata/ORCL/pdbseed/&#39;,&#39;/u02/app/oracle/oradata/ORCL/pdbseed/YDPDB/&#39;);
+</code></pre>
+<p>赋予sysdba权限：</p>
+<pre><code>SQL&gt;  grant SYSDBA to ydhbqb;
+
+Grant succeeded.
+   
+
+Pluggable database created.
+
+SQL&gt; show pdbs;
+
+    CON_ID CON_NAME              OPEN MODE  RESTRICTED
+---------- ------------------------------ ---------- ----------
+    2 PDB$SEED              READ ONLY  NO
+    3 ORCLPDB1              READ WRITE NO
+    4 YDPDB              MOUNTED
+SQL&gt; 
+
+SQL&gt; alter pluggable database YDPDB open;
+
+Pluggable database altered.
+
+SQL&gt; show pdbs;
+
+    CON_ID CON_NAME              OPEN MODE  RESTRICTED
+---------- ------------------------------ ---------- ----------
+    2 PDB$SEED              READ ONLY  NO
+    3 ORCLPDB1              READ WRITE NO
+    4 YDPDB                  READ WRITE NO
+SQL&gt; 
+</code></pre>
+<p>让Oracle记住这个状态：</p>
+<pre><code>alter pluggable database YDPDB save state;
+</code></pre>
+<p>关闭PDB</p>
+<pre><code>alter pluggable database YDPDBclose immediate;
+</code></pre>
+<p>查看错误信息</p>
+<pre><code>select * from PDB_PLUG_IN_VIOLATIONS;
+</code></pre>
+<h3 id="4）-连接到PDB。"><a href="#4）-连接到PDB。" class="headerlink" title="4） 连接到PDB。"></a>4） 连接到PDB。</h3><h4 id="1）-用sqlplus连接到PDB。"><a href="#1）-用sqlplus连接到PDB。" class="headerlink" title="1） 用sqlplus连接到PDB。"></a>1） 用sqlplus连接到PDB。</h4><pre><code>sqlplus ydhbqb/ydhbqb0531@localhost:1521/ydpdb.localdomain
+</code></pre>
+<h4 id="2）-Spring-DS"><a href="#2）-Spring-DS" class="headerlink" title="2） Spring DS"></a>2） Spring DS</h4><pre><code>spring:
+    datasource:
+        url:  jdbc:oracle:thin:@localhost:1521/ydpdb.localdomain
+        username: ydhbqb
+        password: ydhbqb0531
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/07/23/devops/oracle12c_docker/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

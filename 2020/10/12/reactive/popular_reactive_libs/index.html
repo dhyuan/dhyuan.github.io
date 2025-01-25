@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Reactive Streams规范及常见库 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="什么是Reactive Streams:
+Reactive Streams is an initiative to provide a standard for asynchronous stream processing with non-blocking back pressure. This ">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Reactive Streams规范及常见库"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-reactive/popular_reactive_libs" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-10-12T14:05:29.000Z"><a href="/2020/10/12/reactive/popular_reactive_libs/">2020-10-12</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Reactive Streams规范及常见库</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h2 id="什么是Reactive-Streams"><a href="#什么是Reactive-Streams" class="headerlink" title="什么是Reactive Streams:"></a>什么是<a target="_blank" rel="noopener" href="https://www.reactive-streams.org/">Reactive Streams</a>:</h2><blockquote>
+<p>Reactive Streams is an initiative to provide a standard for asynchronous stream processing with non-blocking back pressure. This encompasses efforts aimed at runtime environments (JVM and JavaScript) as well as network protocols.</p>
+</blockquote>
+<p>概括的说，Reactive Streams 是个(Java 世界里的)规范，它规范了“有非阻塞背压机制的异步的流处理”。挺简单的定义，但是能够真正正确理解异步、非阻塞并不容易，以后单独开写一篇。实际上 Reactive Streams 规范或者说其实现包含的内容更加丰富：除了 non-blocking，还有：Composable、Deferred、Flow Controll、Resilient、Interruptible。</p>
+<p>其中 Composable 就是函数式编程思想的用武之地。 可体会下 Java8 里的 Stream API 各种算子的参数，所以 Lamda 表达式是进行 Reactive Streams 实现的基本前提，否则很难想象臃肿的面向对象的 Composable。有了 JDK8 的铺垫，Reactive Streams 接口被 JDK9 定义在 Flow 里才是可能的。</p>
+<blockquote>
+<p>As of August 23rd, 2019 we have released version 1.0.3 of Reactive Streams for the JVM, including Java API, a textual Specification, a TCK and implementation examples.</p>
+</blockquote>
+<p>这个规范由三部分组成：Java API（org.reactive-streams）、以文字描述的规范、技术兼容工具包。<br>Reactive Streams 规范 仅限于 Java（JavaScript、网络协议）世界，其它语言虽然也有 Reactive 这样的工具<a target="_blank" rel="noopener" href="https://github.com/ReactiveX">（参考这里： ReactiveX）</a>实现，但好像没有类似的规范。</p>
+<h2 id="为什么要有-Reactive-Streams"><a href="#为什么要有-Reactive-Streams" class="headerlink" title="为什么要有 Reactive Streams"></a>为什么要有 Reactive Streams</h2><p>因为很多厂商开发了 reactive 库，但是它们直接很难/不可能互操作。用 Reactive Streams 进行规范就使得它们可以互操作，也就让它们串起来形成一个 reactive 链成为了可能。</p>
+<h2 id="为什么要用-Reactive"><a href="#为什么要用-Reactive" class="headerlink" title="为什么要用 Reactive"></a>为什么要用 Reactive</h2><p>因为 reactive 可以榨干 CPU…，所以从老板的角度讲是省钱、从环保的角度讲是省电、从码农的角度讲是有意思。</p>
+<h2 id="Java-世界里的-Reactive-库"><a href="#Java-世界里的-Reactive-库" class="headerlink" title="Java 世界里的 Reactive 库"></a>Java 世界里的 Reactive 库</h2><h3 id="RxJava"><a href="#RxJava" class="headerlink" title="RxJava"></a><strong>RxJava</strong></h3><p>从 Reactive 宣言、到 Reactive Streams 规范，再到各种 Reactive 库是很自然的一个脉络。<br>但现实是大家先有了 Reactive 系统的思想，聪明的程序员开发出各种蕴含着 reactive 思想的库(比如 RxJava 1.0)。为了各个库之间的统一性、可操作行，大家一起协商出了 Reactive Streams 规范。继而这些已经存在的 reactive 库便改进自己的 API 设计，向 reactive streams 规范靠拢并提供各种转化 api 让用户在原生 api 和 reactive streams 接口直接转换。比如 RxJava 2.0 的 Flowable 就直接继承自 org.reactive-streams.Publisher 并提供了 toObservable() toFlowable()。因为各个库的实现细节不同，用到具体转换 api 需要参考其手册。</p>
+<h3 id="JDK"><a href="#JDK" class="headerlink" title="JDK"></a><strong>JDK</strong></h3><p>这个规范被的 API 形式定义从 JDK 9 这个版本开始，以 java.util.concurrent.Flow 静态子类的形式被定义。其实，既然已经有了 org.reactive-streams 这样的规范，为什么还要在 JDK 中弄出个 Flow 来再重新定义一次。难道就是要宣示 JDK 自身有支持 reactive streaming 的东西？这个思路的本意应该就像 JDBC 接口一样，让 Flow 里定义的接口成为 SPI，让不同的 reactive sreams 库供应商可互操作吧。所以 JDK 里的 Flow 中定义的东西不能算是库，而是个 SPI：Service Provider Interface。</p>
+<h3 id="Vert-x、MongoDB-响应式流驱动"><a href="#Vert-x、MongoDB-响应式流驱动" class="headerlink" title="Vert.x、MongoDB 响应式流驱动"></a><strong>Vert.x、MongoDB 响应式流驱动</strong></h3><p>这些都做了改进以符合 org.reactive-streams 中的 API 定义。其中<a target="_blank" rel="noopener" href="https://vertx.io/">Vert.x</a>不仅提供了对 java 的 reactive 库，还有 JavaScritp、Ruby、Scala 等。</p>
+<h3 id="Spring-的-Project-Reactor"><a href="#Spring-的-Project-Reactor" class="headerlink" title="Spring 的 Project Reactor"></a><strong>Spring 的 Project Reactor</strong></h3><p>Project Reactor 主页：<a target="_blank" rel="noopener" href="https://projectreactor.io/docs/core/release/reference/">https://projectreactor.io/docs/core/release/reference/</a><br>既然 Spring 都提供了对 Reactive Streams 的实现，感觉其实上面列出的几个库已经没有太多的意义。各家对 Reactive Streams 规范的实现在细节上都有很大不同，因为 Spring 的生态太强大了，如果没有特殊的需求，比如 JDK 小于 8，那么我们的项目基本于 Project Reactor，那么应该是较好的选择。这个网页 <a target="_blank" rel="noopener" href="https://tech.io/playgrounds/929/reactive-programming-with-reactor-3/Intro">https://tech.io/playgrounds/929/reactive-programming-with-reactor-3/Intro</a> 可以帮助操练 Reactor Api。</p>
+<p>Project Reactor 到目前为止经历了 1.0, 2.0, 3.3。其中 1.0 这个阶段还没有 Reactive Stream 是规范。在 2.0 开始 follow 规范并基本定型。3.0 感觉是个重构版，形成 reactive-streams-commons 库。这里是 3.0 的 release 文档: <a target="_blank" rel="noopener" href="https://github.com/reactor/reactor-core/releases?after=v3.0.0.RELEASE">https://github.com/reactor/reactor-core/releases?after=v3.0.0.RELEASE</a> 。</p>
+<p>有了 Project Reactor 这样的基础库，整个 Spring 组件基本都有了 Reactive Style 的版本，再这个基础上<br>用 Netty（或 Servet 3.1 Containe）+ Reactive Streams 适配层 + Spring Security Reactive + WebFlux + Spring Data Reactive Repository，就可以构建出重头到尾的 Reactive 应用。</p>
+<p>从 Spring Cloud 的组件角度讲，也衍生出 Reactive Discovery Client, Reactive Load Balancer, Blockhound, Reactor Debug, Improved Reactor Micrometer Support, Reactor Netty Metric …</p>
+<p>Stephane 是实现 Project Reactor 的主力，下面是他的两个视频：​<br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=Tr04KiJdAXQ">https://www.youtube.com/watch?v=Tr04KiJdAXQ</a><br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=zls8ZLry68M">https://www.youtube.com/watch?v=zls8ZLry68M</a></p>
+<h2 id="其它编程语言的-Reative-库"><a href="#其它编程语言的-Reative-库" class="headerlink" title="其它编程语言的 Reative 库"></a>其它编程语言的 Reative 库</h2><p>其它编程语言的 Reative 库可参考：<a target="_blank" rel="noopener" href="https://github.com/ReactiveX">https://github.com/ReactiveX</a><br>另，Akka Stream：<a target="_blank" rel="noopener" href="https://doc.akka.io/docs/akka/current/stream/stream-introduction.html">https://doc.akka.io/docs/akka/current/stream/stream-introduction.html</a></p>
+<p><em>Reference:</em><br><a target="_blank" rel="noopener" href="https://www.reactive-streams.org/">https://www.reactive-streams.org/</a><br><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=Cj4foJzPF80&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=4&amp;t=2940s">https://www.youtube.com/watch?v=Cj4foJzPF80&amp;list=PLVoESeXbuo-yWN1HW5g45v6eGEPOcfWU0&amp;index=4&amp;t=2940s</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Reactive/">Reactive</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2020/10/12/reactive/popular_reactive_libs/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

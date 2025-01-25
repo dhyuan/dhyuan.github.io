@@ -1,0 +1,1242 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>第 3 页 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper">
+  <article id="post-devops/setup_mongo_srv_by_using_coredns" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.268Z"><a href="/2025/01/25/devops/setup_mongo_srv_by_using_coredns/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/devops/setup_mongo_srv_by_using_coredns/">利用CoreDNS设置mongo支持SRV连接</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>MongoDB 从3.6开始，就支持mongo+srv “DNS Seed List Connection Format”这种格式的连接串。<br>对客户端来说它可以隐藏后端mongo服务节点的变化，其显而易见的好处就是后端mongo节点的变化无需修改客户端连接参数，也就无需进行应用的重新部署。其工作原理主要是利用DNS对SRV/TXT记录的支持。因此为了使用mongo+srv，我们需要一个DNS服务器并在其中设置指向mongo后端节点的SRV记录。<br>这里以docker的方式运行CoreDNS来作为本地DNS服务器使用本地环境演示一下如何配置以支持mongo srv。</p>
+<h3 id="MongoDB"><a href="#MongoDB" class="headerlink" title="MongoDB"></a>MongoDB</h3><p>MongDB这部分无需特殊配置，只要把MongoDB在本地以复制集（名为rs0）安装并运行起来就好。</p>
+<h3 id="运行CoreDNS"><a href="#运行CoreDNS" class="headerlink" title="运行CoreDNS"></a>运行CoreDNS</h3><p>运行CoreDNS容器，并把本地～/dockerSrvStorage/dockerEnv/coredns 映射为coredns容器里的/root目录。<br>配置CoreDNS使用容器里的/root/Corefile（对应于本地的～/dockerSrvStorage/dockerEnv/coredns/Corefile）作为配置文件。</p>
+<p>  docker run -d –name coredns –restart=always <br>      –volume=～/dockerSrvStorage/dockerEnv/coredns/:/root/ <br>      -p 53:53/udp coredns/coredns <br>      -conf /root/Corefile</p>
+<h3 id="配制CoreDNS"><a href="#配制CoreDNS" class="headerlink" title="配制CoreDNS"></a>配制CoreDNS</h3><p>Corefile内容如下。其中定义了一个dns zone ‘local.env’，对应的DNS记录文件使用/root/local.env。因为上一步已经把本地的～/dockerSrvStorage/dockerEnv/coredns 映射为了容器里的/roo目录，所以在本地的这个目录创建local.env这个文件就可以了。</p>
+<p>Corefile：</p>
+<pre><code>.:53 &#123;
+    forward . 8.8.8.8 114.114.114.114
+    log
+    errors
+&#125;
+
+local.env:53 &#123;
+    file /root/local.env
+    log
+    errors
+&#125;
+</code></pre>
+<p>local.env<br>下面的配置表示本地机器域名设置为dev.local.env，机器名mongo.local.env是dev.local.env这个机器的别名。<br>假设本地运行了一个数据库DB1以两replicaset（名字是rs0）方式运行的mongo实例，分别侦听在端口27017，27117上。下面的配置就可以提供一个mongosrv连接。<br>mongo+srv://DB1.mongo.local.env。</p>
+<pre><code>@    3600 IN    SOA dns.local.env. dhyuan.google.com. (
+        2022030456 ; serial
+        7200       ; refresh (2 hours)
+        3600       ; retry (1 hour)
+        1209600    ; expire (2 weeks)
+        3600       ; minimum (1 hour)
+        )
+
+dev.local.env.    IN  A   127.0.0.1
+mongo.local.env.  IN  CNAME   dev.local.env.
+redis.local.env.  IN  CNAME   dev.local.env.
+zk.local.env.     IN  CNAME   dev.local.env.
+
+_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27017 mongo.local.env.
+_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27117 mongo.local.env.
+DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot;
+</code></pre>
+<h3 id="更改本地-etc-resolv-conf"><a href="#更改本地-etc-resolv-conf" class="headerlink" title="更改本地/etc/resolv.conf"></a>更改本地/etc/resolv.conf</h3><p>把’nameserver 127.0.0.1’ 加在文件末尾，让本地的CoreDns参与解析。</p>
+<h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>dig -t srv DB1.mongo.local.env</p>
+<p>也可以通过文章<a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a> 中 Reading SRV and TXT Records部分提供的python解析srv的代码验证。</p>
+<p>pip3 install srvlookup<br>pip3 install dnspython<br>python3 mongodb_srv_records.py DB1.mongo.local.env</p>
+<p>Reference:<br>    <a target="_blank" rel="noopener" href="https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0">https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0</a><br>    <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc2052">https://datatracker.ietf.org/doc/html/rfc2052</a><br>    <a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/reference/connection-string/">https://docs.mongodb.com/manual/reference/connection-string/</a><br>    <a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a><br>    <a target="_blank" rel="noopener" href="https://coredns.io/manual/toc/">https://coredns.io/manual/toc/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.267Z"><a href="/2025/01/25/devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo/">把某个git子目录迁移到新repo的根目录</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>对项目重构时有这样一个需求，1）要把代码库某个目录下的所有代码作为一个新代码库的根目录，2）并且之前所有的代码提交记录要一并迁移到这个新的git repo。</p>
+<p>当你尝试用 <code>git filter-branch --subdirectory-filter YOUR_SUB_DIR -- --all</code> 来解决问题时，会看到一个警告推荐我们使用 git <a target="_blank" rel="noopener" href="https://github.com/newren/git-filter-repo/">filter-repo</a>。它是一个用于重写git history的多功能小工具，用法参考<a target="_blank" rel="noopener" href="https://htmlpreview.github.io/?https://github.com/newren/git-filter-repo/blob/docs/html/git-filter-repo.html">filter-repo使用手册</a>。我们的需求在这里只是它的一个小case。</p>
+<p>下面直接列出操作步骤：</p>
+<h3 id="1）安装-git-filter-repo"><a href="#1）安装-git-filter-repo" class="headerlink" title="1）安装 git-filter-repo"></a>1）安装 git-filter-repo</h3><pre><code>brew install git-filter-repo
+</code></pre>
+<h3 id="2）Clone-原来的Repo"><a href="#2）Clone-原来的Repo" class="headerlink" title="2）Clone 原来的Repo"></a>2）Clone 原来的Repo</h3><pre><code>mkdir codebase
+cd codebase
+git clone YOUR_GIT_REPO_URL/myProject
+cd myProject
+</code></pre>
+<h3 id="3-拉取所有信息到本地"><a href="#3-拉取所有信息到本地" class="headerlink" title="3) 拉取所有信息到本地"></a>3) 拉取所有信息到本地</h3><pre><code>git fetch --all
+git pull --all
+</code></pre>
+<h3 id="4）执行-filter-repo-命令，让某个子目录成为新repo的根目录。"><a href="#4）执行-filter-repo-命令，让某个子目录成为新repo的根目录。" class="headerlink" title="4）执行 filter-repo 命令，让某个子目录成为新repo的根目录。"></a>4）执行 filter-repo 命令，让某个子目录成为新repo的根目录。</h3><pre><code>git filter-repo --subdirectory-filter The_SubDir_in_myProject
+</code></pre>
+<h3 id="5-在github-gitlab创建一个新repo，把这个repo设为这个子目录的remote目标"><a href="#5-在github-gitlab创建一个新repo，把这个repo设为这个子目录的remote目标" class="headerlink" title="5) 在github/gitlab创建一个新repo，把这个repo设为这个子目录的remote目标"></a>5) 在github/gitlab创建一个新repo，把这个repo设为这个子目录的remote目标</h3><pre><code>git remote add origin YOUR_NEW_REPO_GIT_URL
+</code></pre>
+<h3 id="6-把master的history-push到新repo"><a href="#6-把master的history-push到新repo" class="headerlink" title="6) 把master的history push到新repo"></a>6) 把master的history push到新repo</h3><pre><code>git branch -M master
+git push -uf origin master
+</code></pre>
+<h3 id="7）把所有branchs-tags都push上去"><a href="#7）把所有branchs-tags都push上去" class="headerlink" title="7）把所有branchs/tags都push上去"></a>7）把所有branchs/tags都push上去</h3><pre><code>git push --all origin
+</code></pre>
+<br/>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]:  <a target="_blank" rel="noopener" href="https://github.com/newren/git-filter-repo/">https://github.com/newren/git-filter-repo/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/nginx-workshop-environment" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.267Z"><a href="/2025/01/25/devops/nginx-workshop-environment/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/devops/nginx-workshop-environment/">利用docker在本地搭建nginx环境</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>利用docker搭建如下拓扑结构的的实验环境。相关代码可以在 <a target="_blank" rel="noopener" href="https://github.com/dhyuan/dockerEnv/tree/main/nginx">https://github.com/dhyuan/dockerEnv/tree/main/nginx</a> 获得。</p>
+<p><img src="/2025/01/25/devops/nginx-workshop-environment/topology.jpg" alt="Topology"></p>
+<h3 id="1-网路"><a href="#1-网路" class="headerlink" title="1) 网路"></a>1) 网路</h3><p>首先创建一个网络’nginx-net’，把所有的相关的容器放在这个网络里以方便容器之间的访问。<br>这个网络地址范围172.50.0.0/16。相关脚本 createNetwork.sh。</p>
+<pre><code>docker network create --subnet=172.50.0.0/16 nginx-net
+</code></pre>
+<h3 id="2-创建并运行Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’"><a href="#2-创建并运行Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’" class="headerlink" title="2) 创建并运行Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’."></a>2) 创建并运行Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’.</h3><p>并把个容器的IP固定下来防止容器重启后IP变化以影响日志观察。<br>把相关配置影射到本地方便修改。相关脚本 startNginx.sh。</p>
+<p>下面是配置nginx容器 nginxA。</p>
+<pre><code>docker run --name nginxA \
+--network nginx-net --ip 172.50.0.11 \
+-v ~/dockerEnv/nginx/nginxA/html:/usr/share/nginx/html:ro \
+-v ~/dockerEnv/nginx/nginxA/config/conf.d:/etc/nginx/conf.d \
+-v ~/dockerEnv/nginx/nginxA/config/nginx.conf:/etc/nginx/nginx.conf:ro \
+-v ~/dockerEnv/nginx/nginxA/log:/var/log/nginx \
+-p 18080:9090 \
+-d nginx:1.22.0
+</code></pre>
+<p>Nginx镜像不包含ping，curl这样的常用工具，可以自行安装。</p>
+<pre><code>docker exec -it nginxA sh
+apt-get update
+apt-get install iputils-ping curl
+</code></pre>
+<h3 id="3-创建一个容器作为client"><a href="#3-创建一个容器作为client" class="headerlink" title="3) 创建一个容器作为client"></a>3) 创建一个容器作为client</h3><p>因为nginx容器都在自己的网络nginx-net里，为了方便测试通过创建一个Alpine容器作为客户端环境。Alpine容器以-it交互模式运行。</p>
+<pre><code>docker run --name nclient100 --network nginx-net --ip 172.50.0.100 -it alpine:3.16.0
+</code></pre>
+<p>Alpine镜像没有curl命令，可以通过apk安装。</p>
+<pre><code>apk add curl
+</code></pre>
+<p>可以在console发送curl命令进行测试。</p>
+<pre><code>curl http://nginxA:9090/testProxy/index.html
+curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/index.html
+</code></pre>
+<h3 id="4-Play-around"><a href="#4-Play-around" class="headerlink" title="4) Play around"></a>4) Play around</h3><p>因为ngix容器的配置、日志、html目录都映射到了本地，所以可以本地的这些内容进行测试、验证。<br>可以根据自己的需要修改nginxA(B|C)/config/confd/9090.conf 里的__”location /testProxy”__ 来进行相关nginx相关参数的验证。</p>
+<p>查看各容器的IP，可运行 ./showInfo.sh<br>清除各容器的nginx日志，可运行 ./cleanlog.sh<br>修改nginx的配置后进行语法检查，可运行 ./testCfg.sh<br>变更了nginx的配置使之生效，可运行 ./reload.sh</p>
+<h3 id="5）-Demo"><a href="#5）-Demo" class="headerlink" title="5） Demo"></a>5） Demo</h3><p>下图显示了一个测试获取真实用户IP的场景。</p>
+<p>为了查看HTTP header里的X_REAL_IP字段，在‘log_format main’里加上了 <strong>“  | $http_x_real_ip”</strong> ,这样在access.log就就可以看到nginx接收到的HEADER X_REAL_IP的值。</p>
+<p>从图里 nginxC 的access.log 中可以看到，nginxC收到的X_REAL_IP是ngixA的IP。如果我们希望这里的X_REAL_IP记录的是真正web client的IP就需要把nginxB中的指令 “proxy_set_header X-Real-IP $remote_addr;” 注释掉。这样，ngixC中收到的X_REAL_IP就是 nginxA中看到的$remote_addr，及ngixA看到的client的IP了。</p>
+<p><img src="/2025/01/25/devops/nginx-workshop-environment/Nginx-X-FORWARDED-FOR.drawio.png" alt="X-FORWARDED_FOR_demo"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/Kubernetes-Ingresses-1" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.254Z"><a href="/2025/01/25/devops/Kubernetes-Ingresses-1/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/devops/Kubernetes-Ingresses-1/">Kubernetes Ingresses (1)</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在连接上一个 K8S cluster 后执行下面的命令可以看到系统中的ingressclasses。这篇文字用来帮助自己理解下面几行简单的输出。</p>
+<pre><code>╰─$ kubectl get ingressclass        
+NAME       CONTROLLER                     PARAMETERS                             AGE
+awslb      ingress.k8s.aws/alb            IngressClassParams.elbv2.k8s.aws/alb   20d
+nginx      nginx.org/ingress-controller   &lt;none&gt;                                 30d
+os-nginx   k8s.io/ingress-nginx           &lt;none&gt;                                 30d
+</code></pre>
+<h2 id="Mental-Model"><a href="#Mental-Model" class="headerlink" title="Mental Model"></a>Mental Model</h2><p>在Kubernets里经常会提到Pod，Service，Ingress，Ingress Controller, Ingress Class，那他们之间有什么逻辑关系呢？</p>
+<h3 id="Pod"><a href="#Pod" class="headerlink" title="Pod"></a>Pod</h3><p>Pod用于把几个相关的containers封装在一起对外提供业务服务，containers之间可以直接通过localhost通讯。而如果想访问POD服务只能凭借POD的IP，这个IP也是K8S集群内部可见，而POD的IP在每次重建后都会变化，这显然是不可接受的。</p>
+<h3 id="Service"><a href="#Service" class="headerlink" title="Service"></a>Service</h3><p>Service就是为了解决这个问题而生，通过service.yaml可以定义 1）这个service的name/namespace；2）由selector定义这个service对应的PODs；3）再通过定义service port和pod port的映射关系，就可以通过Service的名称访问PODs提供的服务了。Service借助自己对Pod自动发现的能力、服务名到POD IP的解析能力、简单的负载均衡能力，成为在Kubernets集群内部暴露Pod的不二之选。</p>
+<h3 id="Ingress-Ingress-Controller-Ingerss-Class"><a href="#Ingress-Ingress-Controller-Ingerss-Class" class="headerlink" title="Ingress / Ingress Controller / Ingerss Class"></a>Ingress / Ingress Controller / Ingerss Class</h3><p>Service解决了我们在k8s集群内部访问‘服务’的问题。如果想从集群外部访问‘服务’呢？这正是“Ingress机制”七层路由存在的意义。这里的Ingress机制由Ingress Controller、Ingress这两个概念组成。<br>作为码农，接触较多的一般是Ingress。这是因为Ingress Controller一旦部署到Kubernetes Cluster就很少会再去改动，而需要经常改动的应用路由规则都是在Ingress这个Kubernets API对象(或者说是在ingress.yaml文件)完成的。实际上，Ingress Controller实例才是真正执行<strong>将用户请求路由到Service进而到Pod</strong>的部件。Ingress只是我们<strong>定义请求到Service的路由规则</strong>的对象。</p>
+<p>既然“ingress“的核心功能就是7层路由/反向代理，那么借助早已存在的Nginx、HAProxy等产品实现IngressController就是很自然的想法了。另一个ingress controller的实现类别可以划分到service mesh阵营，比如Istio Ingerss、Gloo等。<br>k8s官网列出的<a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/">一些Ingerss Controller实现</a>。<br>而<a target="_blank" rel="noopener" href="https://blog.palark.com/comparing-ingress-controllers-for-kubernetes/">这篇文章</a>详细讲解了各种Ingress Controller的特性以方便我们根据自己项目的需求做出选择。直接贴上文章的干货图片：<br><img src="/2025/01/25/devops/Kubernetes-Ingresses-1/kubernetes-ingress-comparison.png" alt="kubernetes-ingress-comparison"></p>
+<p>在一个Kubernets集群里可以定义多个不同Ingress Controller实现/类型，那么Ingress对象如何知道自己的数据是提供给哪个Ingress Controller的呢？  </p>
+<p>在Kubernetes 1.18之前，是通过在Ingress的一个<strong>annotation</strong> <code>kubernets.io/ingress.class</code> 来声明。<br>在Kubernetes 1.18正式引入了一个新的<a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class">k8s资源对象 IngressClass</a> 来<strong>帮助Ingress定义它绑定到哪个IngressController</strong>。<br>下面是一个官网的IngressClass对象定义示例，<code>spec.controll</code>定义了IngressController的实现， <code>spec.parameters</code> 相当于定义了你可以在Ingerss对象里可以向这个IngressController对象能够传递的参数，当然这些参数也是这种IngressControll必须支持的。不同的Ingress Controller实现其需要的parameter肯定是不同的，而k8s 1.18之前通过annoation给IngerssController传递参数的方式就显得比较随意无章可循了，这应该也是IngressClass出现的一个原因。</p>
+<pre><code>apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: external-lb
+spec:
+  controller: example.com/ingress-controller
+  parameters:
+    apiGroup: k8s.example.com
+    kind: IngressParameters
+    name: external-lb
+</code></pre>
+<p>有了IngressClass，那么在Ingress中只要设置 <code>spec.ingressClassName</code> 为某个IngerssClass的名字，那么就意味着这个Ingress的配置就会被这个IngerssClass所对应的IngressController所获取并被这个IngressControll生成为对应的路由rules，从而完成把一个集群外请求路由到Service的功能。</p>
+<p>以上就是关于Kubernetes里Ingerss的几个基本概念。</p>
+<h2 id="有关Nginx的IngressController"><a href="#有关Nginx的IngressController" class="headerlink" title="有关Nginx的IngressController"></a>有关Nginx的IngressController</h2><p>基于Nginx实现的IngressController分为<code>Kubernets社区版</code>和<code>Nginx版</code>。</p>
+<p>Kubernets社区版由Kubernetes社区和F5 Nginx工程师基于开源的Nginx实现，其官网 <a target="_blank" rel="noopener" href="https://github.com/kubernetes/ingress-nginx">code</a> <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/">doc</a>。  </p>
+<p>Nginx版自己又分为免费的基于开源Nginx的IngressController实现和商业版。Nginx开源版<a target="_blank" rel="noopener" href="https://github.com/nginxinc/kubernetes-ingress">code</a> <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/">doc</a>。</p>
+<p>所以就开源的版本来说，一个是Kubernets社区版，一个是Nginx开源版，两个都是基于开源的Nginx实现的，只是owner不通。表现在IngressClass的定义中，就是字段 <code>spec.controller</code> 的值一个是Kubernets社区版的 <code>k8s.io/ingress-nginx</code>, 一个是nginx开源版的 <code>nginx.org/ingress-controller</code></p>
+<p>下面<a target="_blank" rel="noopener" href="https://gist.github.com/grigorkh/f8e4fd73e99f0fde06a51e2ed7c2156c">这个表格列</a>出了Nginx Ingress Controller的 Kubernets社区版和Nginx开源版的区别。可以看到，两者差别不大，k8s社区版功能略好于Nginx开源版。而Nginx开源版因为没有使用Lua性能又好于k8s社区版。</p>
+<table>
+<thead>
+<tr>
+<th>Aspect or Feature</th>
+<th>kubernetes/ingress-nginx</th>
+<th>nginxinc/kubernetes-ingress with NGINX</th>
+<th>nginxinc/kubernetes-ingress with NGINX Plus</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Fundamental</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Authors</td>
+<td>Kubernetes community</td>
+<td>NGINX Inc and community</td>
+<td>NGINX Inc and community</td>
+</tr>
+<tr>
+<td>NGINX version</td>
+<td><a target="_blank" rel="noopener" href="https://github.com/kubernetes/ingress-nginx/tree/master/images/nginx">Custom</a> NGINX build that includes several third-party modules</td>
+<td>NGINX official mainline <a target="_blank" rel="noopener" href="https://github.com/nginxinc/docker-nginx">build</a></td>
+<td>NGINX Plus</td>
+</tr>
+<tr>
+<td>Commercial support</td>
+<td>N/A</td>
+<td>N/A</td>
+<td>Included</td>
+</tr>
+<tr>
+<td>Implemented in</td>
+<td>Go/Lua (while Nginx is written in C)</td>
+<td>Go/Python</td>
+<td>Go/Python</td>
+</tr>
+<tr>
+<td><strong>Load balancing configuration via the Ingress resource</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Merging Ingress rules with the same host</td>
+<td>Supported</td>
+<td>Supported via <a href="../examples/mergeable-ingress-types">Mergeable Ingresses</a></td>
+<td>Supported via <a href="../examples/mergeable-ingress-types">Mergeable Ingresses</a></td>
+</tr>
+<tr>
+<td>HTTP load balancing extensions - Annotations</td>
+<td>See the <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/">supported annotations</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/ingress-resources/advanced-configuration-with-annotations/">supported annotations</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/ingress-resources/advanced-configuration-with-annotations/">supported annotations</a></td>
+</tr>
+<tr>
+<td>HTTP load balancing extensions – ConfigMap</td>
+<td>See the <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/">supported ConfigMap keys</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/configmap-resource/">supported ConfigMap keys</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/configmap-resource/">supported ConfigMap keys</a></td>
+</tr>
+<tr>
+<td>TCP/UDP</td>
+<td>Supported via a ConfigMap</td>
+<td>Supported via custom resources</td>
+<td>Supported via custom resources</td>
+</tr>
+<tr>
+<td>Websocket</td>
+<td>Supported</td>
+<td>Supported via an <a href="../examples/websocket">annotation</a></td>
+<td>Supported via an <a href="../examples/websocket">annotation</a></td>
+</tr>
+<tr>
+<td>TCP SSL Passthrough</td>
+<td>Supported via a ConfigMap</td>
+<td>Supported via custom resources</td>
+<td>Supported via custom resources</td>
+</tr>
+<tr>
+<td>JWT validation</td>
+<td>Not supported</td>
+<td>Not supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Session persistence</td>
+<td>Supported via a third-party module</td>
+<td>Not supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Canary testing (by header, cookie, weight)</td>
+<td>Supported via annotations</td>
+<td>Supported via custom resources</td>
+<td>Supported via custom resources</td>
+</tr>
+<tr>
+<td>Configuration templates</td>
+<td>See the <a target="_blank" rel="noopener" href="https://github.com/kubernetes/ingress-nginx/blob/master/rootfs/etc/nginx/template/nginx.tmpl">template</a></td>
+<td>See the <a href="../internal/configs/version1">templates</a></td>
+<td>See the <a href="../internal/configs/version1">templates</a></td>
+</tr>
+<tr>
+<td><strong>Load balancing configuration via Custom Resources</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>HTTP load balancing</td>
+<td>Not supported</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/virtualserver-and-virtualserverroute-resources/">VirtualServer and VirtualServerRoute</a> resources</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/virtualserver-and-virtualserverroute-resources/">VirtualServer and VirtualServerRoute</a> resources</td>
+</tr>
+<tr>
+<td>TCP/UDP load balancing</td>
+<td>Not supported</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/transportserver-resource/">TransportServer</a> resource</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/transportserver-resource/">TransportServer</a> resource</td>
+</tr>
+<tr>
+<td>TCP SSL Passthrough load balancing</td>
+<td>Not supported</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/transportserver-resource/">TransportServer</a> resource</td>
+<td>See <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/transportserver-resource/">TransportServer</a> resource</td>
+</tr>
+<tr>
+<td><strong>Deployment</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Command-line arguments</td>
+<td>See the <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/user-guide/cli-arguments/">arguments</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/command-line-arguments/">arguments</a></td>
+<td>See the <a target="_blank" rel="noopener" href="https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/command-line-arguments/">arguments</a></td>
+</tr>
+<tr>
+<td>TLS certificate and key for the default server</td>
+<td>Required as a command-line argument/ auto-generated</td>
+<td>Required as a command-line argument</td>
+<td>Required as a command-line argument</td>
+</tr>
+<tr>
+<td>Helm chart</td>
+<td>Supported</td>
+<td>Supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Operator</td>
+<td>Not supported</td>
+<td>Supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><strong>Operational</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Reporting the IP address(es) of the Ingress controller into Ingress resources</td>
+<td>Supported</td>
+<td>Supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Extended Status</td>
+<td>Supported via a third-party module</td>
+<td>Not supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Prometheus Integration</td>
+<td>Supported</td>
+<td>Supported</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td>Dynamic reconfiguration of endpoints (no configuration reloading)</td>
+<td>Supported with a third-party Lua module</td>
+<td>Not supported</td>
+<td>Supported</td>
+</tr>
+</tbody></table>
+<p>再回到文章开头的命令输出，是不是看到的更多了些？</p>
+<pre><code>╰─$ kubectl get ingressclass        
+NAME       CONTROLLER                     PARAMETERS                             AGE
+awslb      ingress.k8s.aws/alb            IngressClassParams.elbv2.k8s.aws/alb   20d
+nginx      nginx.org/ingress-controller   &lt;none&gt;                                 30d
+os-nginx   k8s.io/ingress-nginx           &lt;none&gt;                                 30d
+</code></pre>
+<p><em>References</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/services-networking/ingress/">Ingress</a><br>[2]: <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/">IngressController</a><br>[3]: <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class">IngressClass</a><br>[4]: <a target="_blank" rel="noopener" href="https://blog.palark.com/comparing-ingress-controllers-for-kubernetes/">Comparing Ingress Controllers for Kubernetes</a><br>[5]: <a target="_blank" rel="noopener" href="https://www.nginx.com/blogguide-to-choosing-ingress-controller-part-4-nginx-ingress-controller-options/">基于Nginx的Ingress Controller在社区和商业版之间的比较</a><br>[6]: <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/">Kubernetes社区版</a><br>[7]: <a target="_blank" rel="noopener" href="https://kubernetes.github.io/ingress-nginx/">Nginx开源版</a><br>[8]: <a target="_blank" rel="noopener" href="https://grigorkh.medium.com/there-are-two-nginx-ingress-controllers-for-k8s-what-44c7b548e678">Nginx Ingress Controll社区版和Nginx开源版的比较</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/Create-an-AWS-EFS-resource-an-its-access-points" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.254Z"><a href="/2025/01/25/devops/Create-an-AWS-EFS-resource-an-its-access-points/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/devops/Create-an-AWS-EFS-resource-an-its-access-points/">创建 AWS EFS</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本文基本是基于此<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">efs workshop</a>的记录和扩展。</p>
+<p>要创建一个EFS资源，大致有以下几个步骤：<br>  要在哪个VPC上创建 –&gt; 这个VPC上子网的CIDR<br>  创建一个SG –&gt; 设置这个SG的ingress rule: 对子网开放NFS的2049<br>  创建EFS，根据需求设置不同的参数比如是否加密、备份、performance mode、throughput-mode 等。<br>  找到VPC上的public subnet，在这些public subnet上创建Moint Target。  </p>
+<p>  有了 mount targets，这个NFS就已经可以对外提供服务了。<br>  如果需要对mount的网络文件系统的目录设置特定的user、group属性，那么可以通过在这个NFS上创建 Access Points 完成。  </p>
+<p>因为EFS是可以跨region在这个region的所有AZ中可用的一个NFS，所以需要 VPC ID 应该是比较容易理解的。</p>
+<p>下面介绍一下如何通过 aws cli 创建EFS及其Access Points，完整的脚本可以在这里下载 <a href="/2025/01/25/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_efs.sh">create_efs.sh</a>, <a href="/2025/01/25/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_access_points.sh">create_access_points.sh</a>。  </p>
+<h3 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h3><p>这些变量定义了我们当前的aws环境以及要创建的资源名称等信息。</p>
+<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=myProfile
+AWS_REGION=us-west-2
+CLUSTER_NAME=myCluster
+</code></pre>
+<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=mySG4EFS
+MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+EFS_NAME=myEfsName
+</code></pre>
+<h3 id="1）获取-VPC-ID"><a href="#1）获取-VPC-ID" class="headerlink" title="1）获取 VPC ID"></a>1）获取 VPC ID</h3><p>因为这里创建出来的EFS要供 EKS 的pod使用，所以VPC的获取是根据eks cluster得到的。</p>
+<pre><code>VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME \
+        --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+echo &quot;The $CLUSTER_NAME includes the VPC $VPC_ID&quot;
+</code></pre>
+<h3 id="2）获取VPC下的-CIDR"><a href="#2）获取VPC下的-CIDR" class="headerlink" title="2）获取VPC下的 CIDR"></a>2）获取VPC下的 CIDR</h3><pre><code>CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION \
+            --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+echo &quot;The CIDR blocks in the $VPC_ID : $CIDR_BLOCK&quot;
+</code></pre>
+<h3 id="3）在VPC上创建Security-Group"><a href="#3）在VPC上创建Security-Group" class="headerlink" title="3）在VPC上创建Security Group"></a>3）在VPC上创建Security Group</h3><pre><code>MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION \
+                    --group-name $MOUNT_TARGET_GROUP_NAME \
+                    --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; \
+                    --vpc-id $VPC_ID \
+                    | jq --raw-output &#39;.GroupId&#39;)
+</code></pre>
+<h3 id="4）设置去安全组的ingres对2049端口开放"><a href="#4）设置去安全组的ingres对2049端口开放" class="headerlink" title="4）设置去安全组的ingres对2049端口开放"></a>4）设置去安全组的ingres对2049端口开放</h3><pre><code>aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION \
+  --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+</code></pre>
+<h3 id="5）创建-EFS"><a href="#5）创建-EFS" class="headerlink" title="5）创建 EFS"></a>5）创建 EFS</h3><p><code>aws efs create-file-system</code> 命令本身并没有选项用于设置资源名称，而是通过 Tag key=Name 首先的。这里要注意Name单词的大小写，使用小写的name并不能设置 efs name。<br>通过使用creation-token 来做到创建操作的等幂性。如果你的系统希望efs资源的name是唯一的，那么的选择使用efs的名称作为creation-token是个不错的选择。  </p>
+<pre><code>FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting \
+  --tags Key=Name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+echo &quot;The EFS $FILE_SYSTEM_ID is created.&quot;
+</code></pre>
+<p>查看某个efs：</p>
+<pre><code>aws efs describe-file-systems --file-system-id $FILE_SYSTEM_ID
+</code></pre>
+<p>EFS资源已经创建出来了，要让它能被使用就需要把它mount到VPC的 public subnets 上。<br>一个subnet是public的还是private的，并不是通过subnet对象的某个属性标识的，而是要看路由表里这个subnet有没有通向0.0.0.0的internet gateway。下面的几个步骤就用于找到 public subnet 并把EFS mount到这些 public subnets。</p>
+<h3 id="6-得到-eks-里的-subnetIds"><a href="#6-得到-eks-里的-subnetIds" class="headerlink" title="6) 得到 eks 里的 subnetIds"></a>6) 得到 eks 里的 subnetIds</h3><pre><code>eksSubnetIds=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION \
+                --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; \
+                --output text))
+echo &quot;The eks cluster $CLUSTER_NAME VPC $VPC_ID includes the subnets: $eksSubnetIds&quot;
+</code></pre>
+<h3 id="7-找到-internet-gateway"><a href="#7-找到-internet-gateway" class="headerlink" title="7) 找到 internet gateway"></a>7) 找到 internet gateway</h3><pre><code>IGW_ID=$(aws ec2 describe-internet-gateways  --profile $AWS_PROFILE --region $AWS_REGION \
+        --filters Name=attachment.vpc-id,Values=$&#123;VPC_ID&#125; \
+        --query &quot;InternetGateways[].InternetGatewayId&quot; \
+        | jq -r &#39;.[0]&#39;)
+echo &quot;The internet gateway in the VPC $VPC_ID is $IGW_ID&quot;
+if [ &quot;null&quot; = &quot;$IGW_ID&quot; ] ; then
+  echo &quot;Can&#39;t find public IGW in VPN, exit ...&quot;
+fi
+</code></pre>
+<h3 id="8-找到-public-subnets"><a href="#8-找到-public-subnets" class="headerlink" title="8) 找到 public subnets"></a>8) 找到 public subnets</h3><pre><code>for subnetId in $&#123;eksSubnetIds[@]&#125;
+  do
+      echo &quot;Check the subnet &quot; $subnetId
+      IGW_IN_ROUTS=$(aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
+                    --filter Name=association.subnet-id,Values=$subnetId \
+                    --query &quot;RouteTables[].Routes[]&quot; \
+                    | jq -r &#39;.[] | select(.DestinationCidrBlock==&quot;0.0.0.0/0&quot;) | .GatewayId&#39;)
+      if [ -z $IGW_IN_ROUTS -o &quot;null&quot; = $IGW_IN_ROUTS ] ;  then
+        echo &quot;The subnet $subnetId is a private subnet.&quot;
+      else
+        echo &quot;The subnet $subnetId is a public subnet. $IGW_ID $IGW_IN_ROUTS&quot; 
+        if [ &quot;$IGW_ID&quot; = &quot;$IGW_IN_ROUTS&quot; ] ; then
+          echo &quot;Creating the mount target in the subnet $subnetId.&quot;
+          aws efs create-mount-target --profile $AWS_PROFILE --region $AWS_REGION \
+                                      --file-system-id $FILE_SYSTEM_ID \
+                                      --subnet-id $subnetId \
+                                      --security-groups $MOUNT_TARGET_GROUP_ID
+        elif [ &quot;null&quot; != &quot;$IGW_IN_ROUTS&quot; ] ; then
+            echo &quot;WARNING: The IGW id in routes does not equal with the one in VPC!&quot;
+        fi
+      fi
+  done
+</code></pre>
+<h3 id="10-创建-Access-Point"><a href="#10-创建-Access-Point" class="headerlink" title="10) 创建 Access Point"></a>10) 创建 Access Point</h3><p>到这里这个NFS已经可以在这个VPC里提供服务了。如果你的目录需要更精细的用户、组的设置，可以通过下面的命令创建 Access Point 来做更精细的控制。</p>
+<pre><code>ACCESS_POING_NAME=myAP
+FILE_SYSTEM_ID=fs-082697b352a3230d1
+AP_USER=&#39;&#123;&quot;Uid&quot;: 123, &quot;Gid&quot;: 123, &quot;SecondaryGids&quot;: [20]&#125;&#39;
+AP_ROOT_DIR=&#39;/myapp/logs,CreationInfo=&#123;OwnerUid=123,OwnerGid=123,Permissions=0755&#125;&#39;
+
+aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
+--tags Key=name,Value=$ACCESS_POING_NAME \
+--client-token &quot;$ACCESS_POING_NAME&quot; \
+--file-system-id $FILE_SYSTEM_ID \
+--posix-user $AP_USER \
+--root-directory Path=$AP_ROOT_DIR
+</code></pre>
+<p>下面显示的是在eks中通过StorageClass自动分配EFS资源的场景下，如何如何设置相关属性。 参考 <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a> 查看完整的parameter列表。</p>
+<pre><code>kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+mountOptions:
+  - tls
+  - iam
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-012345678901010
+  directoryPerms: &quot;700&quot;
+  gidRangeStart: &quot;1000&quot;
+  gidRangeEnd: &quot;2000&quot;
+  basePath: &quot;/dynamic_provisioning&quot;
+</code></pre>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using.html">https://docs.aws.amazon.com/efs/latest/ug/creating-using.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html</a><br>[4]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html</a><br>[5]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli">https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli</a><br>[6]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet">https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/linux/jq-command-json">https://www.baeldung.com/linux/jq-command-json</a><br>[8]: <a target="_blank" rel="noopener" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/">https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/</a><br>[9]: <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a>  </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-Resolve-HTTP-Multipart-related-request-on-Spring6" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2024-06-14T15:03:09.000Z"><a href="/2024/06/14/Resolve-HTTP-Multipart-related-request-on-Spring6/">2024-06-14</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2024/06/14/Resolve-HTTP-Multipart-related-request-on-Spring6/">Resolve HTTP Multipart/related request on Spring6</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>系统从Spring5升级到Spring6， 除了要进行把javax的api迁移到Jakarta、升级Servlet容器到支持你所选的Jakarta的版本、升级Spring Security对应的API等这些常规操作，还可能遇到一些trick的问题。这里聊一下因为老系统没有限制客户端发送 multipart/related 这种请求而在升级后造成的问题及解决，虽然感觉这种场景 99.999% 的项目都不会遇到。<br>以流水帐的方式过一下。<br>升级前Spring5+Jetty9， 升级后Spring6+Jetty11</p>
+<p>1）系统上线几天后，有客户说upload csv文件不成功。</p>
+<p>2）最后从SumoLogic日志中发现原因是ContentType格式不对，又进一步确认是Spring5的系统支持 multipart/related 而Spring6 不支持造成的。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Caused by: jakarta.servlet.ServletException: Unsupported Content-Type [Multipart/Related; boundary=AAABBB; type=&quot;text/xml&quot;; start=&quot;root-part--123&quot;], expected [multipart/form-data]</span><br><span class="line">    at org.eclipse.jetty.server.Request.getParts(Request.java:2324) ~[jetty-server-11.0.19.jar!/:11.0.19]</span><br></pre></td></tr></table></figure>
+
+<p>3）Spring5 是使用Spring自带的MultipartParser，在解析后传给 servlet controller。系统使用Jetty9作为servlet容器。</p>
+<p>4）Spring6 之后之前的 CommonsMultipartResolver 被替换为 StandardServletMultipartResolver。而StandardServletMultipartResolver会依赖容器来对Multipart请求做解析。（容器的实现必然有差别）</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Several outdated Servlet-based integrations have been dropped: e.g. Apache Commons FileUpload (org.springframework.web.multipart.commons.CommonsMultipartResolver), and Apache Tiles as well as FreeMarker JSP support in the corresponding org.springframework.web.servlet.view subpackages. We recommend org.springframework.web.multipart.support.StandardServletMultipartResolver </span><br></pre></td></tr></table></figure>
+
+<p>5）其实不管Jetty 9还是Jetty 11其实都是不支持multipart/related的，之前没有问题是因为CommonsMultipartResolver支持。这样controller直接收到Multipart file这个数据。</p>
+<p>6）搭建环境重现、Debug问题。</p>
+<p>这里推荐IntelliJ插件<a target="_blank" rel="noopener" href="https://plugins.jetbrains.com/plugin/14877-jump-to-line">jump-to-line</a></p>
+<p>还有个调试技巧是利用IntelliJ的 条件断点及 Evaluate and Log 进行一些变量值的动态修改。</p>
+<p>7）修改 org.eclipse.jetty.server.Request中 如下代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Collection&lt;Part&gt; <span class="title">getParts</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">    <span class="comment">// if (contentType == null || !MimeTypes.Type.MULTIPART_FORM_DATA.is(HttpField.valueParameters(contentType, null)))</span></span></span><br><span class="line"><span class="function">    <span class="title">if</span> <span class="params">(contentType == <span class="keyword">null</span>)</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="keyword">private</span> MultiParts <span class="title">newMultiParts</span><span class="params">(MultipartConfigElement config, <span class="keyword">int</span> maxParts)</span> <span class="keyword">throws</span> IOException</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// MultiPartFormDataCompliance compliance = getHttpChannel().getHttpConfiguration().getMultipartFormDataCompliance();</span></span><br><span class="line">    MultiPartFormDataCompliance compliance = MultiPartFormDataCompliance.LEGACY;</span><br></pre></td></tr></table></figure>
+
+<p>修改  org.eclipse.jetty.server.MultiPartInputStreamParser 中如下代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">parse</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    <span class="comment">// if (_contentType == null || !_contentType.startsWith(&quot;multipart/form-data&quot;))</span></span></span><br><span class="line"><span class="function">    <span class="title">if</span> <span class="params">(_contentType == <span class="keyword">null</span>)</span></span></span><br><span class="line"><span class="function">        return</span>;</span><br></pre></td></tr></table></figure>
+
+<p>绕过条件限制后，发现对普通csv文件通过http Multipart/related上传是可以处理了，controller 可以接收到 MultipartFile 类型的 file 参数了。<br>其实这个蛮侥幸的，如果Jetty代码压根不支持，估计就得再用其它办法了。</p>
+<p>8）后来发现zip格式不支持。Debug后发现是Jetty自己在内部处理时，必须要求临时文件的目录要存在，所以有加了对应逻辑。如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">(String fileName)</span> <span class="keyword">throws</span> IOException</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (_file == <span class="keyword">null</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        _temporary = <span class="keyword">false</span>;</span><br><span class="line">        <span class="comment">// Make sure the file/directory _tmpDir.getAbsolutePath() + fileName existed.</span></span><br><span class="line">        touchTmpFileForJetty(_tmpDir.getAbsolutePath(), fileName);</span><br></pre></td></tr></table></figure>
+
+<p>这样修改之后通过了QA的测试。</p>
+<p>9）为了测试 multipart/related 请求，也颇费周折。</p>
+<p>通过curl命令实现了发送 multipart/related 请求。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">boundary=&quot;upload_boundary&quot;</span><br><span class="line"></span><br><span class="line">body=$(cat &lt;&lt;EOF</span><br><span class="line"><span class="meta">--$</span><span class="bash">boundary</span></span><br><span class="line">Content-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;</span><br><span class="line">Content-Type: text/xml; charset=UTF-8</span><br><span class="line">Content-Transfer-Encoding: binary</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">$</span><span class="bash">(cat /my-path-to-file/my.csv)</span></span><br><span class="line"><span class="meta">--$</span><span class="bash">boundary--</span></span><br><span class="line">EOF</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">curl -v -X &#x27;POST&#x27; \</span><br><span class="line">    -H &#x27;accept: application/json&#x27; \</span><br><span class="line">    -H &#x27;Authorization: YOUR-BASE64-USERIDPWD&#x27; \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -d &quot;$body&quot; \</span><br><span class="line">    &#x27;https://Your-Server:Port/service-path&#x27;</span><br></pre></td></tr></table></figure>
+
+<ol start="10">
+<li>通过这 curl 命令向spring6 发送没问题。但是向 spring5系统发送后却得到500响应。但是通过java程序发送的multipart/releated请求确没问题。？？？</li>
+</ol>
+<p>后台错误日志：</p>
+<pre><code>Caused by: org.apache.commons.fileupload.MultipartStream$MalformedStreamException: Stream ended unexpectedly
+</code></pre>
+<p>11） 为了搞清原因，在本地把 Mitmproxy 跑起来抓包。<br>从界面上怎么也看不出root cause，直到把请求通过 mitmproxy 导出成curl命令，才发现是换行表示的不同造成的。<br>通过Java程序发送的能被Spring5处理的请求是\r\n作为换行。</p>
+<pre><code>-d &#39;--upload_boundary\x0d\x0aContent-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;\x0d\x0aContent-Type: text;
+</code></pre>
+<p>而curl发送的就是\n。</p>
+<pre><code>-d &#39;--upload_boundary\x0aContent-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;\x0aContent-Type: text/xml;
+</code></pre>
+<p>12）为了证实确实是换行符造成的, 把/n转为 /r/n后通过curl命令发送后 Spring5也能处理了。</p>
+<p>这个<a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc7230#section-3.5">规范 rf7230</a> 上也说有的请求接受者做得更“健壮”可以接受LF结尾的请求。<br>实际上也就是这些“健壮”破坏了规范。（另外，如果从window系统上用curl命令，应该默认就是CRLF的吧？）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">echo $body &gt; body.txt</span><br><span class="line">cat -e body.txt</span><br><span class="line"></span><br><span class="line">unix2dos body.txt</span><br><span class="line">cat -e body.txt</span><br><span class="line"></span><br><span class="line">RNBody=$(cat body.txt)</span><br><span class="line">echo $RNBody | cat -e</span><br><span class="line"></span><br><span class="line">curl -v -X &#x27;POST&#x27; \</span><br><span class="line">    -H &#x27;accept: application/json&#x27; \</span><br><span class="line">    -H &#x27;Authorization: YOUR-BASE64-USERIDPWD&#x27; \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -d &quot;$RNBody&quot; \</span><br><span class="line">    &#x27;https://Your-Server:Port/service-path&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>下面代码演示如何发送zip这样的二进制格式文件。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">boundary=&quot;upload_boundary&quot;</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 这里使用系统默认回撤换行。</span></span><br><span class="line">&#123;</span><br><span class="line">echo &quot;--$boundary&quot;</span><br><span class="line">echo &quot;Content-Disposition: form-data; name=\&quot;file\&quot;; filename=\&quot;example.zip\&quot;&quot;</span><br><span class="line">echo &quot;Content-Type: text; charset=UTF-8&quot;</span><br><span class="line">echo &quot;Content-Transfer-Encoding: binary&quot;</span><br><span class="line">echo &quot;&quot;</span><br><span class="line">cat /your/path/to/zipfile</span><br><span class="line">echo &quot;&quot;</span><br><span class="line">echo &quot;--$boundary--&quot;</span><br><span class="line">&#125; &gt; zip_body.txt</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">curl -X POST --proxy http://127.0.0.1:7070 -k \</span><br><span class="line">-H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">-H &quot;Authorization: Basic XXXXXX&quot; \</span><br><span class="line">--data-binary @zip_body.txt \</span><br><span class="line">https://Your-Server:Port/service-path</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 这里明确使用 \r\n</span></span><br><span class="line">&#123;</span><br><span class="line">echo -ne &quot;--$boundary\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Disposition: form-data; name=\&quot;file\&quot;; filename=\&quot;example.zip\&quot;\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Type: text; charset=UTF-8\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Transfer-Encoding: binary\r\n&quot;</span><br><span class="line">echo -ne &quot;\r\n&quot;</span><br><span class="line">cat /your/path/to/zipfile</span><br><span class="line">echo -ne &quot;\r\n&quot;</span><br><span class="line">echo -ne &quot;--$boundary--\r\n&quot;</span><br><span class="line">&#125; &gt; zip_body_inCRCL.txt</span><br><span class="line"></span><br><span class="line">curl -X POST --proxy http://127.0.0.1:7070 -k \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -H &quot;Authorization: Basic XXXXXX&quot; \</span><br><span class="line">    --data-binary @zip_body_inCRCL.txt \</span><br><span class="line">    https://Your-Server:Port/service-path</span><br></pre></td></tr></table></figure>
+
+<p>13）中间也尝试通过filter在中间使用 Commons FileUpload 2<br>但是遇到 Stream ended unexpectedly 的问题。另外，在Tomcat做容器的POC中，也是遇到类似的问题。当时debug时发现似乎是跟回车换行有关。当时也都是通过curl命令验证的。但因为自定义Jetty的方案已经可以work，所以就没再继续看。现在回头看很当时遇到的问题很可能跟Spring5遇到的一样。也许发送前对回撤换行处理一下，或许也可以解决。</p>
+<p>14）如果通过 Commons FileUpload 2 + Filer 的方式可以解决，那这个方案就是最好的。最不好的方法其实就是这种定制Jetty代码，对以后的升级维护都是潜在的极大风险。</p>
+<p>15）想起那句话，重要的是系统要限制能做什么。 为了这个patch前后花费的人天挺多的。。。新版本还delay了好久。</p>
+<hr>
+<p><em>References:</em>  </p>
+<ul>
+<li><p><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc2387">The MIME Multipart/Related Content-type</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc1867.html">Form-based File Upload in HTML</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc7578">Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/apache/commons-fileupload">commons-fileupload2</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://tomcat.apache.org/whichversion.html">Servlet Spec and Tomcat version</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-framework/wiki/Upgrading-to-Spring-Framework-6.x">https://github.com/spring-projects/spring-framework/wiki/Upgrading-to-Spring-Framework-6.x</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/jetty/jetty-examples">jetty-examples</a></p>
+</li>
+</ul>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/oracle12c_docker" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-07-23T06:37:27.000Z"><a href="/2021/07/23/devops/oracle12c_docker/">2021-07-23</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/07/23/devops/oracle12c_docker/">使用Oracle 12c容器服务创建数据库</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-启动Oracle服务容器"><a href="#1-启动Oracle服务容器" class="headerlink" title="1) 启动Oracle服务容器"></a>1) 启动Oracle服务容器</h3><pre><code>docker run -d --name oracle -p1521:1521 -v OracleDBData:/ORCL store/oracle/database-enterprise:12.2.0.1-slim
+</code></pre>
+<p>参考：<a target="_blank" rel="noopener" href="https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83">https://hub.docker.com/u/dhyuan/content/sub-2794a3fe-cd52-4dcb-bf8e-3fda40f02a83</a></p>
+<p>通过docker inspect oracle 可以看到被映射在 /var/lib/docker/volumes/OracleDBData</p>
+<pre><code>&quot;Mounts&quot;: [
+    &#123;
+        &quot;Type&quot;: &quot;volume&quot;,
+        &quot;Name&quot;: &quot;OracleDBData&quot;,
+        &quot;Source&quot;: &quot;/var/lib/docker/volumes/OracleDBData/_data&quot;,
+        &quot;Destination&quot;: &quot;/ORCL&quot;,
+        &quot;Driver&quot;: &quot;local&quot;,
+        &quot;Mode&quot;: &quot;z&quot;,
+        &quot;RW&quot;: true,
+        &quot;Propagation&quot;: &quot;&quot;
+    &#125;
+],
+</code></pre>
+<h3 id="2）进入Oracle，执行sqlplus。"><a href="#2）进入Oracle，执行sqlplus。" class="headerlink" title="2）进入Oracle，执行sqlplus。"></a>2）进入Oracle，执行sqlplus。</h3><p>oracle 12c 是多租户数据库，有个核心概念CDB，PDB需要理解。进入容器oracle：<br>参考： <a target="_blank" rel="noopener" href="https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236">https://docs.oracle.com/database/121/CNCPT/cdbovrvw.htm#CNCPT89236</a></p>
+<pre><code>docker exec -it oracle bash
+
+sqlplus / as sysdba
+
+show user
+show con_name
+show pdbs
+</code></pre>
+<p>查看当前用户连接到的数据库是CDB还是PDB。</p>
+<pre><code>SELECT NAME, CDB, CON_ID FROM V$DATABASE;
+</code></pre>
+<h3 id="3）创建PDB"><a href="#3）创建PDB" class="headerlink" title="3）创建PDB"></a>3）创建PDB</h3><p>创建PDB之前需要设置 FILE_NAME_CONVERT 或者 db_create_file_dest<br>参考：<a target="_blank" rel="noopener" href="https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/">https://smarttechways.com/2019/03/05/ora-65016-file_name_convert-must-be-specified/</a><br>     <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000038344836">https://segmentfault.com/a/1190000038344836</a><br>     <a target="_blank" rel="noopener" href="https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c">https://dba.stackexchange.com/questions/190451/unable-to-connect-to-pluggable-database-in-oracle-12c</a></p>
+<p>检查PDB$SEED database文件的位置：</p>
+<pre><code>SQL&gt; alter session set container=PDB$SEED;
+
+Session altered.
+
+SQL&gt; select FILE_NAME from dba_data_files;
+
+FILE_NAME
+--------------------------------------------------------------------------------
+/u02/app/oracle/oradata/ORCL/pdbseed/system01.dbf
+/u02/app/oracle/oradata/ORCL/pdbseed/sysaux01.dbf
+/u02/app/oracle/oradata/ORCL/pdbseed/xdb01.dbf
+
+SQL&gt;
+</code></pre>
+<p>因为创建PDB时需要连接在CDB$ROOT，所以先检查当前连接。如果不是，则切换到CDB。</p>
+<pre><code>SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
+
+SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
+--------------------------------------------------------------------------------
+PDB$SEED
+
+SQL&gt;  alter session set container = CDB$ROOT;
+
+Session altered.
+
+SQL&gt; select sys_context (&#39;USERENV&#39;, &#39;CON_NAME&#39;) from dual;
+
+SYS_CONTEXT(&#39;USERENV&#39;,&#39;CON_NAME&#39;)
+--------------------------------------------------------------------------------
+CDB$ROOT
+</code></pre>
+<p>创建一个PDB: YDPDB 用户：ydhbqb</p>
+<pre><code>    SQL&gt; CREATE PLUGGABLE DATABASE YDPDB ADMIN USER ydhbqb IDENTIFIED BY ydhbqb0531 FILE_NAME_CONVERT=(&#39;/u02/app/oracle/oradata/ORCL/pdbseed/&#39;,&#39;/u02/app/oracle/oradata/ORCL/pdbseed/YDPDB/&#39;);
+</code></pre>
+<p>赋予sysdba权限：</p>
+<pre><code>SQL&gt;  grant SYSDBA to ydhbqb;
+
+Grant succeeded.
+   
+
+Pluggable database created.
+
+SQL&gt; show pdbs;
+
+    CON_ID CON_NAME              OPEN MODE  RESTRICTED
+---------- ------------------------------ ---------- ----------
+    2 PDB$SEED              READ ONLY  NO
+    3 ORCLPDB1              READ WRITE NO
+    4 YDPDB              MOUNTED
+SQL&gt; 
+
+SQL&gt; alter pluggable database YDPDB open;
+
+Pluggable database altered.
+
+SQL&gt; show pdbs;
+
+    CON_ID CON_NAME              OPEN MODE  RESTRICTED
+---------- ------------------------------ ---------- ----------
+    2 PDB$SEED              READ ONLY  NO
+    3 ORCLPDB1              READ WRITE NO
+    4 YDPDB                  READ WRITE NO
+SQL&gt; 
+</code></pre>
+<p>让Oracle记住这个状态：</p>
+<pre><code>alter pluggable database YDPDB save state;
+</code></pre>
+<p>关闭PDB</p>
+<pre><code>alter pluggable database YDPDBclose immediate;
+</code></pre>
+<p>查看错误信息</p>
+<pre><code>select * from PDB_PLUG_IN_VIOLATIONS;
+</code></pre>
+<h3 id="4）-连接到PDB。"><a href="#4）-连接到PDB。" class="headerlink" title="4） 连接到PDB。"></a>4） 连接到PDB。</h3><h4 id="1）-用sqlplus连接到PDB。"><a href="#1）-用sqlplus连接到PDB。" class="headerlink" title="1） 用sqlplus连接到PDB。"></a>1） 用sqlplus连接到PDB。</h4><pre><code>sqlplus ydhbqb/ydhbqb0531@localhost:1521/ydpdb.localdomain
+</code></pre>
+<h4 id="2）-Spring-DS"><a href="#2）-Spring-DS" class="headerlink" title="2） Spring DS"></a>2） Spring DS</h4><pre><code>spring:
+    datasource:
+        url:  jdbc:oracle:thin:@localhost:1521/ydpdb.localdomain
+        username: ydhbqb
+        password: ydhbqb0531
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/create_vm_and_docker_by_ansible" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-05-21T14:54:38.000Z"><a href="/2021/05/21/devops/create_vm_and_docker_by_ansible/">2021-05-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/05/21/devops/create_vm_and_docker_by_ansible/">通过Ansible在Ubuntu KVM Host上安装VM和Docker</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="0）-前提"><a href="#0）-前提" class="headerlink" title="0） 前提"></a>0） 前提</h3><p>Ubuntu HOST 已经安装了 KVM 环境并工作良好。</p>
+<h3 id="1）-在-Ubuntu-KVM-HOST-上安装-ansible"><a href="#1）-在-Ubuntu-KVM-HOST-上安装-ansible" class="headerlink" title="1） 在 Ubuntu KVM HOST 上安装 ansible"></a>1） 在 Ubuntu KVM HOST 上安装 ansible</h3><pre><code># Ansible
+sudo apt install -y software-properties-common
+sudo apt-add-repository --yes --update ppa:ansible/ansible
+sudo apt install -y ansible
+</code></pre>
+<h3 id="2）-安装其它相关工具包"><a href="#2）-安装其它相关工具包" class="headerlink" title="2） 安装其它相关工具包"></a>2） 安装其它相关工具包</h3><pre><code>sudo apt install -y --no-install-recommends \
+dnsmasq \
+git \
+genisoimage \
+libguestfs-tools \
+libosinfo-bin \
+python3-libvirt \
+python3-lxml \
+qemu-utils \
+virtinst
+</code></pre>
+<h3 id="3-checkout-virt-infra-代码库"><a href="#3-checkout-virt-infra-代码库" class="headerlink" title="3) checkout virt-infra 代码库"></a>3) checkout virt-infra 代码库</h3><pre><code>mkdir ~/devenv_bootstrap
+
+git clone https://github.com/dhyuan/virt-infra-ansible.git
+git check -b devenv origin/devenv
+
+cd roles
+git clone https://github.com/dhyuan/ansible-role-virt-infra.git
+git check -b devenv orign.devenv
+</code></pre>
+<h3 id="4）-确保宿主机上有个网桥名与客户机定义文件所用网络名一致。"><a href="#4）-确保宿主机上有个网桥名与客户机定义文件所用网络名一致。" class="headerlink" title="4） 确保宿主机上有个网桥名与客户机定义文件所用网络名一致。"></a>4） 确保宿主机上有个网桥名与客户机定义文件所用网络名一致。</h3><p>比如 inventory/ubuntu20Server.yml 中我们定义了网桥网络使用 br0。</p>
+<pre><code>virt_infra_networks:
+        - name: br0
+</code></pre>
+<h3 id="5）-使用-ansible-在-ubuntu-宿主机上安装客户机"><a href="#5）-使用-ansible-在-ubuntu-宿主机上安装客户机" class="headerlink" title="5） 使用 ansible 在 ubuntu 宿主机上安装客户机"></a>5） 使用 ansible 在 ubuntu 宿主机上安装客户机</h3><p>在 <a target="_blank" rel="noopener" href="http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img">http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img</a> 下载镜像保持到 host 的 /var/lib/libvirt/images 目录。确保 kvmhost 上的/etc/hosts 中没有定义对 ubuntu20Server 的 ip 映射。</p>
+<pre><code>apt install -y ansible
+
+ansible-playbook --limit kvmhost,ubuntu20Server ./virt-infra.yml
+</code></pre>
+<p>删除安装的虚拟机：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
+</code></pre>
+<h3 id="6-创建完毕，通过-virt-manager-启动客户机。"><a href="#6-创建完毕，通过-virt-manager-启动客户机。" class="headerlink" title="6) 创建完毕，通过 virt-manager 启动客户机。"></a>6) 创建完毕，通过 virt-manager 启动客户机。</h3><p>测试网络的连通性，在 kvmhost 上 ping ubuntu20Server。有问题可以通过 ip 命令查看，进行必要的网卡启动等操作、检查/etc/netplan/….yml 文件、执行 netplan apply 等操作。</p>
+<h3 id="7-下载在-VM-安装-Docker-的脚本，并安装"><a href="#7-下载在-VM-安装-Docker-的脚本，并安装" class="headerlink" title="7) 下载在 VM 安装 Docker 的脚本，并安装"></a>7) 下载在 VM 安装 Docker 的脚本，并安装</h3><p>在 kvmhost 上执行：</p>
+<pre><code>ansible-galaxy install \
+--roles-path ~/.ansible/roles/ \
+git+https://github.com/haxorof/ansible-role-docker-ce.git,3.3.2
+
+#
+ansible-galaxy list
+</code></pre>
+<p>~/devenv_bootstrap/virt-infra-ansible/install_docker.yml 里定义了 ansbile 所用配置。执行以下语句，将在第五步创建的 VM ubuntu20Server 中安装 Docker 20.10.4。</p>
+<pre><code>ansible-playbook ./install_docker.yml --limit ubuntu20Server -v --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
+</code></pre>
+<p>可以通过 docker_users 参数指定加入 docker group 的用户，使用 ali 镜像下载 docker 安装包：</p>
+<pre><code>ansible-playbook ./install_docker.yml \
+--limit ubuntu20Server -v \
+--extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal \
+--extra-vars &#39;&#123;&quot;docker_users&quot;: [&quot;devops&quot;] &#125;&#39; \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu20&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/ubuntu/dists/focal/Release&quot;&#125;&#125;&#39;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/create_bridge_and_vms_on_ubuntu20_desktop" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-05-19T14:14:52.000Z"><a href="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/">2021-05-19</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/">在Ubuntu20上创建桥接网络和虚拟机</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1）-网络管理相关命令"><a href="#1）-网络管理相关命令" class="headerlink" title="1） 网络管理相关命令"></a>1） 网络管理相关命令</h3><p>之前常用的包含在 net-tools 工具包里的命令 ifconfig、netstat 已经被 iproute2 工具包里的 ip 等命令所取代。<br>所以以后在非遗留系统，就没必要再使用不被维护的老命令了。</p>
+<pre><code>ip link show
+ip link show eth0
+ip link set eth0 up|down
+
+ip addr show
+ip addr show eth0
+ip add add|del 192.168.0.99/24 eth0
+
+ip route
+ip neigh
+
+ss -l
+ss -a
+
+lsof -i // -i 网络 -u 用户  -p 进程ID -c 进程名
+</code></pre>
+<h3 id="2）-Ubuntu-网络管理"><a href="#2）-Ubuntu-网络管理" class="headerlink" title="2） Ubuntu 网络管理"></a>2） Ubuntu 网络管理</h3><p>如果是 Ubuntu Desktop 环境，就不妨使用 NetworkManager 和 nm-connection-editor 这些 GUI 程序或者 nmcli、nmtui 来管理网络及设备。<br>如果是 Ubuntu Server 环境，还是用 systemd-netword 比较好。<br>NetworkManager 和 networkd 是有冲突的，选择使用一个之后另一种方式需要被禁用。下面的命令是操作相关服务所用的命令，其中 enable/disable 用于设置是否开机启动而 mask/unmask 则用于设置服务是否可用。选择使用 NetworkManager 之后检查以下 cat /etc/NetworkManager/NetworkManager.conf，确保 managered 被设置为 true。</p>
+<pre><code>sudo systemctl stop NetworkManager
+sudo systemctl disable NetworkManager
+sudo systemctl mask NetworkManager
+
+sudo systemctl unmask systemd-networkd.service
+sudo systemctl enable systemd-networkd.service
+sudo systemctl start systemd-networkd.service
+</code></pre>
+<p>在 NetworkManager 和 networkd 之上，我们可以使用 netplan 来进行更高层次的控制。参考：<a target="_blank" rel="noopener" href="https://netplan.io/">https://netplan.io/</a></p>
+<blockquote><p>Netplan is a utility for easily configuring networking on a linux system. You simply create a YAML description of the required network interfaces and what each should be configured to do. From this description Netplan will generate all the necessary configuration for your chosen renderer tool.</p>
+</blockquote>
+
+<h3 id="3）创建网桥、虚拟机，设置虚拟机桥接网卡。"><a href="#3）创建网桥、虚拟机，设置虚拟机桥接网卡。" class="headerlink" title="3）创建网桥、虚拟机，设置虚拟机桥接网卡。"></a>3）创建网桥、虚拟机，设置虚拟机桥接网卡。</h3><p>实验环境使用 Ubuntu20 Desktop 做宿主机，感觉用 nm-connection-editor 创建网桥、配置网桥出口也很方便、顺利。具体步骤可参考<a target="_blank" rel="noopener" href="http://www.zrway.com/news/8366.html%E3%80%82">http://www.zrway.com/news/8366.html。</a></p>
+<p>下图是通过 nm-connection-editor 创建出网桥，并把物理网卡插到这个网桥上。注意，把网卡作为网桥的 salver 设备之后，需要通过 GUI 删除这个网络网卡。</p>
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/create_bridge.png" alt="创建网桥"></p>
+<p>通过 virt-manager 创建出虚拟机后，需要设置虚拟机的网卡。这里有个 QEMU 前端设备、后端后端设备（backend network）的概念。所谓前端设备就是 Guest 虚拟机看到的设备，后端设备、后端网络就是在 Host 宿主机上的设备、网络。下图实际上大致对应这样的命令： qemu -net nic,model=e1000 -net bridge,br=bridge1 …</p>
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/set_net_device_in_guestvm.png" alt="设置网桥"></p>
+<p>下图是/etc/netplan 目录里的配置文件。</p>
+<p><img src="/2021/05/19/devops/create_bridge_and_vms_on_ubuntu20_desktop/netplan_setting_in_guestvm.png"></p>
+<p>参考:<br>netplan: <a target="_blank" rel="noopener" href="https://ubuntu.com/blog/ubuntu-bionic-netplan">https://ubuntu.com/blog/ubuntu-bionic-netplan</a><br>图形化管理工具： <a target="_blank" rel="noopener" href="https://ubuntu.com/core/docs/networkmanager">https://ubuntu.com/core/docs/networkmanager</a><br>网络管理服务: <a target="_blank" rel="noopener" href="https://www.configserverfirewall.com/ubuntu-linux/ubuntu-network-manager/">https://www.configserverfirewall.com/ubuntu-linux/ubuntu-network-manager/</a><br>创建网桥： <a target="_blank" rel="noopener" href="http://www.zrway.com/news/8366.html">http://www.zrway.com/news/8366.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/jenkins_maven_allure" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-05-10T12:39:52.000Z"><a href="/2021/05/10/devops/jenkins_maven_allure/">2021-05-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/05/10/devops/jenkins_maven_allure/">在Jenkins中使用Allure显示测试结果</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>allure 官网对自己的定义:</p>
+<blockquote><p>Allure Framework is a flexible lightweight multi-language test report tool that not only shows a very concise representation of what have been tested in a neat web report form …</p>
+</blockquote>
+
+<h3 id="1）首先在开发机器中安装-allure，"><a href="#1）首先在开发机器中安装-allure，" class="headerlink" title="1）首先在开发机器中安装 allure，"></a>1）首先在开发机器中安装 allure，</h3><p>参考官方文档 <a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/#_installing_a_commandline">https://docs.qameta.io/allure/#_installing_a_commandline</a> 安装 allure。这里要注意的是如果是通过下载压缩包解压进行的安装，那么需要把 allure 连接到/usr/bin/allsure 这样的系统目录，否则 allure-maven 插件运行时找不到 allure command。如果是 mac 系统，因为权限管理的问题，可以链接到/usr/local/bin/allure。</p>
+<h3 id="2-配置-pom-文件保证-allure-在本地可工作。"><a href="#2-配置-pom-文件保证-allure-在本地可工作。" class="headerlink" title="2) 配置 pom 文件保证 allure 在本地可工作。"></a>2) 配置 pom 文件保证 allure 在本地可工作。</h3><p>配置 maven 项目使用的是哪种测试框架来配置 pom 文件，可参考：<a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/#_java">https://docs.qameta.io/allure/#_java</a><br>运行以下命令确认本地环境可以正常生成 allure report。</p>
+<pre><code>mvn clean test allure:report
+mvn allure:serve
+</code></pre>
+<h3 id="3）在-jenkins-中安装-allure-插件并配置。"><a href="#3）在-jenkins-中安装-allure-插件并配置。" class="headerlink" title="3）在 jenkins 中安装 allure 插件并配置。"></a>3）在 jenkins 中安装 allure 插件并配置。</h3><p>如图，安装 allure plugin<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_install_allure_plugin.png" alt="安装allure插件"></p>
+<p>如图，配置 allure tool，这里选择用到 allure 时自动下载。<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_config_allure_tool.png" alt="配置allure工具"></p>
+<h3 id="4）修改-Jenkinsfile-添加-allure-相关-step。"><a href="#4）修改-Jenkinsfile-添加-allure-相关-step。" class="headerlink" title="4）修改 Jenkinsfile 添加 allure 相关 step。"></a>4）修改 Jenkinsfile 添加 allure 相关 step。</h3><p>allure 相关配置大致如下：</p>
+<pre><code>post &#123;
+    always &#123;
+        junit testResults: &quot;**/target/surefire-reports/*.xml&quot;
+
+        script &#123;
+          allure includeProperties: false, jdk: &#39;&#39;, results: [[path: &#39;target/allure-results/&#39;]]
+        &#125;
+    &#125;
+
+    success &#123;
+        archiveArtifacts &#39;target/*.jar&#39;
+    &#125;
+&#125;
+</code></pre>
+<p>当把对 pom 和 jenkinsfile 的修改 push 到 GitLab 之后，因为之前已经配置了 pipeline 可被 gitlab 事件触发执行。顺利的话，就可在 Jenkins 中看到 allure 生成的报表了。</p>
+<p>报表入口：<br>注意，生成的 allure-report.zip 并不能解压后直接通过浏览器查看，需要通过运行 allure open ./allure-report.zip 来查看。<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_allure_result0.png"></p>
+<p>可视化图表：<br><img src="/2021/05/10/devops/jenkins_maven_allure/jenkins_allure_result2.png"></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://docs.qameta.io/allure/">https://docs.qameta.io/allure/</a><br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/allure-plugin">https://github.com/jenkinsci/allure-plugin</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+
+<nav id="pagination">
+  
+    <a href="/page/2/" class="alignleft prev">上一页</a>
+  
+  
+    <a href="/page/4/" class="alignright next">下一页</a>
+  
+  <div class="clearfix"></div>
+</nav></div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

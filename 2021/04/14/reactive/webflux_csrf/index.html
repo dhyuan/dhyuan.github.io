@@ -1,0 +1,244 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Spring对CSRF的防范 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="这篇基本上是Spring Security Reference关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。
+什么是 CSRF跨站请求伪造。经典场景是：
+1）受害者首先登录了银行网站2）用户没有 longout 的情况下3）用同一个浏览器访问了“坏”网站4）“">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Spring对CSRF的防范"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-reactive/webflux_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/14/reactive/webflux_csrf/">2021-04-14</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Spring对CSRF的防范</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这篇基本上是<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/">Spring Security Reference</a>关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。</p>
+<h3 id="什么是-CSRF"><a href="#什么是-CSRF" class="headerlink" title="什么是 CSRF"></a>什么是 CSRF</h3><p>跨站请求伪造。经典场景是：</p>
+<h5 id="1）受害者首先登录了银行网站"><a href="#1）受害者首先登录了银行网站" class="headerlink" title="1）受害者首先登录了银行网站"></a>1）受害者首先登录了银行网站</h5><h5 id="2）用户没有-longout-的情况下"><a href="#2）用户没有-longout-的情况下" class="headerlink" title="2）用户没有 longout 的情况下"></a>2）用户没有 longout 的情况下</h5><h5 id="3）用同一个浏览器访问了“坏”网站"><a href="#3）用同一个浏览器访问了“坏”网站" class="headerlink" title="3）用同一个浏览器访问了“坏”网站"></a>3）用同一个浏览器访问了“坏”网站</h5><h5 id="4）“坏”网站有一个向银行网站提交业务请求的页面"><a href="#4）“坏”网站有一个向银行网站提交业务请求的页面" class="headerlink" title="4）“坏”网站有一个向银行网站提交业务请求的页面"></a>4）“坏”网站有一个向银行网站提交业务请求的页面</h5><h5 id="5）诱使用户发送这个请求。"><a href="#5）诱使用户发送这个请求。" class="headerlink" title="5）诱使用户发送这个请求。"></a>5）诱使用户发送这个请求。</h5><p>实际上利用有 XSS 漏洞，完全可以无需受害者参与利用 javascript 而自动触发第 4 第 5 步。</p>
+<h4 id="这个场景背后有些逻辑："><a href="#这个场景背后有些逻辑：" class="headerlink" title="这个场景背后有些逻辑："></a><strong>这个场景背后有些逻辑：</strong></h4><p>这里我们把浏览器等同于用户，有些数据是用户自己可见的，有些数据是浏览器自动处理、发送而用户对这些数据是无感知的（比如 SessionId）。<br>银行网站以 cookie 的形式把 sessionId 发送给浏览器（set-cookie），浏览器每次请求都会再自动带上 cookie（cookie）。<br>上面场景第 5 步虽然“坏”表单不是源于银行网站页面而是在第三方网站的页面上，但是<strong>浏览器</strong>发现目标地址是银行网站，因此会自动带上响应的 cookie，比如 JSESSION 就会随带着被发送了。从服务器的角度看，来自第 4 步的数据与正常数据没有任何差别，因为这个业务请求便会被执行。</p>
+<p>归根结底，这种 CSRF 的问题是 cookie 和浏览器工作方式引起的。</p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>一个是主流的“Synchronizer Token Pattern”方法，另一个是渐成主流的“SameSite Attribute”。</p>
+<p>因为<strong>SameSite Attribute</strong>的方式实施和理解比较容易，我们先说。<br>服务端利用 cookie 的 SameSite 属性可以禁止浏览器从外部站点发送请求时带上 cookie。比如下面的 cookie 就不会被放在由在第三方网页发起而目标是银行网站的请求上。这就自然解决了上面的 CSRF 的问题。</p>
+<pre><code>Set-Cookie: JSESSIONID=randomid; Domain=bank.example.com; Secure; HttpOnly; SameSite=Lax
+</code></pre>
+<p><strong>Synchronizer Token Pattern</strong><br>这个解决办法的原理是对来自浏览器的请求我们都回送一个随机数，下次浏览器再请求业务时需要在 header 里或者表单里带上这个随机数。这个随机数就是 csrf token。<br>这个办法之所以能防范 CSRF，是因为 sessionId 来自 cookie，而 csrf token 来自 header 或者 form。相当于分别在两条不同的路径上传递。</p>
+<p>Spring Security 模块生成 csrf token 后可放在两个地方。Spring 默认的，随机数与 sessionId 关联，放在 session 里。另一个方式：随机数放在 cookie 里。</p>
+<h3 id="基于-Session-保存-csrf-token"><a href="#基于-Session-保存-csrf-token" class="headerlink" title="基于 Session 保存 csrf token"></a>基于 Session 保存 csrf token</h3><p>与 session 关联比较容易理解，下次浏览器发送请求过来，服务端就可以从 header 或 form 里取出来的 csrf token 与 session 中的随机数相比较来进行判断。</p>
+<h3 id="基于-Cookie-保存-csrf-token"><a href="#基于-Cookie-保存-csrf-token" class="headerlink" title="基于 Cookie 保存 csrf token"></a>基于 Cookie 保存 csrf token</h3><p>通过 cookie 保存 csrf 是怎么回事呢？如果 csrf token 通过 cookie 发送给浏览器，那这个随机数不就跟 JSESSIONID 一样了会被浏览器自动传回到服务器了吗？<br>是的，这个 csrf 会被浏览器传回给服务器，我们也正是利用这一点“保存”了 csrf token。之所以使用基于 cookie 的方式，是因为要针对前后端分离的情形让前端可以使用 javascript 获得 csrf token，并把这个 token 作为下次请求的 header 参数或者 form 参数传递给服务端。服务端所要做的就是对比来自 cookie 的 csrf token 和来自 header/form 里的 csrftoken 来做出判断。</p>
+<p>下面代码设置使用 cookie 保存，注意使用 cookie 传递 token 需要把 cookie 的 HttpOnly 属性设置为 false，以便让 javascript 能读到此值。</p>
+<pre><code>@EnableWebSecurity
+public class WebSecurityConfig extends
+        WebSecurityConfigurerAdapter &#123;
+
+    @Override
+    protected void configure(HttpSecurity http) &#123;
+        http
+            .csrf(csrf -&gt; csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            );
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Spring/">Spring</a>, <a href="/tags/Security/">Security</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/04/14/reactive/webflux_csrf/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

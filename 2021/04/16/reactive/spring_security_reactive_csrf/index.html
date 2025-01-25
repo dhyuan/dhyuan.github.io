@@ -1,0 +1,415 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Spring响应式CSRF相关源码 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="上篇介绍了 CSRF 及 Spring Security 对防范 CSRF 所做的支持。Spring Security 实现了基于 Session 和 Cookie 的 Sychronizer Token Pattern，以防范 CSRF。并且默认是基于 session 的。
+Spring Secu">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Spring响应式CSRF相关源码"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-reactive/spring_security_reactive_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/16/reactive/spring_security_reactive_csrf/">2021-04-16</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Spring响应式CSRF相关源码</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇介绍了 CSRF 及 Spring Security 对防范 CSRF 所做的支持。Spring Security 实现了基于 Session 和 Cookie 的 Sychronizer Token Pattern，以防范 CSRF。并且默认是基于 session 的。</p>
+<p>Spring Security 基于 Servlet 和 WebFlux 技术分别进行了实现。<br>其中，基于 Servlet 技术栈的实现代码是：</p>
+<pre><code>CsrfFilter：执行过滤、验证。
+CsrfTokenRepository：存储 csrf token 的接口。
+CookieCsrfTokenRepository： 用 cookie 保存 csrf token
+HttpSessionCsrfTokenRepository：用session 保存csrf token
+CsrfAuthenticationStrategy.onAuthentication() 每次请求生成新 csrf token
+</code></pre>
+<p>基于 WebFlux 技术栈的实现代码没有与 CsrfAuthenticationStrategy 对应的类，而是直接在 CsrfWebFilter.filter()–&gt; continueFilterChain() –&gt; … this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange)) 完成了。</p>
+<p>Filter 和 TokenRepository 都有对应的类，如下：</p>
+<pre><code>CsrfWebFilter
+ServerCsrfTokenRepository
+  CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+</code></pre>
+<p>CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository 的逻辑更直接一些。下面以注释的方式解读一下 CsrfWebFilter 代码。</p>
+<p>除了基本的 fitler，flatMap 这些 operators，可以特别留意以下几个 operators：<br>switchIfEmpty()<br>filterWhen()<br>delayUntil()<br>Mono.defer()</p>
+<pre><code>public class CsrfWebFilter implements WebFilter &#123;
+
+  public static final ServerWebExchangeMatcher DEFAULT_CSRF_MATCHER = new DefaultRequireCsrfProtectionMatcher();
+
+  /**
+  * The attribute name to use when marking a given request as one that should not be
+  * filtered.
+  *
+  * To use, set the attribute on your &#123;@link ServerWebExchange&#125;: &lt;pre&gt;
+  *     CsrfWebFilter.skipExchange(exchange);
+  * &lt;/pre&gt;
+  */
+  private static final String SHOULD_NOT_FILTER = &quot;SHOULD_NOT_FILTER&quot; + CsrfWebFilter.class.getName();
+
+  private ServerWebExchangeMatcher requireCsrfProtectionMatcher = DEFAULT_CSRF_MATCHER;
+
+  // 默认基于Session保存csrf token。
+  private ServerCsrfTokenRepository csrfTokenRepository = new WebSessionServerCsrfTokenRepository();
+
+  private ServerAccessDeniedHandler accessDeniedHandler = new HttpStatusServerAccessDeniedHandler(
+      HttpStatus.FORBIDDEN);
+
+  private boolean isTokenFromMultipartDataEnabled;
+
+  public void setAccessDeniedHandler(ServerAccessDeniedHandler accessDeniedHandler) &#123;
+    Assert.notNull(accessDeniedHandler, &quot;accessDeniedHandler&quot;);
+    this.accessDeniedHandler = accessDeniedHandler;
+  &#125;
+
+  public void setCsrfTokenRepository(ServerCsrfTokenRepository csrfTokenRepository) &#123;
+    Assert.notNull(csrfTokenRepository, &quot;csrfTokenRepository cannot be null&quot;);
+    this.csrfTokenRepository = csrfTokenRepository;
+  &#125;
+
+  /**
+  * 如果我们的应用GET，HEAD，TRACE，OPTIONS 这些方法会改变应用的状态，就需要自定义matcher。
+  * 自定义的matcher可以有更复杂的匹配逻辑，而不仅仅限于DefaultRequireCsrfProtectionMatcher 中所用的request method。
+  * 可参考 DefaultRequireCsrfProtectionMatcher。
+  *
+  * @param requireCsrfProtectionMatcher
+  */
+  public void setRequireCsrfProtectionMatcher(ServerWebExchangeMatcher requireCsrfProtectionMatcher) &#123;
+    Assert.notNull(requireCsrfProtectionMatcher, &quot;requireCsrfProtectionMatcher cannot be null&quot;);
+    this.requireCsrfProtectionMatcher = requireCsrfProtectionMatcher;
+  &#125;
+
+  /**
+  * Specifies if the &#123;@code CsrfWebFilter&#125; should try to resolve the actual CSRF token
+  * from the body of multipart data requests.
+  * @param tokenFromMultipartDataEnabled true if should read from multipart form body,
+  * else false. Default is false
+  */
+  public void setTokenFromMultipartDataEnabled(boolean tokenFromMultipartDataEnabled) &#123;
+    this.isTokenFromMultipartDataEnabled = tokenFromMultipartDataEnabled;
+  &#125;
+
+  @Override
+  public Mono&lt;Void&gt; filter(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    // 如果代码通过调用 CsrfWebFilter.skipExchange(exchange) 设置无需进行CSRF保护，则继续chain的下一个节点。
+    if (Boolean.TRUE.equals(exchange.getAttribute(SHOULD_NOT_FILTER))) &#123;
+      return chain.filter(exchange).then(Mono.empty());
+    &#125;
+
+    return this.requireCsrfProtectionMatcher.matches(exchange) // 根据 requireCsrfProtectionMatcher 进行匹配
+        .filter(MatchResult::isMatch) // 如果需要CSRF保护。
+        // 这里matchResult只是个占位符。过滤出已经设置了CsrfToken的exchange。
+        .filter((matchResult) -&gt; !exchange.getAttributes().containsKey(CsrfToken.class.getName()))
+        // 验证这个csrf token，这个验证逻辑是CSRF的核心。根据csrf token是保存在session还是cookie，逻辑不同。
+        // 详细逻辑参考 ServerCsrfTokenRepository 的两个实现 CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+        .flatMap((m) -&gt; validateToken(exchange))
+        // 校验文csrf token，继续chain的下个节点处理。
+        .flatMap((m) -&gt; continueFilterChain(exchange, chain))
+        // switchIfEmpty实际是继续.filter(MatchResult::isMatch).filter((matchResult) -&gt; 。。。) 这两个filter之后的情况。
+        .switchIfEmpty(continueFilterChain(exchange, chain).then(Mono.empty()))
+        .onErrorResume(CsrfException.class, (ex) -&gt; this.accessDeniedHandler.handle(exchange, ex));
+  &#125;
+
+  public static void skipExchange(ServerWebExchange exchange) &#123;
+    exchange.getAttributes().put(SHOULD_NOT_FILTER, Boolean.TRUE);
+  &#125;
+
+  private Mono&lt;Void&gt; validateToken(ServerWebExchange exchange) &#123;
+    return this.csrfTokenRepository.loadToken(exchange) // 从session或者cookie中得到csrf token，作为比较基准。
+        // 如果没有找到csrf token则抛出异常没有找到期望的csrf token。（之前版本的错误信息有误 https://github.com/spring-projects/spring-security/commit/a1083d9a5ce3fef8fa458a47e5a6b7a6576ec01e#diff-9c109ef13a33c07de3231051c08e424e664985d142f54ccd7830169d4adcadb1）
+        // 注意这里用的defer而不是just用来避免不必要的对象创建。
+        // switchIfEmpty() 感觉上就是reactive stream里的的if语句：如果是空流，则用另一个publisher。
+        .switchIfEmpty(
+            Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;An expected CSRF token cannot be found&quot;))))
+        /**
+        * 判断用户从页面提交的csrf token和从session/cookie中保存的是否一致。
+        * 注意，这里用了filterWhen而不是filter。表面的原因是containsValidCsrfToken()的返回值是Mono&lt;Boolean&gt;而不是Boolean。
+        * 而更深层的原因应该是CsrfWebFilter不应该是阻塞的，因为这个filter要处理所有的request，所以需要异步地测试、过滤。
+        * 感觉上也有点像flatMap，都是接收Publisher参数。
+        **/
+        .filterWhen((expected) -&gt; containsValidCsrfToken(exchange, expected))
+        // 如果没有找到有效的csrf token，那么就抛出异常。
+        .switchIfEmpty(Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;Invalid CSRF Token&quot;)))).then();
+  &#125;
+
+  private Mono&lt;Boolean&gt; containsValidCsrfToken(ServerWebExchange exchange, CsrfToken expected) &#123;
+    // 先从form里找用户提交的csrf token。
+    return exchange.getFormData().flatMap((data) -&gt; Mono.justOrEmpty(data.getFirst(expected.getParameterName())))
+        // form 表单里没有，就从header里找
+        .switchIfEmpty(Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(expected.getHeaderName())))
+        // 最后从multipart里找
+        .switchIfEmpty(tokenFromMultipartData(exchange, expected))
+        // 如果找到了，则和从session或cookie里得到的csrf token做比较
+        .map((actual) -&gt; equalsConstantTime(actual, expected.getToken()));
+  &#125;
+
+  private Mono&lt;String&gt; tokenFromMultipartData(ServerWebExchange exchange, CsrfToken expected) &#123;
+    if (!this.isTokenFromMultipartDataEnabled) &#123;
+      return Mono.empty();
+    &#125;
+    ServerHttpRequest request = exchange.getRequest();
+    HttpHeaders headers = request.getHeaders();
+    MediaType contentType = headers.getContentType();
+    if (!contentType.includes(MediaType.MULTIPART_FORM_DATA)) &#123;
+      return Mono.empty();
+    &#125;
+    return exchange.getMultipartData().map((d) -&gt; d.getFirst(expected.getParameterName())).cast(FormFieldPart.class)
+        .map(FormFieldPart::value);
+  &#125;
+
+  private Mono&lt;Void&gt; continueFilterChain(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    return Mono.defer(() -&gt; &#123;
+      Mono&lt;CsrfToken&gt; csrfToken = csrfToken(exchange);
+      exchange.getAttributes().put(CsrfToken.class.getName(), csrfToken);
+      return chain.filter(exchange);
+    &#125;);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; csrfToken(ServerWebExchange exchange) &#123;
+    // 如果从repository中找到了csrf token就返回，否则就生成一个token返回。
+    return this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange));
+  &#125;
+
+  /**
+  * Constant time comparison to prevent against timing attacks.
+  * @param expected
+  * @param actual
+  * @return
+  */
+  private static boolean equalsConstantTime(String expected, String actual) &#123;
+    if (expected == actual) &#123;
+      return true;
+    &#125;
+    if (expected == null || actual == null) &#123;
+      return false;
+    &#125;
+    // Encode after ensure that the string is not null
+    byte[] expectedBytes = Utf8.encode(expected);
+    byte[] actualBytes = Utf8.encode(actual);
+    return MessageDigest.isEqual(expectedBytes, actualBytes);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; generateToken(ServerWebExchange exchange) &#123;
+    // 委托给csrfTokenRepository 产生一个新token。
+    return this.csrfTokenRepository.generateToken(exchange)
+        // 注意这里的delayUntil()用法：直到token保存好之后，上步由csrfTokenRepository产生的Mono&lt;CsrfToken&gt;才继续走流水线。
+        .delayUntil((token) -&gt; this.csrfTokenRepository.saveToken(exchange, token));
+  &#125;
+
+  private static class DefaultRequireCsrfProtectionMatcher implements ServerWebExchangeMatcher &#123;
+
+    // 如果我们应用在保证GET，HEAD，TRACE，OPTIONS等方法不改变系统状态，不需要进行CSRF保护，就可使用这个默认的matcher类。
+    private static final Set&lt;HttpMethod&gt; ALLOWED_METHODS = new HashSet&lt;&gt;(
+        Arrays.asList(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.TRACE, HttpMethod.OPTIONS));
+
+    @Override
+    public Mono&lt;MatchResult&gt; matches(ServerWebExchange exchange) &#123;
+      return Mono.just(exchange.getRequest()) // 从exchagne得到request对象
+          .flatMap((r) -&gt; Mono.justOrEmpty(r.getMethod())) // 得到http request的method。
+          .filter(ALLOWED_METHODS::contains) // 仅保留无需CSRF保护的方法
+          .flatMap((m) -&gt; MatchResult.notMatch()) // 过滤后，有无需CSRF保护的方法则不匹配（无需CSRF保护）。
+          .switchIfEmpty(MatchResult.match()); // 过滤后，没有匹配到方法，则匹配（需CSRF保护）。
+    &#125;
+
+  &#125;
+
+&#125;
+</code></pre>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Reactive/">Reactive</a>, <a href="/tags/Security/">Security</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/04/16/reactive/spring_security_reactive_csrf/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
