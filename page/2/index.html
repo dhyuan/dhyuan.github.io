@@ -309,233 +309,6 @@ holdFor(Duration.ofSeconds(30)),
 
 
 
-  <article id="post-network/tcp_close-wait_time-wait" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/network/tcp_close-wait_time-wait/">2025-01-25</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/25/network/tcp_close-wait_time-wait/">关于TCP的好文章</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="关于挥手中的close-wait-time-wait。"><a href="#关于挥手中的close-wait-time-wait。" class="headerlink" title="关于挥手中的close-wait, time-wait。"></a>关于挥手中的close-wait, time-wait。</h4><ul>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI4MjA4ODU0Ng==&mid=402163560&idx=1&sn=5269044286ce1d142cca1b5fed3efab1&3rd=MzA3MDU4NTYzMw==&scene=6#rd">又见CLOSE_WAIT</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903734300901390">线上大量CLOSE_WAIT的原因深入分析</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9988354.html">TCP连接的TIME_WAIT和CLOSE_WAIT 状态解说</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/Jt2ss3SsE_iGJp5oW8QDSw">高性能网络 | 你所不知道的TIME_WAIT和CLOSE_WAIT</a></p>
-</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/mongo/MongoDB-User-Authentication/">2025-01-25</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/25/mongo/MongoDB-User-Authentication/">MongoDB的用户管理</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。</p>
-<pre><code>security:
-  authorization: enabled
-</code></pre>
-<p>/usr/local/opt/mongodb-community/bin/mongod –config /usr/local/etc/mongod.conf</p>
-<p>如果你忘记的root用户或者其它管理员用户的密码，那么可以先以无权限控制的方式启动MongoDB：</p>
-<pre><code>mongod --port 27017 --dbpath /usr/local/var/mongodb
-</code></pre>
-<p>再连接到MongoDB：</p>
-<pre><code>mongo --port 27017
-</code></pre>
-<p>根据需要可以更改用户密码或者创建新用户：</p>
-<pre><code>db.changeUserPassword(&quot;root&quot;, passwordPrompt())
-db.changeUserPassword(&quot;root&quot;, &quot;password&quot;)
-
-db.createUser(&#123;
-    &quot;user&quot;: &quot;dahui&quot;,
-    &quot;pwd&quot;: &quot;password&quot;,
-    &quot;roles&quot;:
-    [
-        &#123;
-            &quot;role&quot;: &quot;userAdminAnyDatabase&quot;,
-            &quot;db&quot;: &quot;admin&quot;
-        &#125;,
-        &quot;readWriteAnyDatabase&quot;
-    ]
-&#125;);
-</code></pre>
-<p>添加完这种带有 userAdminAnyDatabase 角色的用户后，关闭MongoDB server：</p>
-<pre><code>db.adminCommand( &#123; shutdown: 1 &#125; )
-</code></pre>
-<p>再以有权限控制的方式重新启动MongoDB Server。（/usr/local/etc/mongod.conf 中设置了 authorization: enabled）</p>
-<pre><code>mongod --config /usr/local/etc/mongod.conf
-或
-mongod --auth --port 27017 --dbpath /var/lib/mongodb
-</code></pre>
-<p>这样使用拥有 userAdminAnyDatabase 角色的用户登录后，就可以通过使用use DB_NAME 的方式给不同的DB添加用户了。</p>
-<pre><code>mongosh --port 27017 -u admin -p password --authenticationDatabase admin
-
-mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&quot;
-</code></pre>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/">https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/reference/method/js-user-management/">https://www.mongodb.com/docs/manual/reference/method/js-user-management/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/mongo/mongodb-script-collection-fields-size-quantile-analysis/">2025-01-25</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/25/mongo/mongodb-script-collection-fields-size-quantile-analysis/">MongoDB脚本：集合中字段数据大小的分位数统计</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
-<p>如果想获得某个collection相关的各种存储统计信息，可以使用 **<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/method/db.collection.stats/">stats</a>、<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/collStats/">collStats</a>**。</p>
-<p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
-<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
-<pre><code>//最大的Top10和百分比分布。
-db.COLLECTION.aggregate([
-  &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
-  &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
-  &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
-  &#123; $sort: &#123; documentSize: 1 &#125; &#125;,
-  &#123; $group: &#123; &#39;_id&#39;: null, &#39;value&#39;: &#123; &#39;$push&#39;: &#39;$documentSize&#39; &#125; &#125; &#125;,
-  &#123; $project: &#123; _id: 0, 
-      &quot;Top1&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-1, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top2&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-2, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top3&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-4, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top4&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-5, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top5&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-6, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top6&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top7&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top8&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-8, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top9&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-9, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top10&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-10, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;99-9%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.999, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;99%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.99, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;95%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.95, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;90%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.90, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;50%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.50, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;25%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.25, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-    &#125; &#125;,
-  ]);
-  
-</code></pre>
-<p>对MongoDB 4.2以上版本，可以使用上述aggrigation 语法进行统计。对4.2及其以下版本，需要使用forEach语句迭代进行计算。<br>对于不支持Object.bsonsize的Mongo shell可以使用 BSON.calculateObjectSize 进行替代。</p>
-<pre><code>// const BSON = require(&quot;bson&quot;);
-var fieldsSize = []
-var totalSize = 0
-db.COLLECTION.find(&#123; &quot;status&quot;: &#39;A&#39; &#125;, &#123; FIELD_A: 1, FIELD_B: 1&#125;).forEach(function(doc)
-&#123;
-  var size = Object.bsonsize(doc)
-//   var size = BSON.calculateObjectSize(doc)
-  totalSize += size
-  fieldsSize.push(size)
-&#125;);
-var sortedData = fieldsSize.sort(function(a, b)&#123;return a-b&#125;);
-var statistic = &#123;
-    &quot;Note&quot;: &quot;The Collection Fields(FIELD_A, FIELD_B) Size Statistic Reuslt&quot;,    
-    &quot;numbOfDocs&quot;: sortedData.length,
-    &quot;totalSize&quot;: (totalSize / 1024) + &quot;KB    &quot; +  (totalSize / (1024 * 1024)) + &quot; MB&quot;,
-    &quot;AVG:&quot;: Math.round(totalSize / sortedData.length),
-    &quot;MIN&quot;: sortedData[0],
-    &quot;TOP1&quot;: sortedData[sortedData.length - 1],
-    &quot;TOP2&quot;: sortedData[sortedData.length - 2],
-    &quot;TOP3&quot;: sortedData[sortedData.length - 3],
-    &quot;TOP4&quot;: sortedData[sortedData.length - 4],
-    &quot;TOP5&quot;: sortedData[sortedData.length - 5],
-    &quot;TOP6&quot;: sortedData[sortedData.length - 6],
-    &quot;TOP7&quot;: sortedData[sortedData.length - 7],
-    &quot;TOP8&quot;: sortedData[sortedData.length - 8],
-    &quot;TOP9&quot;: sortedData[sortedData.length - 9],
-    &quot;TOP10&quot;: sortedData[sortedData.length - 10],
-    &quot;99.9%&quot;: sortedData[Math.floor(sortedData.length * 0.999)],
-    &quot;99%&quot;: sortedData[Math.floor(sortedData.length * 0.99)],
-    &quot;95%&quot;: sortedData[Math.floor(sortedData.length * 0.95)],
-    &quot;90%&quot;: sortedData[Math.floor(sortedData.length * 0.90)],
-    &quot;75%&quot;: sortedData[Math.floor(sortedData.length * 0.75)],
-    &quot;50%&quot;: sortedData[Math.floor(sortedData.length * 0.5)],
-    &quot;25%&quot;: sortedData[Math.floor(sortedData.length * 0.25)],
-    &quot;10%&quot;: sortedData[Math.floor(sortedData.length * 0.10)]
-&#125;;
-
-print(statistic)
-</code></pre>
-<br/>
-------
-
-<p>_References:<br>[1]: <a target="_blank" rel="noopener" href="https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/">https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/</a><br>[2]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb">https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb</a><br>[3]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.2/reference/command/collStats/">https://www.mongodb.com/docs/v4.2/reference/command/collStats/</a><br>[4]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-binarysize/">https://database.guide/mongodb-binarysize/</a><br>[5]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-object-bsonsize/">https://database.guide/mongodb-object-bsonsize/</a><br>[6]: <a target="_blank" rel="noopener" href="https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/">https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/aggregation/">https://www.mongodb.com/docs/manual/aggregation/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-mongo/setupMongoForLocalDevEnv" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -704,6 +477,233 @@ security:
 replication:
   replSetName: rs0
 </code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/mongo/mongodb-script-collection-fields-size-quantile-analysis/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/mongo/mongodb-script-collection-fields-size-quantile-analysis/">MongoDB脚本：集合中字段数据大小的分位数统计</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
+<p>如果想获得某个collection相关的各种存储统计信息，可以使用 **<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/method/db.collection.stats/">stats</a>、<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/collStats/">collStats</a>**。</p>
+<p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
+<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
+<pre><code>//最大的Top10和百分比分布。
+db.COLLECTION.aggregate([
+  &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
+  &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
+  &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
+  &#123; $sort: &#123; documentSize: 1 &#125; &#125;,
+  &#123; $group: &#123; &#39;_id&#39;: null, &#39;value&#39;: &#123; &#39;$push&#39;: &#39;$documentSize&#39; &#125; &#125; &#125;,
+  &#123; $project: &#123; _id: 0, 
+      &quot;Top1&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-1, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top2&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-2, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top3&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-4, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top4&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-5, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top5&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-6, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top6&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top7&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top8&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-8, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top9&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-9, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top10&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-10, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99-9%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.999, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.99, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;95%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.95, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;90%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.90, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;50%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.50, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;25%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.25, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+    &#125; &#125;,
+  ]);
+  
+</code></pre>
+<p>对MongoDB 4.2以上版本，可以使用上述aggrigation 语法进行统计。对4.2及其以下版本，需要使用forEach语句迭代进行计算。<br>对于不支持Object.bsonsize的Mongo shell可以使用 BSON.calculateObjectSize 进行替代。</p>
+<pre><code>// const BSON = require(&quot;bson&quot;);
+var fieldsSize = []
+var totalSize = 0
+db.COLLECTION.find(&#123; &quot;status&quot;: &#39;A&#39; &#125;, &#123; FIELD_A: 1, FIELD_B: 1&#125;).forEach(function(doc)
+&#123;
+  var size = Object.bsonsize(doc)
+//   var size = BSON.calculateObjectSize(doc)
+  totalSize += size
+  fieldsSize.push(size)
+&#125;);
+var sortedData = fieldsSize.sort(function(a, b)&#123;return a-b&#125;);
+var statistic = &#123;
+    &quot;Note&quot;: &quot;The Collection Fields(FIELD_A, FIELD_B) Size Statistic Reuslt&quot;,    
+    &quot;numbOfDocs&quot;: sortedData.length,
+    &quot;totalSize&quot;: (totalSize / 1024) + &quot;KB    &quot; +  (totalSize / (1024 * 1024)) + &quot; MB&quot;,
+    &quot;AVG:&quot;: Math.round(totalSize / sortedData.length),
+    &quot;MIN&quot;: sortedData[0],
+    &quot;TOP1&quot;: sortedData[sortedData.length - 1],
+    &quot;TOP2&quot;: sortedData[sortedData.length - 2],
+    &quot;TOP3&quot;: sortedData[sortedData.length - 3],
+    &quot;TOP4&quot;: sortedData[sortedData.length - 4],
+    &quot;TOP5&quot;: sortedData[sortedData.length - 5],
+    &quot;TOP6&quot;: sortedData[sortedData.length - 6],
+    &quot;TOP7&quot;: sortedData[sortedData.length - 7],
+    &quot;TOP8&quot;: sortedData[sortedData.length - 8],
+    &quot;TOP9&quot;: sortedData[sortedData.length - 9],
+    &quot;TOP10&quot;: sortedData[sortedData.length - 10],
+    &quot;99.9%&quot;: sortedData[Math.floor(sortedData.length * 0.999)],
+    &quot;99%&quot;: sortedData[Math.floor(sortedData.length * 0.99)],
+    &quot;95%&quot;: sortedData[Math.floor(sortedData.length * 0.95)],
+    &quot;90%&quot;: sortedData[Math.floor(sortedData.length * 0.90)],
+    &quot;75%&quot;: sortedData[Math.floor(sortedData.length * 0.75)],
+    &quot;50%&quot;: sortedData[Math.floor(sortedData.length * 0.5)],
+    &quot;25%&quot;: sortedData[Math.floor(sortedData.length * 0.25)],
+    &quot;10%&quot;: sortedData[Math.floor(sortedData.length * 0.10)]
+&#125;;
+
+print(statistic)
+</code></pre>
+<br/>
+------
+
+<p>_References:<br>[1]: <a target="_blank" rel="noopener" href="https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/">https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/</a><br>[2]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb">https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb</a><br>[3]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.2/reference/command/collStats/">https://www.mongodb.com/docs/v4.2/reference/command/collStats/</a><br>[4]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-binarysize/">https://database.guide/mongodb-binarysize/</a><br>[5]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-object-bsonsize/">https://database.guide/mongodb-object-bsonsize/</a><br>[6]: <a target="_blank" rel="noopener" href="https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/">https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/aggregation/">https://www.mongodb.com/docs/manual/aggregation/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/mongo/MongoDB-User-Authentication/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/mongo/MongoDB-User-Authentication/">MongoDB的用户管理</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。</p>
+<pre><code>security:
+  authorization: enabled
+</code></pre>
+<p>/usr/local/opt/mongodb-community/bin/mongod –config /usr/local/etc/mongod.conf</p>
+<p>如果你忘记的root用户或者其它管理员用户的密码，那么可以先以无权限控制的方式启动MongoDB：</p>
+<pre><code>mongod --port 27017 --dbpath /usr/local/var/mongodb
+</code></pre>
+<p>再连接到MongoDB：</p>
+<pre><code>mongo --port 27017
+</code></pre>
+<p>根据需要可以更改用户密码或者创建新用户：</p>
+<pre><code>db.changeUserPassword(&quot;root&quot;, passwordPrompt())
+db.changeUserPassword(&quot;root&quot;, &quot;password&quot;)
+
+db.createUser(&#123;
+    &quot;user&quot;: &quot;dahui&quot;,
+    &quot;pwd&quot;: &quot;password&quot;,
+    &quot;roles&quot;:
+    [
+        &#123;
+            &quot;role&quot;: &quot;userAdminAnyDatabase&quot;,
+            &quot;db&quot;: &quot;admin&quot;
+        &#125;,
+        &quot;readWriteAnyDatabase&quot;
+    ]
+&#125;);
+</code></pre>
+<p>添加完这种带有 userAdminAnyDatabase 角色的用户后，关闭MongoDB server：</p>
+<pre><code>db.adminCommand( &#123; shutdown: 1 &#125; )
+</code></pre>
+<p>再以有权限控制的方式重新启动MongoDB Server。（/usr/local/etc/mongod.conf 中设置了 authorization: enabled）</p>
+<pre><code>mongod --config /usr/local/etc/mongod.conf
+或
+mongod --auth --port 27017 --dbpath /var/lib/mongodb
+</code></pre>
+<p>这样使用拥有 userAdminAnyDatabase 角色的用户登录后，就可以通过使用use DB_NAME 的方式给不同的DB添加用户了。</p>
+<pre><code>mongosh --port 27017 -u admin -p password --authenticationDatabase admin
+
+mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&quot;
+</code></pre>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/">https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/reference/method/js-user-management/">https://www.mongodb.com/docs/manual/reference/method/js-user-management/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-network/tcp_close-wait_time-wait" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/25/network/tcp_close-wait_time-wait/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/network/tcp_close-wait_time-wait/">关于TCP的好文章</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h4 id="关于挥手中的close-wait-time-wait。"><a href="#关于挥手中的close-wait-time-wait。" class="headerlink" title="关于挥手中的close-wait, time-wait。"></a>关于挥手中的close-wait, time-wait。</h4><ul>
+<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI4MjA4ODU0Ng==&mid=402163560&idx=1&sn=5269044286ce1d142cca1b5fed3efab1&3rd=MzA3MDU4NTYzMw==&scene=6#rd">又见CLOSE_WAIT</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903734300901390">线上大量CLOSE_WAIT的原因深入分析</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9988354.html">TCP连接的TIME_WAIT和CLOSE_WAIT 状态解说</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/Jt2ss3SsE_iGJp5oW8QDSw">高性能网络 | 你所不知道的TIME_WAIT和CLOSE_WAIT</a></p>
+</li>
+</ul>
 
       
     </div>

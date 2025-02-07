@@ -158,75 +158,6 @@ public class UserDaoTest &#123;
 
 
 
-  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.289Z"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">2025-01-25</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>因为MongoDB数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下exception</p>
-<blockquote>
-<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
-</blockquote>
-<p>我们可以通过一下几步解决这个问题：</p>
-<h3 id="1）我们首先需要分析是什么情况导致数据中存在undefined值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在undefined值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在undefined值。"></a>1）我们首先需要分析是什么情况导致数据中存在undefined值。</h3><p>从BSON的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined已经是depricated。数据库中出现undefined的多半说明程序有问题，所以需要找出是在哪里、什么情况下向MongoDB写入了undefined value并进行修改。</p>
-<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
-<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个converter类 </p>
-<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt; 
-</code></pre>
-<p>把undefined 转为__任意类型__对象的null，就可以避免如上的Exception。代码如stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把Converter 传给mongoTemplate，我们就需要定义一个MongoCustomConversions Bean。为什么需要这样的Bean，可以参考 AbstractMongoClientConfiguration的源代码。因为AbstractMongoClientConfiguration中已经定义了一个MongoCustomConversions bean，我们就需要给自己的Bean加上@Primary，以便让spring-data-mongo优先使用我们设置了自定义converter的 MongoCustomConversions bean。</p>
-<p>如果你的spring application还是通过XML方式进行beans定义与组装的，那么你就不能通过定义一个ConverterFactory来方便地把undefined 转为__任意类型__对象的null了。这是因为XML不支持类型化参数。这时，只能把converter一个个地定义出来。XML的组装大致如下：</p>
-<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
-    &lt;mongo:custom-converters&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-    &lt;/mongo:custom-converters&gt;
-&lt;/mongo:mapping-converter&gt;
-</code></pre>
-<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个converter才能避免exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在converter 返回 o -&gt; null 之前，执行下面的代码就可以通过log看到是哪个DAO触发了这个转换，进而可以分析出哪个collection存在脏数据。如果我们清理了这个collection的所有脏数据之后这种undefined脏数据还是会产生出来，那么我们就应该好好review一下之前的代码是哪里有问题并进行修改了。</p>
-<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
-for(StackTraceElement st : causes)&#123;
-    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
-        log.warn(st.toString());
-    &#125; else &#123;
-        log.info(st.toString());
-    &#125;
-&#125;
-</code></pre>
-<p>如果是使用JDK9及以上，那么可以使用StackWalker避免getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a> </p>
-<p>写了个Demo来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
-<p><em>Reference:</em></p>
-<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-spring/HttpSecurity-class-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -280,6 +211,75 @@ public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;
 
 <hr>
 <p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a><br>[4]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-onceperrequestfilter">https://www.baeldung.com/spring-onceperrequestfilter</a> </p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.289Z"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">2025-01-25</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2025/01/25/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>因为MongoDB数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下exception</p>
+<blockquote>
+<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
+</blockquote>
+<p>我们可以通过一下几步解决这个问题：</p>
+<h3 id="1）我们首先需要分析是什么情况导致数据中存在undefined值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在undefined值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在undefined值。"></a>1）我们首先需要分析是什么情况导致数据中存在undefined值。</h3><p>从BSON的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined已经是depricated。数据库中出现undefined的多半说明程序有问题，所以需要找出是在哪里、什么情况下向MongoDB写入了undefined value并进行修改。</p>
+<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
+<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个converter类 </p>
+<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt; 
+</code></pre>
+<p>把undefined 转为__任意类型__对象的null，就可以避免如上的Exception。代码如stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把Converter 传给mongoTemplate，我们就需要定义一个MongoCustomConversions Bean。为什么需要这样的Bean，可以参考 AbstractMongoClientConfiguration的源代码。因为AbstractMongoClientConfiguration中已经定义了一个MongoCustomConversions bean，我们就需要给自己的Bean加上@Primary，以便让spring-data-mongo优先使用我们设置了自定义converter的 MongoCustomConversions bean。</p>
+<p>如果你的spring application还是通过XML方式进行beans定义与组装的，那么你就不能通过定义一个ConverterFactory来方便地把undefined 转为__任意类型__对象的null了。这是因为XML不支持类型化参数。这时，只能把converter一个个地定义出来。XML的组装大致如下：</p>
+<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
+    &lt;mongo:custom-converters&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+    &lt;/mongo:custom-converters&gt;
+&lt;/mongo:mapping-converter&gt;
+</code></pre>
+<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个converter才能避免exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在converter 返回 o -&gt; null 之前，执行下面的代码就可以通过log看到是哪个DAO触发了这个转换，进而可以分析出哪个collection存在脏数据。如果我们清理了这个collection的所有脏数据之后这种undefined脏数据还是会产生出来，那么我们就应该好好review一下之前的代码是哪里有问题并进行修改了。</p>
+<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
+for(StackTraceElement st : causes)&#123;
+    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
+        log.warn(st.toString());
+    &#125; else &#123;
+        log.info(st.toString());
+    &#125;
+&#125;
+</code></pre>
+<p>如果是使用JDK9及以上，那么可以使用StackWalker避免getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a> </p>
+<p>写了个Demo来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
+<p><em>Reference:</em></p>
+<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
 
       
     </div>
