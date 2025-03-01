@@ -45,225 +45,6 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-devops/use_aliyun_ubuntu_apt_source" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/06/devops/use_aliyun_ubuntu_apt_source/">2021-03-06</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/03/06/devops/use_aliyun_ubuntu_apt_source/">设置Ubuntu Guest使用aliyun apt镜像源</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：</p>
-<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true
-</code></pre>
-<p>通过在命令行里设置参数 change_to_ali_ubuntu_source=yes 来创建虚拟机的时候进行 ali ubunt apt source 的设置。</p>
-<p>1）禁止使用 could init 设置默认的 apt sources</p>
-<pre><code>- name: Do not use cloud source
-  command: &gt;
-    virt-customize
-    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
-    --run-command &quot;echo &#39;apt_preserve_sources_list: true&#39; &gt;&gt; /etc/cloud/cloud.cfg&quot;
-  register: result_disk_cmd
-  retries: 2
-  delay: 2
-  until: result_disk_cmd is succeeded
-  become: true
-  when:
-    - inventory_hostname not in groups[&#39;kvmhost&#39;]
-    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
-    - virt_infra_state != &quot;undefined&quot;
-    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
-  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
-</code></pre>
-<p>2）使用 aliyun 的 ubuntu apt source 镜像。</p>
-<pre><code>- name: Setup Aliyun Source
-  command: &gt;
-    virt-customize
-    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
-    --run-command &#39;mv /etc/apt/sources.list /etc/apt/sources.list.bak&#39;
-    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
-  register: result_disk_cmd
-  retries: 2
-  delay: 2
-  until: result_disk_cmd is succeeded
-  become: true
-  when:
-    - inventory_hostname not in groups[&#39;kvmhost&#39;]
-    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
-    - virt_infra_state != &quot;undefined&quot;
-    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
-  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
-</code></pre>
-<p>3）删除已存在的 Guest 并重新创建。这个虚拟使用 Ali 源并跟随宿主机启动时自动启动。</p>
-<pre><code>[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
-[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true --extra-vars virt_infra_autostart=yes
-</code></pre>
-<ol start="4">
-<li><p>安装 Docker 环境</p>
-<p>[devops@localhost virt-infra-ansible]$ ansible-playbook ./install_docker.yml –limit ubuntu20Server -vv –extra-vars docker_version=5:20.10.4<del>3-0</del>ubuntu-focal</p>
-</li>
-</ol>
-<p>参考：</p>
-<p>关于 virt-customize 命令<br><a target="_blank" rel="noopener" href="https://libguestfs.org/virt-customize.1.html">https://libguestfs.org/virt-customize.1.html</a><br> <a target="_blank" rel="noopener" href="https://ywnz.com/linuxjc/5680.html">https://ywnz.com/linuxjc/5680.html</a></p>
-<p>关于 Ansible yaml 中 command<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html">https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-devops/add_an_devServer_in_kvm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一组开发服务器</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
-<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
-mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
-</code></pre>
-<h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
-<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
-<pre><code>devopServers:
-    hosts:
-        repositoryServer:
-        virt_infra_state: running
-        virt_infra_distro: ubuntu
-        virt_infra_distro_image: focal-server-cloudimg-amd64.img
-        ansible_python_interpreter: /usr/bin/python3
-        virt_infra_timezone: &quot;Asia/Shanghai&quot;
-        virt_infra_disk_size: 500
-        virt_infra_disk_cmd:
-            - apt update
-            - apt install -y net-tools
-            - apt install -y lsb
-            - useradd -m devops
-            - echo &quot;devops:password&quot;| chpasswd
-        devopsServer[0:2]:
-        virt_infra_state: running
-        virt_infra_distro: ubuntu
-        virt_infra_distro_image: focal-server-cloudimg-amd64.img
-        ansible_python_interpreter: /usr/bin/python3
-        virt_infra_timezone: &quot;Asia/Shanghai&quot;
-        virt_infra_disk_cmd:
-            - apt update
-            - apt install -y net-tools
-            - apt install -y lsb
-            - useradd -m devops
-            - echo &quot;devops:password&quot;| chpasswd
-    vars:
-        virt_infra_root_password: password
-        virt_infra_disk_size: 80
-        virt_infra_ram: 4094
-        virt_infra_ram_max: 8192
-        virt_infra_cpus: 4
-        virt_infra_cpus_max: 8
-        virt_infra_state: running
-        virt_infra_networks:
-        - name: br0
-            type: bridge
-</code></pre>
-<h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
-ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
-</code></pre>
-<h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
-<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
-</code></pre>
-<h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
-<pre><code>- name: Add Aliyun Docker official GPG key
-become: true
-apt_key:
-url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
-state: present
-register: \_pkg_result
-until: \_pkg_result is succeeded
-when:
-
-- docker_network_access | bool
-- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
-    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
-
-- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
-become: true
-lineinfile:
-path: /etc/apt/sources.list.d/docker-ce.list
-line: &quot;deb [arch=&#123;&#123; _docker_os_arch|lower &#125;&#125;] http://mirrors.aliyun.com/docker-ce/linux/&#123;&#123; \_docker_os_dist|lower &#125;&#125; &#123;&#123; ansible_lsb.codename &#125;&#125; stable&quot;
-insertbefore: BOF
-</code></pre>
-<p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
-<pre><code>root@basehost0:~# apt-cache madison docker-ce
-docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
-docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
-。。。 。。。
-</code></pre>
-<p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
-<pre><code>    ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
-</code></pre>
-<p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
-<pre><code>ansible-playbook ./install_docker.yml \
---limit devopServers -v \
--e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; &#125;&#125;&#39;
-</code></pre>
-<p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
-<pre><code>root@basehost0:~# docker -v
-Docker version 20.10.4, build d3cb89e
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-notes/spring_tech4framework" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -684,6 +465,224 @@ kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | aw
 
 
 
+  <article id="post-devops/create_k8s_by_kubeadm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-28T07:23:52.000Z"><a href="/2020/09/28/devops/create_k8s_by_kubeadm/">2020-09-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/28/devops/create_k8s_by_kubeadm/">使用kubeadm创建K8S单控制节点集群</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在对 K8S 控制节点有 HA 方面需求的话，应考虑 <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/</a> 提到的两种拓扑。</p>
+<p>HA 的方式除了让 controll nodes 和 etcd 有多个节点外，另外一个就是对外需要 VIP + LoadBalance 的功能。<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing">https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#options-for-software-load-balancing</a> 讲述了如果使用 keepalived 和 haproxy 来实现这个前提。这个连接讲述了三个部署 keepalive, haproxy 的方式。推荐还是使用第二或第三种，第一种方式仅作为我们理解背后工作的逻辑就好。</p>
+<p>因为这里只是开发环境使用的 k8s，所以就不以 HA 的方式安装 k8s 了。。无非就是多了两个步骤：<br>1）准备 VIP/LB;<br>2）kubeadm –init 时，用–control-plane flag 添加其它 CP 节点而已）。</p>
+<h2 id="1）为-kubeadm-准备虚拟机和-docker"><a href="#1）为-kubeadm-准备虚拟机和-docker" class="headerlink" title="1）为 kubeadm 准备虚拟机和 docker"></a>1）为 kubeadm 准备虚拟机和 docker</h2><h3 id="准备开发用-KVM-HOST-并-创建网桥"><a href="#准备开发用-KVM-HOST-并-创建网桥" class="headerlink" title="准备开发用 KVM HOST 并 创建网桥"></a>准备开发用 KVM HOST 并 创建网桥</h3><p>步骤参考：<br>a) 准备 kvm：<a href="https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/">https://dhyuan.github.io/2020/09/19/devops/create_gust_hosts_on_kvm_by_ansible/</a><br>b) 创建网桥：<a href="https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/">https://dhyuan.github.io/2020/09/21/devops/create_bridge_on_centos7/</a></p>
+<h3 id="下载创建虚拟机的-CentOS7-镜像"><a href="#下载创建虚拟机的-CentOS7-镜像" class="headerlink" title="下载创建虚拟机的 CentOS7 镜像"></a>下载创建虚拟机的 CentOS7 镜像</h3><pre><code>curl -O https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud.qcow2
+
+sudo mv -iv CentOS-7-x86_64-GenericCloud.qcow2 /var/lib/libvirt/images/
+</code></pre>
+<h3 id="得到一键安装-GuestHost-和-Docker-的-ansible-脚本。"><a href="#得到一键安装-GuestHost-和-Docker-的-ansible-脚本。" class="headerlink" title="得到一键安装 GuestHost 和 Docker 的 ansible 脚本。"></a>得到一键安装 GuestHost 和 Docker 的 ansible 脚本。</h3><p>注意这里是使用分支 devenv 上的代码。</p>
+<pre><code>cd ~/devenv_bootstrap
+git clone -b devenv https://github.com/dhyuan/virt-infra-ansible.git
+
+cd ~/devenv_bootstrap/virt-infra-ansible/roles
+git clone -b devenv https://github.com/dhyuan/ansible-role-virt-infra
+
+ansible-galaxy install \
+--roles-path ~/.ansible/roles/ \
+git+https://github.com/haxorof/ansible-role-docker-ce.git,2.7.0
+</code></pre>
+<h3 id="根据自己的需求修改-K8S-master、nodes-节点的主机配置。"><a href="#根据自己的需求修改-K8S-master、nodes-节点的主机配置。" class="headerlink" title="根据自己的需求修改 K8S master、nodes 节点的主机配置。"></a>根据自己的需求修改 K8S master、nodes 节点的主机配置。</h3><p>注意：节点名称已经改为使用-而不是_以符合 DNS 规范。这点是 K8S 的要求，但是和 yaml 的格式规范使用下划线有点而冲突。</p>
+<pre><code>cd ~/devenv_bootstrap
+vi inventory/k8s-masters.yml
+vi inventory/k8s-nodes.yml
+</code></pre>
+<h3 id="一键创建-master-nodes-虚拟机"><a href="#一键创建-master-nodes-虚拟机" class="headerlink" title="一键创建 master + nodes 虚拟机"></a>一键创建 master + nodes 虚拟机</h3><pre><code>ansible-playbook ./virt-infra.yml \
+    --limit kvmhost,k8s-masters,k8s-nodes
+</code></pre>
+<h3 id="一键在-master、nodes-节点上安装-docker"><a href="#一键在-master、nodes-节点上安装-docker" class="headerlink" title="一键在 master、nodes 节点上安装 docker"></a>一键在 master、nodes 节点上安装 docker</h3><pre><code>ansible-playbook ./install_docker.yml \
+--limit k8s-masters,k8s-nodes -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;CentOS&quot;: &quot;http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo&quot;&#125;&#125;&#39;
+</code></pre>
+<h3 id="验证环境"><a href="#验证环境" class="headerlink" title="验证环境"></a>验证环境</h3><p>在 KVM HOST 查看/etc/hosts 里面记录了各个主机节点 IP。<br>各节点互相 ping<br>登录到各主机检查 docker 引擎是否工作正常。<br><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png"></p>
+<h2 id="2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。"><a href="#2）安装-kubeadm，此步骤需要在各个-master、nodes-节点执行。" class="headerlink" title="2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。"></a>2）安装 kubeadm，此步骤需要在各个 master、nodes 节点执行。</h2><p>下面基本参照官网 <a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/</a> 以及另阿良的<br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a> 来进行。</p>
+<h3 id="设置-kubernets-yum-源"><a href="#设置-kubernets-yum-源" class="headerlink" title="设置 kubernets yum 源"></a>设置 kubernets yum 源</h3><pre><code>cat &lt;&lt;EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+# 使用阿里源
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64/
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+exclude=kubelet kubeadm kubectl
+EOF
+</code></pre>
+<h3 id="确保将桥接的-IPv4-流量传递到-iptables-的链："><a href="#确保将桥接的-IPv4-流量传递到-iptables-的链：" class="headerlink" title="确保将桥接的 IPv4 流量传递到 iptables 的链："></a>确保将桥接的 IPv4 流量传递到 iptables 的链：</h3><p>加载 br_netfilter 模块加载：</p>
+<pre><code>sudo modprobe br_netfilter
+lsmod | grep br_netfilter
+</code></pre>
+<p>设置 br_netfilter，也可设置在/etc/sysctl.d/99-sysctl.conf 文件里。</p>
+<pre><code>cat &lt;&lt;EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables=1
+net.bridge.bridge-nf-call-iptables=1
+EOF
+
+sudo sysctl --system
+</code></pre>
+<h3 id="设置禁用-SELinux"><a href="#设置禁用-SELinux" class="headerlink" title="设置禁用 SELinux"></a>设置禁用 SELinux</h3><pre><code>sudo setenforce 0
+sudo sed -i &#39;s/^SELINUX=enforcing$/SELINUX=disabled/&#39; /etc/selinux/config
+</code></pre>
+<h3 id="让各机器时间同步"><a href="#让各机器时间同步" class="headerlink" title="让各机器时间同步"></a>让各机器时间同步</h3><p>因为这里的环境是运行在 KVM 里的虚拟机，所以这一步可忽略。在生成环境中，各机器时间应该同步。</p>
+<pre><code>yum install ntpdate -y
+ntpdate time.windows.com
+</code></pre>
+<h3 id="安装-kubeadm"><a href="#安装-kubeadm" class="headerlink" title="安装 kubeadm"></a>安装 kubeadm</h3><pre><code>sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+yum list installed | grep kube
+</code></pre>
+<p>此时可用的最新版本是 1.19.2。</p>
+<h3 id="enable-kubelet"><a href="#enable-kubelet" class="headerlink" title="enable kubelet"></a>enable kubelet</h3><pre><code>sudo systemctl enable kubelet
+sudo systemctl status kubelet
+</code></pre>
+<p>此时 kubelet 的状态是 failed，因为 api server 还没有起来。</p>
+<h2 id="3）构建集群"><a href="#3）构建集群" class="headerlink" title="3）构建集群"></a>3）构建集群</h2><h3 id="在规划的-master-节点上首先初始化一个集群的-master-节点"><a href="#在规划的-master-节点上首先初始化一个集群的-master-节点" class="headerlink" title="在规划的 master 节点上首先初始化一个集群的 master 节点"></a>在规划的 master 节点上首先初始化一个集群的 master 节点</h3><p>这里要注意因为 gcr.io 被墙， 所以是使用 ali 镜像。各参数含义参考：<a target="_blank" rel="noopener" href="https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/">https://kubernetes.io/zh/docs/reference/setup-tools/kubeadm/kubeadm-init/</a><br>另外，关于 pod-network-cidr 的意义这篇文章非常好：<a target="_blank" rel="noopener" href="https://blog.csdn.net/shida_csdn/article/details/104334372">https://blog.csdn.net/shida_csdn/article/details/104334372</a><br>执行 kubeadm 时需要下载镜像，所以需要稍等一会儿。</p>
+<pre><code>sudo kubeadm init \
+--apiserver-advertise-address=192.168.1.11 \
+--image-repository registry.aliyuncs.com/google_containers \
+--kubernetes-version v1.19.2 \
+--service-cidr=10.96.0.0/12 \
+--pod-network-cidr=10.244.0.0/16
+</code></pre>
+<p>kubeadm init 命令输出大致如下，并且 kubelet 服务也已经正常。</p>
+<pre><code>[bootstrap-token] Creating the &quot;cluster-info&quot; ConfigMap in the &quot;kube-public&quot; namespace
+[kubelet-finalize] Updating &quot;/etc/kubernetes/kubelet.conf&quot; to point to a rotatable kubelet client certificate and key
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run &quot;kubectl apply -f [podnetwork].yaml&quot; with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \
+    --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d
+[devops@k8s-master-0 ~]$
+</code></pre>
+<p>执行以下命令，让普通用户也能执行 kubectl 命令：</p>
+<pre><code>mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+</code></pre>
+<h3 id="安装网络插件-flannel"><a href="#安装网络插件-flannel" class="headerlink" title="安装网络插件 flannel"></a>安装网络插件 flannel</h3><pre><code>wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# 替换 quay.io 为国内镜像 quay.mirrors.ustc.edu.cn
+
+kubectl apply -f kube-flannel.yml
+
+# 验证网络插件安装成功
+kubectl get pods -n kube-system
+</code></pre>
+<p>如果需要，可以删除刚才安装的 flannel 插件：</p>
+<pre><code>kubectl delete -f kube-flannel.yml
+ip link
+ip link delete cni0
+ip link delete flannel.1
+</code></pre>
+<h3 id="把-nodes-加入集群"><a href="#把-nodes-加入集群" class="headerlink" title="把 nodes 加入集群"></a>把 nodes 加入集群</h3><p>在各个 node 节点运行以下命令：</p>
+<pre><code>sudo kubeadm join 192.168.1.11:6443 --token 67y1i4.686gqk1w73isp3op \
+        --discovery-token-ca-cert-hash sha256:ccecf99d92615da1c67878029d79ae7323daac45476168091281ac80ddf0571d
+</code></pre>
+<h3 id="在-master-节点，验证-nodes-都成功加入-K8S-集群："><a href="#在-master-节点，验证-nodes-都成功加入-K8S-集群：" class="headerlink" title="在 master 节点，验证 nodes 都成功加入 K8S 集群："></a>在 master 节点，验证 nodes 都成功加入 K8S 集群：</h3><pre><code>[devops@k8s-master-0 ~]$ kubectl get nodes
+NAME           STATUS   ROLES    AGE     VERSION
+k8s-master-0   Ready    master   72m     v1.19.2
+k8s-node-0     Ready    &lt;none&gt;   4m41s   v1.19.2
+k8s-node-1     Ready    &lt;none&gt;   76s     v1.19.2
+k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2
+[devops@k8s-master-0 ~]$
+</code></pre>
+<p><img src="/2020/09/28/devops/create_k8s_by_kubeadm/guest_hosts_created.png"></p>
+<p><img src="/2020/09/28/devops/create_k8s_by_kubeadm/done.png"></p>
+<p>至此，已经完成了 Kubernetes 集群的搭建。</p>
+<hr>
+<p><em>Reference:</em></p>
+<p><a target="_blank" rel="noopener" href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm">https://kubernetes.io/docs/setup/production-environment/tools/kubeadm</a><br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg">https://mp.weixin.qq.com/s/8JznAEKe6b-wE-kNx7_Svg</a><br><a target="_blank" rel="noopener" href="https://my.oschina.net/u/3021599/blog/4308021">https://my.oschina.net/u/3021599/blog/4308021</a><br><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1525487">https://cloud.tencent.com/developer/article/1525487</a><br><a target="_blank" rel="noopener" href="https://galaxy.ansible.com/geerlingguy/docker">https://galaxy.ansible.com/geerlingguy/docker</a><br><a target="_blank" rel="noopener" href="https://galaxy.ansible.com/">https://galaxy.ansible.com/</a><br>在 CentOS7 上运行个 DHCP Server：<a target="_blank" rel="noopener" href="https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/">https://www.tecmint.com/install-dhcp-server-in-centos-rhel-fedora/</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/hellxz/p/11044012.html">https://www.cnblogs.com/hellxz/p/11044012.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_local_docker_registry" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-27T13:17:11.000Z"><a href="/2020/09/28/devops/setup_local_docker_registry/">2020-09-28</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/28/devops/setup_local_docker_registry/">建立本地docker镜像中心</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>以下是在本地建立 docker registry 的过程，避免每次去互联网拉取镜像以及各种墙的问题。</p>
+<h2 id="安装-docker"><a href="#安装-docker" class="headerlink" title="安装 docker"></a>安装 docker</h2><p>因为我们使用 registry 镜像安装镜像中心，所以需要首先安装 docker 引擎。</p>
+<pre><code>sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+sudo yum install docker-ce docker-ce-cli containerd.io
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo systemctl status docker
+</code></pre>
+<h2 id="运行-docker-registry"><a href="#运行-docker-registry" class="headerlink" title="运行 docker-registry"></a>运行 docker-registry</h2><p>sudo docker pull registry<br>sudo docker run –restart=always -d -p 15000:5000 -v /mnt/data/registry:/var/lib/registry registry</p>
+<h2 id="TODO：添加镜像。。。"><a href="#TODO：添加镜像。。。" class="headerlink" title="TODO：添加镜像。。。"></a>TODO：添加镜像。。。</h2>
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -764,7 +763,7 @@ kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | aw
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">9</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/05/">五月 2022</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">九月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

@@ -45,77 +45,6 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-read-text-file-in-reactive-way" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-05-21T07:29:16.000Z"><a href="/2020/05/21/read-text-file-in-reactive-way/">2020-05-21</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/05/21/read-text-file-in-reactive-way/">read text file in reactive way</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>在 Java8 之前，使用 Java，我们可以按字节、按字符、按行来读取文本文件。<br>Java8 提供了 Files.lines() 方法，可以让我们以 stream 的方式读取，stream 是延迟读取的。<br>stream 风格之后，现在我们可以更进一步，以 reactive 的方式读取文件。Flux.fromStream 提供了方便的接口，直接把 stream 转为 flux。考虑到对文件这种资源使用之后都要有 close 这种操作，那么直接使用 Flux.using 就再合适不过了，免去了手动释放资源这种模版式的代码。</p>
-<p>private static Flux<String> fromPath(Path path) {<br>return Flux.using(() -&gt; Files.lines(path),<br>Flux::fromStream,<br>BaseStream::close<br>);<br>}</p>
-<p>Reference：<br><a target="_blank" rel="noopener" href="https://simonbasle.github.io/2017/10/file-reading-in-reactor/">https://simonbasle.github.io/2017/10/file-reading-in-reactor/</a><br>这篇文章里有关于的 window 各种用法的解释：<a target="_blank" rel="noopener" href="https://blog.51cto.com/liukang/2094073%E3%80%82">https://blog.51cto.com/liukang/2094073。</a><br>通过 Jackson 流式解析 Json：<a target="_blank" rel="noopener" href="https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/">https://cassiomolin.com/2019/08/19/combining-jackson-streaming-api-with-objectmapper-for-parsing-json/</a></p>
-<p>Flux 的 create 和 generate 的区别。</p>
-<p>Mokito <a target="_blank" rel="noopener" href="https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit">https://semaphoreci.com/community/tutorials/stubbing-and-mocking-with-mockito-2-and-junit</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-用CountDownLatch做并发练习题" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-04-11T07:55:38.000Z"><a href="/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/">2020-04-11</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/04/11/%E7%94%A8CountDownLatch%E5%81%9A%E5%B9%B6%E5%8F%91%E7%BB%83%E4%B9%A0%E9%A2%98/">用CountDownLatch做并发练习题</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>拿CountDownLatch对比着Semaphore来学习会简单很多。<br>CountDownLatch比起Semaphore来使用简单很多，它只有await和countDown方法。也就是说</p>
-<h5 id="1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"><a href="#1-CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号-许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore-release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。" class="headerlink" title="1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。"></a>1) CountDownLatch初始化之后设置的计数值在被减到0之后就不能被复原了，而Semaphore可以通过release恢复信号/许可的数量，所以CountDownLatch能解决的问题范畴要小于Semaphore。比如在用到了semaphore.release这种操作的代码里，我们基本是没办法用CountDownLatch替换Semaphore来解决的。</h5><h5 id="2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。"><a href="#2-另外，从允许、禁行这个方向上讲，Semaphore是信号-许可数量大于0时线程可运行-semapher-acquire不阻塞-，对于CoundDownLatch来说则是计数等于0时线程可运行-countDownLatch-await不阻塞-。" class="headerlink" title="2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。"></a>2) 另外，从允许、禁行这个方向上讲，Semaphore是信号/许可数量大于0时线程可运行(semapher.acquire不阻塞)，对于CoundDownLatch来说则是计数等于0时线程可运行(countDownLatch.await不阻塞)。</h5><p>所以，对于LeetCode多线程练习题，只有1114题可以用CountDownLatch来完成。 <a target="_blank" rel="noopener" href="https://leetcode-cn.com/problemset/concurrency/">https://leetcode-cn.com/problemset/concurrency/</a> </p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-Concurrency-in-LeetCode" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -586,6 +515,80 @@ Get 1
 
 
 
+  <article id="post-STTP的基本使用" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-02-22T14:11:32.000Z"><a href="/2020/02/23/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">2020-02-23</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/23/STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">STTP的基本使用(1)：Request、Response</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>试试看 get 一下新技能：STTP with AKKA。</p>
+<p>1）定义 request。<br>请求由不可变的数据结构 RequestT 来表示，其值可以由 sttp.client.clientRequest 来表示，并可通过它提供的各种方法(cookie, body, responseAs…)来细力度的来设定 reqeust 对象的数据（包括返回的 response 格式）。</p>
+<p>2）发送请求。<br>为了发送请求，这里需要一个隐式对象 backend。核心的绝大部分工作都发生在 backend。比如把请求转为特定 backend 格式、打开 HTTP 连接、发送接收数据、把接收到的数据转为 STTP 的 response 格式等。<br>Backend 管理着连接池、处理 response 的线程池，根据 backend 的情况还支持 streaming 和 websockets。<br>请求可以同步发送，返回值类型为 Response[T]。<br>请求也可以异步发送，返回值类型为 Future[Response[T]]。Monix 这种 backend 的返回值则是 Task[Resonse[T]]。</p>
+<p>关于更详细的如何使用 request，比如设置 cookie、认证、form、上传文件、proxy 等，可参考：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/basics.html">https://sttp.readthedocs.io/en/latest/requests/basics.html</a></p>
+<p>如何使用 AKKA 这样支持 streaming 的 backend，参考：<br>发送流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/requests/streaming.html">https://sttp.readthedocs.io/en/latest/requests/streaming.html</a><br>接收流：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/body.html#streaming">https://sttp.readthedocs.io/en/latest/responses/body.html#streaming</a></p>
+<p>3）Responses<br>Response 是 case class Response[T]的一个实例，其中 T 是 response body 的 type。<br>如果 connection 出现问题，在同步的 backend 情况下 exception 会被返回，对于异步来说就是 failed future。 详见：<a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/latest/responses/exceptions.html">https://sttp.readthedocs.io/en/latest/responses/exceptions.html</a><br>使用.body: T 方法来获取 response body。</p>
+<p><img src="STTP%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/STTP_Basic_1.png"></p>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html">https://sttp.readthedocs.io/en/v2.0.0-rc13/requests/type.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-JMM" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-02-17T03:47:11.000Z"><a href="/2020/02/17/JMM/">2020-02-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/02/17/JMM/">JMM</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>下图列出了重排序造成的内存可见性问题，以及 Java 针对这些问题的解决方案“Happens-Before”。</p>
+<p><img src="/2020/02/17/JMM/JMM.png"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -666,7 +669,7 @@ Get 1
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">9</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/05/">五月 2022</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">九月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

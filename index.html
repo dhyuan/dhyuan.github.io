@@ -45,79 +45,90 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-spring/Authentication-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <article id="post-Resolve-HTTP-Multipart-related-request-on-Spring6" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.280Z"><a href="/2025/01/26/spring/Authentication-in-Spring-Security/">2025-01-26</a></time>
+        <time class="dt-published" datetime="2024-06-14T15:03:09.000Z"><a href="/2024/06/15/Resolve-HTTP-Multipart-related-request-on-Spring6/">2024-06-15</a></time>
       
       
   
-    <h1 class="title"><a href="/2025/01/26/spring/Authentication-in-Spring-Security/">Authentication in Spring Security</a></h1>
+    <h1 class="title"><a href="/2024/06/15/Resolve-HTTP-Multipart-related-request-on-Spring6/">Resolve HTTP Multipart/related request on Spring6</a></h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>关于Spring Security里的Authentication，<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html">官方文档</a>总结的不错。理解这些classes的作用与关系是正确使用Spring Security Authentication的前提。</p>
-<p>认证的方式不同，认证逻辑就不同，这样每个认证方式都会有对应的fitler实现。执行认证的大致流程以 AbstractAuthenticationProcessingFilter 为例描述一下。不同类别的 Authentication Filter 的处理略有差异，但大体逻辑差不多:<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/abstractauthenticationprocessingfilter.png"></p>
-<ol>
-<li>Authentication Filter 接收请求 http request。</li>
-<li>从request中获取凭证(credential)等数据，封装在<strong>Authentication</strong>对象中，比如：OAuth2LoginAuthenticationToken， UsernamePasswordAuthenticationToken等。</li>
-<li>用<strong>AuthenticationManager</strong>向对其传入的Authentication 进行实际的认证工作。</li>
-<li>认证成功的处理，比如保存设置了授权信息的Authentication到<strong>SecurityContext</strong>中。</li>
-<li>失败进行处理。</li>
+        <p>系统从Spring5升级到Spring6， 除了要进行把javax的api迁移到Jakarta、升级Servlet容器到支持你所选的Jakarta的版本、升级Spring Security对应的API等这些常规操作，还可能遇到一些trick的问题。这里聊一下因为老系统没有限制客户端发送 multipart/related 这种请求而在升级后造成的问题及解决，虽然感觉这种场景 99.999% 的项目都不会遇到。<br>以流水帐的方式过一下。<br>升级前Spring5+Jetty9， 升级后Spring6+Jetty11</p>
+<p>1）系统上线几天后，有客户说upload csv文件不成功。</p>
+<p>2）最后从SumoLogic日志中发现原因是ContentType格式不对，又进一步确认是Spring5的系统支持 multipart/related 而Spring6 不支持造成的。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Caused by: jakarta.servlet.ServletException: Unsupported Content-Type [Multipart/Related; boundary=AAABBB; type=&quot;text/xml&quot;; start=&quot;root-part--123&quot;], expected [multipart/form-data]</span><br><span class="line">    at org.eclipse.jetty.server.Request.getParts(Request.java:2324) ~[jetty-server-11.0.19.jar!/:11.0.19]</span><br></pre></td></tr></table></figure>
+
+<p>3）Spring5 是使用Spring自带的MultipartParser，在解析后传给 servlet controller。系统使用Jetty9作为servlet容器。</p>
+<p>4）Spring6 之后之前的 CommonsMultipartResolver 被替换为 StandardServletMultipartResolver。而StandardServletMultipartResolver会依赖容器来对Multipart请求做解析。（容器的实现必然有差别）</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Several outdated Servlet-based integrations have been dropped: e.g. Apache Commons FileUpload (org.springframework.web.multipart.commons.CommonsMultipartResolver), and Apache Tiles as well as FreeMarker JSP support in the corresponding org.springframework.web.servlet.view subpackages. We recommend org.springframework.web.multipart.support.StandardServletMultipartResolver </span><br></pre></td></tr></table></figure>
+
+<p>5）其实不管Jetty 9还是Jetty 11其实都是不支持multipart/related的，之前没有问题是因为CommonsMultipartResolver支持。这样controller直接收到Multipart file这个数据。</p>
+<p>6）搭建环境重现、Debug问题。</p>
+<p>这里推荐IntelliJ插件<a target="_blank" rel="noopener" href="https://plugins.jetbrains.com/plugin/14877-jump-to-line">jump-to-line</a></p>
+<p>还有个调试技巧是利用IntelliJ的 条件断点及 Evaluate and Log 进行一些变量值的动态修改。</p>
+<p>7）修改 org.eclipse.jetty.server.Request中 如下代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Collection&lt;Part&gt; <span class="title">getParts</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">    <span class="comment">// if (contentType == null || !MimeTypes.Type.MULTIPART_FORM_DATA.is(HttpField.valueParameters(contentType, null)))</span></span></span><br><span class="line"><span class="function">    <span class="title">if</span> <span class="params">(contentType == <span class="keyword">null</span>)</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="keyword">private</span> MultiParts <span class="title">newMultiParts</span><span class="params">(MultipartConfigElement config, <span class="keyword">int</span> maxParts)</span> <span class="keyword">throws</span> IOException</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// MultiPartFormDataCompliance compliance = getHttpChannel().getHttpConfiguration().getMultipartFormDataCompliance();</span></span><br><span class="line">    MultiPartFormDataCompliance compliance = MultiPartFormDataCompliance.LEGACY;</span><br></pre></td></tr></table></figure>
+
+<p>修改  org.eclipse.jetty.server.MultiPartInputStreamParser 中如下代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">parse</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    <span class="comment">// if (_contentType == null || !_contentType.startsWith(&quot;multipart/form-data&quot;))</span></span></span><br><span class="line"><span class="function">    <span class="title">if</span> <span class="params">(_contentType == <span class="keyword">null</span>)</span></span></span><br><span class="line"><span class="function">        return</span>;</span><br></pre></td></tr></table></figure>
+
+<p>绕过条件限制后，发现对普通csv文件通过http Multipart/related上传是可以处理了，controller 可以接收到 MultipartFile 类型的 file 参数了。<br>其实这个蛮侥幸的，如果Jetty代码压根不支持，估计就得再用其它办法了。</p>
+<p>8）后来发现zip格式不支持。Debug后发现是Jetty自己在内部处理时，必须要求临时文件的目录要存在，所以有加了对应逻辑。如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">(String fileName)</span> <span class="keyword">throws</span> IOException</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (_file == <span class="keyword">null</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        _temporary = <span class="keyword">false</span>;</span><br><span class="line">        <span class="comment">// Make sure the file/directory _tmpDir.getAbsolutePath() + fileName existed.</span></span><br><span class="line">        touchTmpFileForJetty(_tmpDir.getAbsolutePath(), fileName);</span><br></pre></td></tr></table></figure>
+
+<p>这样修改之后通过了QA的测试。</p>
+<p>9）为了测试 multipart/related 请求，也颇费周折。</p>
+<p>通过curl命令实现了发送 multipart/related 请求。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">boundary=&quot;upload_boundary&quot;</span><br><span class="line"></span><br><span class="line">body=$(cat &lt;&lt;EOF</span><br><span class="line"><span class="meta">--$</span><span class="bash">boundary</span></span><br><span class="line">Content-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;</span><br><span class="line">Content-Type: text/xml; charset=UTF-8</span><br><span class="line">Content-Transfer-Encoding: binary</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">$</span><span class="bash">(cat /my-path-to-file/my.csv)</span></span><br><span class="line"><span class="meta">--$</span><span class="bash">boundary--</span></span><br><span class="line">EOF</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">curl -v -X &#x27;POST&#x27; \</span><br><span class="line">    -H &#x27;accept: application/json&#x27; \</span><br><span class="line">    -H &#x27;Authorization: YOUR-BASE64-USERIDPWD&#x27; \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -d &quot;$body&quot; \</span><br><span class="line">    &#x27;https://Your-Server:Port/service-path&#x27;</span><br></pre></td></tr></table></figure>
+
+<ol start="10">
+<li>通过这 curl 命令向spring6 发送没问题。但是向 spring5系统发送后却得到500响应。但是通过java程序发送的multipart/releated请求确没问题。？？？</li>
 </ol>
-<h2 id="1-Authentication-Filter-接收请求"><a href="#1-Authentication-Filter-接收请求" class="headerlink" title="1) Authentication Filter 接收请求"></a>1) Authentication Filter 接收请求</h2><p>当用户发送了http request进行认证，将被负责authentication的filter处理。这些filters实际的认证工作大多数（不是全部）都是由 AuthenticationManager 完成的。比如，像AbstractPreAuthenticatedProcessingFilter这些类本身就是接收的是第三方已经认证的请求，所以无需AuthenticationManager。 另外像AnonymousAuthenticationFilter也无需AuthenticationManager的参与。<br>所以虽然都是认证，但是因为不同场景处理的逻辑不同，所以与AuthenticationFilter相关类的父类并不相同。大致可以分成以下三类。</p>
-<h3 id="1）继承自-AbstractAuthenticationProcessingFilter-的authentication-fitler-class-有3个。"><a href="#1）继承自-AbstractAuthenticationProcessingFilter-的authentication-fitler-class-有3个。" class="headerlink" title="1）继承自 AbstractAuthenticationProcessingFilter 的authentication fitler class 有3个。"></a>1）继承自 AbstractAuthenticationProcessingFilter 的authentication fitler class 有3个。</h3><p>public class UsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br>public class OAuth2LoginAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br>public class Saml2WebSsoAuthenticationFilter extends AbstractAuthenticationProcessingFilter<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/subclasses-of-AbstractAuthenticatedProcessingFilter.jpeg" alt="AbstractAuthenticationProcessingFilter"></p>
-<h3 id="2）继承自-AbstractPreAuthenticatedProcessingFilter-的类有5个。"><a href="#2）继承自-AbstractPreAuthenticatedProcessingFilter-的类有5个。" class="headerlink" title="2）继承自 AbstractPreAuthenticatedProcessingFilter 的类有5个。"></a>2）继承自 AbstractPreAuthenticatedProcessingFilter 的类有5个。</h3><p>public class RequestHeaderAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter<br>public class RequestAttributeAuthenticationFilter extends AbstractPreAuthenticatedProcessingFilter<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/subclasses-of-AbstractPreAuthenticatedProcessingFilter.jpg" alt="AbstractPreAuthenticatedProcessingFilter"></p>
-<h3 id="3）其它分别直接继承-OncePerRequestFilter-和-GenericFilterBean，比如："><a href="#3）其它分别直接继承-OncePerRequestFilter-和-GenericFilterBean，比如：" class="headerlink" title="3）其它分别直接继承 OncePerRequestFilter 和 GenericFilterBean，比如："></a>3）其它分别直接继承 OncePerRequestFilter 和 GenericFilterBean，比如：</h3><p>OncePerRequestFilter 较 GenericFilterBean可以保证只被filters处理一次。</p>
-<pre><code>public class BearerTokenAuthenticationFilter extends OncePerRequestFilter
-public class BasicAuthenticationFilter extends OncePerRequestFilter
-
-public class AnonymousAuthenticationFilter extends GenericFilterBean
-public class RememberMeAuthenticationFilter extends GenericFilterBean
+<p>后台错误日志：</p>
+<pre><code>Caused by: org.apache.commons.fileupload.MultipartStream$MalformedStreamException: Stream ended unexpectedly
 </code></pre>
-<h2 id="2）Request-to-Authentication"><a href="#2）Request-to-Authentication" class="headerlink" title="2）Request to Authentication"></a>2）Request to Authentication</h2><p>Authentication这个类在认证前主要用于承载认证需要的凭证信息，比如用户名密码。authentication 对象也就等同于一个authentication request的event，并包含请求者进行认证所必须的信息。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/Authentication.jpg"></p>
-<h2 id="3）AuthenticationManager"><a href="#3）AuthenticationManager" class="headerlink" title="3）AuthenticationManager"></a>3）AuthenticationManager</h2><p>authentication对象会传递给<strong>AuthenticationManager</strong> 的方法authenticate()做认证。<br>AuthenticationManager是个interface，它的实现类如下图片所示。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/implements_of_AuthenticationManager.jpg"></p>
-<p>在认证后，principal的授权信息会被写在authentication对象的authorities字段。下图摘自《Spring Security in Action》，使用username password做认证。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/fg3.1_of_SpringSecurityInAction.jpg"></p>
-<p>如上图所示的，具体的认证工作是委托给<strong>AuthenticationProvider</strong>完成的。在Spring Security的代码实现中，也并不是由AuthenticationManager直接包含一组AuthenticationProvider的方式完成，中间还有一个叫做<strong>ProviderManager</strong>的类，下面列出它的两个关键字段体会下。 </p>
-<pre><code>public class ProviderManager implements AuthenticationManager, MessageSourceAware, InitializingBean &#123;
-
-    private List&lt;AuthenticationProvider&gt; providers = Collections.emptyList();
-
-    private AuthenticationManager parent;
-    ... ...
-&#125;
+<p>11） 为了搞清原因，在本地把 Mitmproxy 跑起来抓包。<br>从界面上怎么也看不出root cause，直到把请求通过 mitmproxy 导出成curl命令，才发现是换行表示的不同造成的。<br>通过Java程序发送的能被Spring5处理的请求是\r\n作为换行。</p>
+<pre><code>-d &#39;--upload_boundary\x0d\x0aContent-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;\x0d\x0aContent-Type: text;
 </code></pre>
-<p>可以看到ProviderManager包含的不是一个provider而是a list of providers。通过提供一组providers就向用户提供了更多灵活控制的可能性。当然随之而来的就是这里就需要明确定义providers的认证结果以谁为准的规则。源码authenticate()的doc说得很明白：</p>
-<blockquote>
-<p>Attempts to authenticate the passed Authentication object.<br>The list of AuthenticationProviders will be successively tried until an AuthenticationProvider indicates it is capable of authenticating the type of Authentication object passed. Authentication will then be attempted with that AuthenticationProvider.<br>If more than one AuthenticationProvider supports the passed Authentication object, the first one able to successfully authenticate the Authentication object determines the result, overriding any possible AuthenticationException thrown by earlier supporting AuthenticationProviders. On successful authentication, no subsequent AuthenticationProviders will be tried. If authentication was not successful by any supporting AuthenticationProvider the last thrown AuthenticationException will be rethrown.</p>
-</blockquote>
-<p>让我们对比一下AuthenticationManger和AuthenticationProvider这两个interface的定义。看了下面的定义，你会不会问一个问题：既然两个接口有一个一摸一样的方法authentication()，为什么不让AuthenticationProvider继承AuthenticationManager？ 我想或许是为了明确两个类的职责吧。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/AuthenticationManager.jpg"><br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/AuthenticationProvider.jpg"></p>
-<p>以图形的方式看看它们的关系：<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/authentication-mgr-and-providers.png"></p>
-<p>如果我们要实现某个特殊的在Spring里没有的认证方式，我们就需要实现自定的AuthenticationProvider并通过覆盖WebSecurityConfigurerAdapter里的configure()方法实现。 </p>
-<pre><code>@Configuration
-public class ProjectConfig extends WebSecurityConfigurerAdapter &#123;
-
-@Autowired
-private AuthenticationProvider authenticationProvider;
-
-@Override
-protected void configure(AuthenticationManagerBuilder auth) &#123;
-    auth.authenticationProvider(authenticationProvider);
-&#125;
+<p>而curl发送的就是\n。</p>
+<pre><code>-d &#39;--upload_boundary\x0aContent-Disposition: form-data; name=&quot;file&quot;; filename=&quot;myuploaded.csv&quot;\x0aContent-Type: text/xml;
 </code></pre>
-<p>不过这个类已经被官方API文档标为Deprecated，并推荐使用HttpSecurity定义SecurityFilterChain的方式或者通过WebSecurityCustomizer来配置WebSecurity。参考源码：<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/registerAuthenticationProvider.jpeg"></p>
-<p>到这里我们应该已经知道具体的认证逻辑都在AuthenticationProvider里。想知道Spring Security提供了哪些开箱即用的provider吗？见下图，一共17个。<br><img src="/2025/01/25/spring/Authentication-in-Spring-Security/authenticationProviders.jpg"></p>
-<p>再捋一下与认证相关的类，就结束这篇吧。虽然没有涉及过多细节，相信理解了这些脉略应该也能在copy-past代码的时候点点头了。。。<br>SecurityContextHolder：保存SecurityContext的地方。<br>SecurityContextHolderStrategy：定义SecurityContext在线程中共享的策略模式。如果要跨线越Spring管理的线程，请参考 。。。。<br>SecurityContext - 认证成功后Authentication对象就放在这里。<br>Authentication - 存放要认证的信息以及被 AuthenticationManager 认证后的结果，认证成功后被放入SecurityContext。<br>GrantedAuthority - 请求认证的principal认证成功后被赋予的权限(i.e. roles, scopes, etc.)<br>AuthenticationManager - authentication相关的filter调用这个对象做认证。<br>AbstractAuthenticationProcessingFilter：各个认证相关filter的父类。<br>ProviderManager - AuthenticationManager的一个实现.<br>AuthenticationProvider - 由ProviderManager 用来做具体的认证。<br>AuthenticationEntryPoint: 用于询问并接收用户的credentials，可以是重定向到一个网页或者发送http WWW-Authenticate response。</p>
-<p>我想现在我们看到下面这些类时，就应该能够大致知道/理解他们在Spring Security Authentication类图里的位置了吧？<br>UserDetails, User<br>UserDetailsService, UserDetailsManager, JdbcUserDetailsManager<br>PasswordEncoder<br>如果没有，一定是我还没描述清楚。 </p>
-<br/>
+<p>12）为了证实确实是换行符造成的, 把/n转为 /r/n后通过curl命令发送后 Spring5也能处理了。</p>
+<p>这个<a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc7230#section-3.5">规范 rf7230</a> 上也说有的请求接受者做得更“健壮”可以接受LF结尾的请求。<br>实际上也就是这些“健壮”破坏了规范。（另外，如果从window系统上用curl命令，应该默认就是CRLF的吧？）</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">echo $body &gt; body.txt</span><br><span class="line">cat -e body.txt</span><br><span class="line"></span><br><span class="line">unix2dos body.txt</span><br><span class="line">cat -e body.txt</span><br><span class="line"></span><br><span class="line">RNBody=$(cat body.txt)</span><br><span class="line">echo $RNBody | cat -e</span><br><span class="line"></span><br><span class="line">curl -v -X &#x27;POST&#x27; \</span><br><span class="line">    -H &#x27;accept: application/json&#x27; \</span><br><span class="line">    -H &#x27;Authorization: YOUR-BASE64-USERIDPWD&#x27; \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -d &quot;$RNBody&quot; \</span><br><span class="line">    &#x27;https://Your-Server:Port/service-path&#x27;</span><br></pre></td></tr></table></figure>
 
+<p>下面代码演示如何发送zip这样的二进制格式文件。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">boundary=&quot;upload_boundary&quot;</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 这里使用系统默认回撤换行。</span></span><br><span class="line">&#123;</span><br><span class="line">echo &quot;--$boundary&quot;</span><br><span class="line">echo &quot;Content-Disposition: form-data; name=\&quot;file\&quot;; filename=\&quot;example.zip\&quot;&quot;</span><br><span class="line">echo &quot;Content-Type: text; charset=UTF-8&quot;</span><br><span class="line">echo &quot;Content-Transfer-Encoding: binary&quot;</span><br><span class="line">echo &quot;&quot;</span><br><span class="line">cat /your/path/to/zipfile</span><br><span class="line">echo &quot;&quot;</span><br><span class="line">echo &quot;--$boundary--&quot;</span><br><span class="line">&#125; &gt; zip_body.txt</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">curl -X POST --proxy http://127.0.0.1:7070 -k \</span><br><span class="line">-H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">-H &quot;Authorization: Basic XXXXXX&quot; \</span><br><span class="line">--data-binary @zip_body.txt \</span><br><span class="line">https://Your-Server:Port/service-path</span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta"></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 这里明确使用 \r\n</span></span><br><span class="line">&#123;</span><br><span class="line">echo -ne &quot;--$boundary\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Disposition: form-data; name=\&quot;file\&quot;; filename=\&quot;example.zip\&quot;\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Type: text; charset=UTF-8\r\n&quot;</span><br><span class="line">echo -ne &quot;Content-Transfer-Encoding: binary\r\n&quot;</span><br><span class="line">echo -ne &quot;\r\n&quot;</span><br><span class="line">cat /your/path/to/zipfile</span><br><span class="line">echo -ne &quot;\r\n&quot;</span><br><span class="line">echo -ne &quot;--$boundary--\r\n&quot;</span><br><span class="line">&#125; &gt; zip_body_inCRCL.txt</span><br><span class="line"></span><br><span class="line">curl -X POST --proxy http://127.0.0.1:7070 -k \</span><br><span class="line">    -H &quot;Content-Type: multipart/related; boundary=$boundary&quot; \</span><br><span class="line">    -H &quot;Authorization: Basic XXXXXX&quot; \</span><br><span class="line">    --data-binary @zip_body_inCRCL.txt \</span><br><span class="line">    https://Your-Server:Port/service-path</span><br></pre></td></tr></table></figure>
+
+<p>13）中间也尝试通过filter在中间使用 Commons FileUpload 2<br>但是遇到 Stream ended unexpectedly 的问题。另外，在Tomcat做容器的POC中，也是遇到类似的问题。当时debug时发现似乎是跟回车换行有关。当时也都是通过curl命令验证的。但因为自定义Jetty的方案已经可以work，所以就没再继续看。现在回头看很当时遇到的问题很可能跟Spring5遇到的一样。也许发送前对回撤换行处理一下，或许也可以解决。</p>
+<p>14）如果通过 Commons FileUpload 2 + Filer 的方式可以解决，那这个方案就是最好的。最不好的方法其实就是这种定制Jetty代码，对以后的升级维护都是潜在的极大风险。</p>
+<p>15）想起那句话，重要的是系统要限制能做什么。 为了这个patch前后花费的人天挺多的。。。新版本还delay了好久。</p>
 <hr>
-<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html">https://docs.spring.io/spring-security/reference/servlet/authentication/architecture.html</a><br>[2]: 《Spring Security in Action》  </p>
+<p><em>References:</em>  </p>
+<ul>
+<li><p><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc2387">The MIME Multipart/Related Content-type</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc1867.html">Form-based File Upload in HTML</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc7578">Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/apache/commons-fileupload">commons-fileupload2</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://tomcat.apache.org/whichversion.html">Servlet Spec and Tomcat version</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-framework/wiki/Upgrading-to-Spring-Framework-6.x">https://github.com/spring-projects/spring-framework/wiki/Upgrading-to-Spring-Framework-6.x</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://github.com/jetty/jetty-examples">jetty-examples</a></p>
+</li>
+</ul>
 
       
     </div>
@@ -134,70 +145,601 @@ protected void configure(AuthenticationManagerBuilder auth) &#123;
 
 
 
-  <article id="post-notes/cas/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <article id="post-devops/Create-an-AWS-EFS-resource-an-its-access-points" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/26/notes/cas/Run-up-Apereo-CAS-locally/">2025-01-26</a></time>
+        <time class="dt-published" datetime="2023-05-29T07:55:38.000Z"><a href="/2023/05/29/devops/Create-an-AWS-EFS-resource-an-its-access-points/">2023-05-29</a></time>
       
       
   
-    <h1 class="title"><a href="/2025/01/26/notes/cas/Run-up-Apereo-CAS-locally/">Apereo CAS 之 在本地运行</a></h1>
+    <h1 class="title"><a href="/2023/05/29/devops/Create-an-AWS-EFS-resource-an-its-access-points/">创建 AWS EFS</a></h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>Apereo CAS，是CAS协议<code>official reference implementation</code>，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
-<p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
-<p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
-<h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
-git checkout -b 6.5 origin/6.5
+        <p>本文基本是基于此<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/">efs workshop</a>的记录和扩展。</p>
+<p>要创建一个 EFS 资源，大致有以下几个步骤：<br>要在哪个 VPC 上创建 –&gt; 这个 VPC 上子网的 CIDR<br> 创建一个 SG –&gt; 设置这个 SG 的 ingress rule: 对子网开放 NFS 的 2049<br> 创建 EFS，根据需求设置不同的参数比如是否加密、备份、performance mode、throughput-mode 等。<br> 找到 VPC 上的 public subnet，在这些 public subnet 上创建 Moint Target。</p>
+<p>有了 mount targets，这个 NFS 就已经可以对外提供服务了。<br> 如果需要对 mount 的网络文件系统的目录设置特定的 user、group 属性，那么可以通过在这个 NFS 上创建 Access Points 完成。</p>
+<p>因为 EFS 是可以跨 region 在这个 region 的所有 AZ 中可用的一个 NFS，所以需要 VPC ID 应该是比较容易理解的。</p>
+<p>下面介绍一下如何通过 aws cli 创建 EFS 及其 Access Points，完整的脚本可以在这里下载 <a href="/2023/05/29/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_efs.sh">create_efs.sh</a>, <a href="/2023/05/29/devops/Create-an-AWS-EFS-resource-an-its-access-points/create_access_points.sh">create_access_points.sh</a>。</p>
+<h3 id="设置参数"><a href="#设置参数" class="headerlink" title="设置参数"></a>设置参数</h3><p>这些变量定义了我们当前的 aws 环境以及要创建的资源名称等信息。</p>
+<h4 id="首先我们可以设置一些变量定义当前环境"><a href="#首先我们可以设置一些变量定义当前环境" class="headerlink" title="首先我们可以设置一些变量定义当前环境"></a>首先我们可以设置一些变量定义当前环境</h4><pre><code>AWS_PROFILE=myProfile
+AWS_REGION=us-west-2
+CLUSTER_NAME=myCluster
 </code></pre>
-<p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
-<h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
-<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行会显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
-<pre><code>CAS tasks
----------
-casVersion - Display the current CAS version
-copyCasConfiguration - Copy the CAS configuration from this project to /etc/cas/config
-createKeystore - Create CAS keystore
-createTheme - Create theme directory structure in the overlay
-... ...
+<h4 id="设置中间过程中会用到的常量"><a href="#设置中间过程中会用到的常量" class="headerlink" title="设置中间过程中会用到的常量"></a>设置中间过程中会用到的常量</h4><pre><code>MOUNT_TARGET_GROUP_NAME=mySG4EFS
+MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+EFS_NAME=myEfsName
 </code></pre>
-<p>其中 createKeystore 用于生成https所用的证书。<br><code>sudo ./gradlew createKeystore</code></p>
-<p>如果需要修改keystore的密码，可以执行：<br><code>keytool -storepasswd -keystore /etc/cas/thekeystore</code></p>
-<p>生成https需要的PK和证书后，需要把CA导入到JDK的的ca根证书库中。</p>
-<pre><code>cd /etc/cas
-sudo keytool -import -alias cas_cert -storepass changeit -file cas.crt -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts
+<h3 id="1）获取-VPC-ID"><a href="#1）获取-VPC-ID" class="headerlink" title="1）获取 VPC ID"></a>1）获取 VPC ID</h3><p>因为这里创建出来的 EFS 要供 EKS 的 pod 使用，所以 VPC 的获取是根据 eks cluster 得到的。</p>
+<pre><code>VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME \
+        --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+echo &quot;The $CLUSTER_NAME includes the VPC $VPC_ID&quot;
 </code></pre>
-<p>查看ca keystore<br><code>sudo keytools -list -storepass changeit  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts</code></p>
-<p>从ca keystore中删除cascert<br><code>sudo keytool -delete  -alias cas_cert  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts  -storepass changeit</code></p>
-<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以手工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
-<p>默认的内置的用户名密码是 casuser/Mellon，可以通过修改/etc/cas/config/cas.properties <code>cas.authn.accept.users=casuser::password</code> 进行定义。</p>
-<p>配置登录用户在Apereo里属于<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">CAS Authentication 的范畴</a>。</p>
-<h3 id="5）Build-and-Run"><a href="#5）Build-and-Run" class="headerlink" title="5）Build and Run"></a>5）Build and Run</h3><pre><code>./gradlew clean build
-java -jar ./build/libs/cas.war
+<h3 id="2）获取-VPC-下的-CIDR"><a href="#2）获取-VPC-下的-CIDR" class="headerlink" title="2）获取 VPC 下的 CIDR"></a>2）获取 VPC 下的 CIDR</h3><pre><code>CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION \
+            --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+echo &quot;The CIDR blocks in the $VPC_ID : $CIDR_BLOCK&quot;
 </code></pre>
-<p>在浏览器中访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas">https://localhost:8443/cas</a> 进入CAS系统。</p>
-<h3 id="6"><a href="#6" class="headerlink" title="6)"></a>6)</h3><p>如果在日志里发现提示<code>The generated key MUST be added to CAS settings</code>， 则可按照提示把cas.tgc.crypto.encryption.key，cas.tgc.crypto.signing.key 加入到etc/cas/config/cas.properties 文件。</p>
-<pre><code>    2022-08-29 23:29:34,160 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for encryption is not defined for [Ticket-granting Cookie]; CAS will attempt to auto-generate the encryption key&gt;
-    2022-08-29 23:29:34,168 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated encryption key [rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I] of size [256] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
+<h3 id="3）在-VPC-上创建-Security-Group"><a href="#3）在-VPC-上创建-Security-Group" class="headerlink" title="3）在 VPC 上创建 Security Group"></a>3）在 VPC 上创建 Security Group</h3><pre><code>MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION \
+                    --group-name $MOUNT_TARGET_GROUP_NAME \
+                    --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; \
+                    --vpc-id $VPC_ID \
+                    | jq --raw-output &#39;.GroupId&#39;)
+</code></pre>
+<h3 id="4）设置去安全组的-ingres-对-2049-端口开放"><a href="#4）设置去安全组的-ingres-对-2049-端口开放" class="headerlink" title="4）设置去安全组的 ingres 对 2049 端口开放"></a>4）设置去安全组的 ingres 对 2049 端口开放</h3><pre><code>aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION \
+  --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+</code></pre>
+<h3 id="5）创建-EFS"><a href="#5）创建-EFS" class="headerlink" title="5）创建 EFS"></a>5）创建 EFS</h3><p><code>aws efs create-file-system</code> 命令本身并没有选项用于设置资源名称，而是通过 Tag key=Name 首先的。这里要注意 Name 单词的大小写，使用小写的 name 并不能设置 efs name。<br>通过使用 creation-token 来做到创建操作的等幂性。如果你的系统希望 efs 资源的 name 是唯一的，那么的选择使用 efs 的名称作为 creation-token 是个不错的选择。</p>
+<pre><code>FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting \
+  --tags Key=Name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+echo &quot;The EFS $FILE_SYSTEM_ID is created.&quot;
+</code></pre>
+<p>查看某个 efs：</p>
+<pre><code>aws efs describe-file-systems --file-system-id $FILE_SYSTEM_ID
+</code></pre>
+<p>EFS 资源已经创建出来了，要让它能被使用就需要把它 mount 到 VPC 的 public subnets 上。<br>一个 subnet 是 public 的还是 private 的，并不是通过 subnet 对象的某个属性标识的，而是要看路由表里这个 subnet 有没有通向 0.0.0.0 的 internet gateway。下面的几个步骤就用于找到 public subnet 并把 EFS mount 到这些 public subnets。</p>
+<h3 id="6-得到-eks-里的-subnetIds"><a href="#6-得到-eks-里的-subnetIds" class="headerlink" title="6) 得到 eks 里的 subnetIds"></a>6) 得到 eks 里的 subnetIds</h3><pre><code>eksSubnetIds=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION \
+                --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; \
+                --output text))
+echo &quot;The eks cluster $CLUSTER_NAME VPC $VPC_ID includes the subnets: $eksSubnetIds&quot;
+</code></pre>
+<h3 id="7-找到-internet-gateway"><a href="#7-找到-internet-gateway" class="headerlink" title="7) 找到 internet gateway"></a>7) 找到 internet gateway</h3><pre><code>IGW_ID=$(aws ec2 describe-internet-gateways  --profile $AWS_PROFILE --region $AWS_REGION \
+        --filters Name=attachment.vpc-id,Values=$&#123;VPC_ID&#125; \
+        --query &quot;InternetGateways[].InternetGatewayId&quot; \
+        | jq -r &#39;.[0]&#39;)
+echo &quot;The internet gateway in the VPC $VPC_ID is $IGW_ID&quot;
+if [ &quot;null&quot; = &quot;$IGW_ID&quot; ] ; then
+  echo &quot;Can&#39;t find public IGW in VPN, exit ...&quot;
+fi
+</code></pre>
+<h3 id="8-找到-public-subnets"><a href="#8-找到-public-subnets" class="headerlink" title="8) 找到 public subnets"></a>8) 找到 public subnets</h3><pre><code>for subnetId in $&#123;eksSubnetIds[@]&#125;
+  do
+      echo &quot;Check the subnet &quot; $subnetId
+      IGW_IN_ROUTS=$(aws ec2 describe-route-tables --profile $AWS_PROFILE --region $AWS_REGION  \
+                    --filter Name=association.subnet-id,Values=$subnetId \
+                    --query &quot;RouteTables[].Routes[]&quot; \
+                    | jq -r &#39;.[] | select(.DestinationCidrBlock==&quot;0.0.0.0/0&quot;) | .GatewayId&#39;)
+      if [ -z $IGW_IN_ROUTS -o &quot;null&quot; = $IGW_IN_ROUTS ] ;  then
+        echo &quot;The subnet $subnetId is a private subnet.&quot;
+      else
+        echo &quot;The subnet $subnetId is a public subnet. $IGW_ID $IGW_IN_ROUTS&quot;
+        if [ &quot;$IGW_ID&quot; = &quot;$IGW_IN_ROUTS&quot; ] ; then
+          echo &quot;Creating the mount target in the subnet $subnetId.&quot;
+          aws efs create-mount-target --profile $AWS_PROFILE --region $AWS_REGION \
+                                      --file-system-id $FILE_SYSTEM_ID \
+                                      --subnet-id $subnetId \
+                                      --security-groups $MOUNT_TARGET_GROUP_ID
+        elif [ &quot;null&quot; != &quot;$IGW_IN_ROUTS&quot; ] ; then
+            echo &quot;WARNING: The IGW id in routes does not equal with the one in VPC!&quot;
+        fi
+      fi
+  done
+</code></pre>
+<h3 id="10-创建-Access-Point"><a href="#10-创建-Access-Point" class="headerlink" title="10) 创建 Access Point"></a>10) 创建 Access Point</h3><p>到这里这个 NFS 已经可以在这个 VPC 里提供服务了。如果你的目录需要更精细的用户、组的设置，可以通过下面的命令创建 Access Point 来做更精细的控制。</p>
+<pre><code>ACCESS_POING_NAME=myAP
+FILE_SYSTEM_ID=fs-082697b352a3230d1
+AP_USER=&#39;&#123;&quot;Uid&quot;: 123, &quot;Gid&quot;: 123, &quot;SecondaryGids&quot;: [20]&#125;&#39;
+AP_ROOT_DIR=&#39;/myapp/logs,CreationInfo=&#123;OwnerUid=123,OwnerGid=123,Permissions=0755&#125;&#39;
 
-            cas.tgc.crypto.encryption.key=rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I
-
-    &gt;
-    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for signing is not defined for [Ticket-granting Cookie]. CAS will attempt to auto-generate the signing key&gt;
-    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated signing key [cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg] of size [512] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
-
-            cas.tgc.crypto.signing.key=cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg
+aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
+--tags Key=name,Value=$ACCESS_POING_NAME \
+--client-token &quot;$ACCESS_POING_NAME&quot; \
+--file-system-id $FILE_SYSTEM_ID \
+--posix-user $AP_USER \
+--root-directory Path=$AP_ROOT_DIR
+</code></pre>
+<p>下面显示的是在 eks 中通过 StorageClass 自动分配 EFS 资源的场景下，如何如何设置相关属性。 参考 <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a> 查看完整的 parameter 列表。</p>
+<pre><code>kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+mountOptions:
+  - tls
+  - iam
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-012345678901010
+  directoryPerms: &quot;700&quot;
+  gidRangeStart: &quot;1000&quot;
+  gidRangeEnd: &quot;2000&quot;
+  basePath: &quot;/dynamic_provisioning&quot;
 </code></pre>
 <br/>
 
 <hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/index.html">https://apereo.github.io/cas/6.5.x/index.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5">https://github.com/apereo/cas-overlay-template/tree/6.5</a><br>[3]: <a target="_blank" rel="noopener" href="https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52">https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52</a></p>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/file-storage.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using.html">https://docs.aws.amazon.com/efs/latest/ug/creating-using.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html</a><br>[4]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html">https://docs.aws.amazon.com/cli/latest/reference/efs/create-access-point.html</a><br>[5]: <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli">https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli</a><br>[6]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet">https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/linux/jq-command-json">https://www.baeldung.com/linux/jq-command-json</a><br>[8]: <a target="_blank" rel="noopener" href="https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/">https://aws.amazon.com/premiumsupport/knowledge-center/eks-troubleshoot-efs-volume-mount-issues/</a><br>[9]: <a target="_blank" rel="noopener" href="https://github.com/kubernetes-sigs/aws-efs-csi-driver">https://github.com/kubernetes-sigs/aws-efs-csi-driver</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2023-05-29T07:55:38.000Z"><a href="/2023/05/29/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/">2023-05-29</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2023/05/29/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/">使用 AWS EFS 作为EKS里PV的后端存储 (1)</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h1 id="如何在-EKS-手工创建-AWS-EFS-资源"><a href="#如何在-EKS-手工创建-AWS-EFS-资源" class="headerlink" title="如何在 EKS 手工创建 AWS EFS 资源"></a>如何在 EKS 手工创建 AWS EFS 资源</h1><h2 id="预备知识"><a href="#预备知识" class="headerlink" title="预备知识"></a>预备知识</h2><p>AWS 的 EC2 存储，有四种选择：</p>
+<ul>
+<li>Amazon Elastic Block Store</li>
+<li>Amazon EC2 instance store</li>
+<li>Use Amazon EFS with Amazon EC2</li>
+<li>Use Amazon S3 with Amazon EC2</li>
+</ul>
+<p>下面的这张概念图很好的描述各种存储的位置层次。<br><img src="/2023/05/29/micro_service/Use-the-AWS-EFS-as-the-PV-s-backend-storate/ec2_storage_options.jpg" alt="EC2 Storage Options"><br>在 EKS 的 node 如果是基于 EC2 的，那么 PV 就可以利用以上除去 S3 之外的其余三种作为底层存储。<br>参考：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/eks/latest/userguide/storage.html">https://docs.aws.amazon.com/eks/latest/userguide/storage.html</a></p>
+<p>关于 EC2 可以使用的存储的特性、使用场景，推荐阅读官方文档：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Storage.html。</a></p>
+<h2 id="使用-aws-cli-创建一个-EFS-资源"><a href="#使用-aws-cli-创建一个-EFS-资源" class="headerlink" title="使用 aws cli 创建一个 EFS 资源"></a>使用 aws cli 创建一个 EFS 资源</h2><p>可以在 AWS Console 中创建 EFS <a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html%E3%80%82">https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEFS.html。</a><br>也可以通过使用 aws cli 在命令行创建，<a target="_blank" rel="noopener" href="https://www.eksworkshop.com/beginner/190_efs/launching-efs/%E3%80%82">https://www.eksworkshop.com/beginner/190_efs/launching-efs/。</a><br>下面是根据上文得到的，通过 aws cli 创建 EFS 的脚本。<br>假设，你的 aws profile 是 myAwsProfile、eks 所在 region 是 us-west-2、eks 集群名称是 myCluster，而要创建的 EFS 名称是 my-test-efs<br>为了使用 EFS 需要创建 SecurityGroup 来允许对 NFS 端口 2049 的使用，这里设置 SG 名称为 SG_efs_demo。</p>
+<h4 id="设置环境变量："><a href="#设置环境变量：" class="headerlink" title="设置环境变量："></a>设置环境变量：</h4><hr>
+<pre><code># Set the input env vars
+export AWS_PROFILE=myAwsProfile
+export AWS_REGION=us-west-2
+export CLUSTER_NAME=myCluster
+</code></pre>
+<hr>
+<pre><code># Set the output env vars
+export MOUNT_TARGET_GROUP_NAME=perf-test-efs-group
+export MOUNT_TARGET_GROUP_DESC=&quot;NFS access to EFS from EKS worker nodes&quot;
+export EFS_NAME=my-test-efs
+</code></pre>
+<h4 id="获取-VPC-ID"><a href="#获取-VPC-ID" class="headerlink" title="获取 VPC ID"></a>获取 VPC ID</h4><hr>
+<pre><code># Get eks cluster&#39;s VPC ID.
+export VPC_ID=$(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.vpcId&quot; --output text)
+echo $VPC_ID
+</code></pre>
+<h4 id="获取-VPC-里的-subnets"><a href="#获取-VPC-里的-subnets" class="headerlink" title="获取 VPC 里的 subnets"></a>获取 VPC 里的 subnets</h4><hr>
+<pre><code># Get the subnets&#39;s CIDR in the VPC.
+export CIDR_BLOCK=$(aws ec2 describe-vpcs --profile $AWS_PROFILE --region $AWS_REGION --vpc-ids $VPC_ID --query &quot;Vpcs[].CidrBlock&quot; --output text)
+echo $CIDR_BLOCK
+</code></pre>
+<h4 id="创建-Security-Group"><a href="#创建-Security-Group" class="headerlink" title="创建 Security Group"></a>创建 Security Group</h4><hr>
+<pre><code># Create SG(allow port 2049 in ingress for all of the CIDR in VPC) for EFS
+export MOUNT_TARGET_GROUP_ID=$(aws ec2 create-security-group --profile $AWS_PROFILE --region $AWS_REGION --group-name $MOUNT_TARGET_GROUP_NAME --description &quot;$MOUNT_TARGET_GROUP_DESC&quot; --vpc-id $VPC_ID | jq --raw-output &#39;.GroupId&#39;)
+aws ec2 authorize-security-group-ingress --profile $AWS_PROFILE --region $AWS_REGION --group-id $MOUNT_TARGET_GROUP_ID --protocol tcp --port 2049 --cidr $CIDR_BLOCK
+
+# Get back the security-group informaation.
+aws ec2 describe-security-groups --filters Name=group-name,Values=$MOUNT_TARGET_GROUP_NAME
+</code></pre>
+<h4 id="创建-EFS"><a href="#创建-EFS" class="headerlink" title="创建 EFS"></a>创建 EFS</h4><hr>
+<pre><code># Create EFS. https://docs.aws.amazon.com/cli/latest/reference/efs/create-file-system.html
+# https://docs.aws.amazon.com/efs/latest/ug/creating-using-create-fs.html#creating-using-fs-part1-cli
+# If no creation-token is provied, you&#39;d better go to the AWS EFS Console
+# to make sure the EFS is created or not to avoid too many EFS reources are created.
+# 使用efs name作为前缀加序号的方式做 creation-token 是个不错的选择，
+export FILE_SYSTEM_ID=$(aws efs create-file-system --profile $AWS_PROFILE --region $AWS_REGION \
+  --performance-mode generalPurpose --throughput-mode bursting --tags Key=name,Value=$EFS_NAME \
+  --backup --encrypted --creation-token &quot;$EFS_NAME&quot;_0 | jq --raw-output &#39;.FileSystemId&#39;)
+</code></pre>
+<h4 id="找到-VPC-中的-pubilc-subnets"><a href="#找到-VPC-中的-pubilc-subnets" class="headerlink" title="找到 VPC 中的 pubilc subnets"></a>找到 VPC 中的 pubilc subnets</h4><hr>
+<pre><code># Find out the public subtnets from the subnets of the eks cluster.
+
+# 得到eks VPC的所有 subnetIds
+# export eksSubnetIDs=($(aws eks describe-cluster --profile $AWS_PROFILE --region $AWS_REGION --name $CLUSTER_NAME --query &quot;cluster.resourcesVpcConfig.subnetIds&quot; --output text))
+
+# 找到 Internet GW
+export IGW_ID=`aws ec2 describe-internet-gateways \
+  --filters Name=attachment.vpc-id,Values=$&#123;VPC_ID&#125; \
+  --query &quot;InternetGateways[].InternetGatewayId&quot; \
+  | jq -r &#39;.[0]&#39;`
+
+# 找到 public subnets: https://stackoverflow.com/questions/48830793/aws-vpc-identify-private-and-public-subnet
+export PUBLIC_SUBNETS=`aws ec2 describe-route-tables \
+  --query  &#39;RouteTables[*].Associations[].SubnetId&#39; \
+  --filters &quot;Name=vpc-id,Values=$&#123;VPC_ID&#125;&quot; \
+    &quot;Name=route.gateway-id,Values=$&#123;IGW_ID&#125;&quot; \
+  | jq . -c`
+</code></pre>
+<h4 id="把-EFS-mount-到-public-subnets，这样-EKS-里的-worker-nodes-就都可以访问这些-EFS-了。"><a href="#把-EFS-mount-到-public-subnets，这样-EKS-里的-worker-nodes-就都可以访问这些-EFS-了。" class="headerlink" title="把 EFS mount 到 public subnets，这样 EKS 里的 worker nodes 就都可以访问这些 EFS 了。"></a>把 EFS mount 到 public subnets，这样 EKS 里的 worker nodes 就都可以访问这些 EFS 了。</h4><hr>
+<pre><code>for subnet in $&#123;PUBLIC_SUBNETS[@]&#125;
+do
+    echo &quot;creating mount target in &quot; $subnet
+    aws efs create-mount-target --profile $AWS_PROFILE --region us-west-2 --file-system-id $FILE_SYSTEM_ID --subnet-id $subnet --security-groups $MOUNT_TARGET_GROUP_ID
+done
+</code></pre>
+<hr>
+<h4 id="创建-Access-Points"><a href="#创建-Access-Points" class="headerlink" title="创建 Access Points"></a>创建 Access Points</h4><p>有了 EFS 之后就可以创建 AccessPoints 供应用程序使用了。关于更详细的 Access Points 介绍：<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/efs/latest/ug/efs-access-points.html">https://docs.aws.amazon.com/efs/latest/ug/efs-access-points.html</a></p>
+<pre><code>ACCESS_POING_NAME=ap_db2
+FILE_SYSTEM_ID=fs-055b5f1fcc7df3e4b
+AP_DIR_USER=&#39;&#123;&quot;Uid&quot;: 70, &quot;Gid&quot;: 70, &quot;SecondaryGids&quot;: [70]&#125;&#39;
+AP_ROOT_DIR=&#39;/mydataPath,CreationInfo=&#123;OwnerUid=70,OwnerGid=70,Permissions=0755&#125;&#39;
+
+aws efs create-access-point --profile $AWS_PROFILE --region $AWS_REGION  \
+--tags Key=name,Value=$ACCESS_POING_NAME \
+--client-token &quot;$ACCESS_POING_NAME&quot;_2 \
+--file-system-id $FILE_SYSTEM_ID \
+--posix-user $AP_DIR_USER \
+--root-directory Path=$AP_ROOT_DIR
+</code></pre>
+<p>注意：</p>
+<h5 id="1）Path-的格式必须满足下面的正则"><a href="#1）Path-的格式必须满足下面的正则" class="headerlink" title="1）Path 的格式必须满足下面的正则"></a>1）Path 的格式必须满足下面的正则</h5><pre><code>^(\/|(\/(?!\.)+[^$#&lt;&gt;;`|&amp;?&#123;&#125;^*/\n]+)&#123;1,4&#125;)$
+</code></pre>
+<p>所以 path 不能以 <code>/</code> 结尾。</p>
+<h5 id="2）创建的-access-point-可以同名、可以同名同-path，唯一标识-access-point-的是-Access-point-ID"><a href="#2）创建的-access-point-可以同名、可以同名同-path，唯一标识-access-point-的是-Access-point-ID" class="headerlink" title="2）创建的 access point 可以同名、可以同名同 path，唯一标识 access point 的是 Access point ID"></a>2）创建的 access point 可以同名、可以同名同 path，唯一标识 access point 的是 <code>Access point ID</code></h5><h5 id="3-根据-id-删除一个-access-point"><a href="#3-根据-id-删除一个-access-point" class="headerlink" title="3) 根据 id 删除一个 access point"></a>3) 根据 id 删除一个 access point</h5><p>aws efs delete-access-point –profile $AWS_PROFILE –region $AWS_REGION –access-point-id fsap-0a8b1b7d9e0c1c9c3</p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/setup_mongo_srv_by_using_coredns" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2023-05-21T07:55:38.000Z"><a href="/2023/05/21/devops/setup_mongo_srv_by_using_coredns/">2023-05-21</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2023/05/21/devops/setup_mongo_srv_by_using_coredns/">利用CoreDNS设置mongo支持SRV连接</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>MongoDB 从 3.6 开始，就支持 mongo+srv “DNS Seed List Connection Format”这种格式的连接串。<br>对客户端来说它可以隐藏后端 mongo 服务节点的变化，其显而易见的好处就是后端 mongo 节点的变化无需修改客户端连接参数，也就无需进行应用的重新部署。其工作原理主要是利用 DNS 对 SRV/TXT 记录的支持。因此为了使用 mongo+srv，我们需要一个 DNS 服务器并在其中设置指向 mongo 后端节点的 SRV 记录。<br>这里以 docker 的方式运行 CoreDNS 来作为本地 DNS 服务器使用本地环境演示一下如何配置以支持 mongo srv。</p>
+<h3 id="MongoDB"><a href="#MongoDB" class="headerlink" title="MongoDB"></a>MongoDB</h3><p>MongDB 这部分无需特殊配置，只要把 MongoDB 在本地以复制集（名为 rs0）安装并运行起来就好。</p>
+<h3 id="运行-CoreDNS"><a href="#运行-CoreDNS" class="headerlink" title="运行 CoreDNS"></a>运行 CoreDNS</h3><p>运行 CoreDNS 容器，并把本地～/dockerSrvStorage/dockerEnv/coredns 映射为 coredns 容器里的/root 目录。<br>配置 CoreDNS 使用容器里的/root/Corefile（对应于本地的～/dockerSrvStorage/dockerEnv/coredns/Corefile）作为配置文件。</p>
+<p>docker run -d –name coredns –restart=always <br> –volume=～/dockerSrvStorage/dockerEnv/coredns/:/root/ <br> -p 53:53/udp coredns/coredns <br> -conf /root/Corefile</p>
+<h3 id="配制-CoreDNS"><a href="#配制-CoreDNS" class="headerlink" title="配制 CoreDNS"></a>配制 CoreDNS</h3><p>Corefile 内容如下。其中定义了一个 dns zone ‘local.env’，对应的 DNS 记录文件使用/root/local.env。因为上一步已经把本地的～/dockerSrvStorage/dockerEnv/coredns 映射为了容器里的/roo 目录，所以在本地的这个目录创建 local.env 这个文件就可以了。</p>
+<p>Corefile：</p>
+<pre><code>.:53 &#123;
+    forward . 8.8.8.8 114.114.114.114
+    log
+    errors
+&#125;
+
+local.env:53 &#123;
+    file /root/local.env
+    log
+    errors
+&#125;
+</code></pre>
+<p>local.env<br>下面的配置表示本地机器域名设置为 dev.local.env，机器名 mongo.local.env 是 dev.local.env 这个机器的别名。<br>假设本地运行了一个数据库 DB1 以两 replicaset（名字是 rs0）方式运行的 mongo 实例，分别侦听在端口 27017，27117 上。下面的配置就可以提供一个 mongosrv 连接。<br>mongo+srv://DB1.mongo.local.env。</p>
+<pre><code>@    3600 IN    SOA dns.local.env. dhyuan.google.com. (
+        2022030456 ; serial
+        7200       ; refresh (2 hours)
+        3600       ; retry (1 hour)
+        1209600    ; expire (2 weeks)
+        3600       ; minimum (1 hour)
+        )
+
+dev.local.env.    IN  A   127.0.0.1
+mongo.local.env.  IN  CNAME   dev.local.env.
+redis.local.env.  IN  CNAME   dev.local.env.
+zk.local.env.     IN  CNAME   dev.local.env.
+
+_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27017 mongo.local.env.
+_mongodb._TCP.DB1.mongo.local.env. 86400 IN SRV   0        0      27117 mongo.local.env.
+DB1.mongo.local.env. 86400 IN TXT   &quot;replicaSet=rs0&amp;authSource=DB1&quot;
+</code></pre>
+<h3 id="更改本地-etc-resolv-conf"><a href="#更改本地-etc-resolv-conf" class="headerlink" title="更改本地/etc/resolv.conf"></a>更改本地/etc/resolv.conf</h3><p>把’nameserver 127.0.0.1’ 加在文件末尾，让本地的 CoreDns 参与解析。</p>
+<h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>dig -t srv DB1.mongo.local.env</p>
+<p>也可以通过文章<a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a> 中 Reading SRV and TXT Records 部分提供的 python 解析 srv 的代码验证。</p>
+<p>pip3 install srvlookup<br>pip3 install dnspython<br>python3 mongodb_srv_records.py DB1.mongo.local.env</p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0">https://dev.to/robbmanes/running-coredns-as-a-dns-server-in-a-container-1d0</a><br><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc2052">https://datatracker.ietf.org/doc/html/rfc2052</a><br><a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/reference/connection-string/">https://docs.mongodb.com/manual/reference/connection-string/</a><br><a target="_blank" rel="noopener" href="https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections">https://www.mongodb.com/blog/post/mongodb-3-6-here-to-srv-you-with-easier-replica-set-connections</a><br><a target="_blank" rel="noopener" href="https://coredns.io/manual/toc/">https://coredns.io/manual/toc/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2023-05-18T07:55:38.000Z"><a href="/2023/05/18/devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo/">2023-05-18</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2023/05/18/devops/migrate-a-sub-directory-in-a-git-repo-as-a-root-dir-in-a-new-repo/">把某个git子目录迁移到新repo的根目录</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>对项目重构时有这样一个需求，1）要把代码库某个目录下的所有代码作为一个新代码库的根目录，2）并且之前所有的代码提交记录要一并迁移到这个新的 git repo。</p>
+<p>当你尝试用 <code>git filter-branch --subdirectory-filter YOUR_SUB_DIR -- --all</code> 来解决问题时，会看到一个警告推荐我们使用 git <a target="_blank" rel="noopener" href="https://github.com/newren/git-filter-repo/">filter-repo</a>。它是一个用于重写 git history 的多功能小工具，用法参考<a target="_blank" rel="noopener" href="https://htmlpreview.github.io/?https://github.com/newren/git-filter-repo/blob/docs/html/git-filter-repo.html">filter-repo 使用手册</a>。我们的需求在这里只是它的一个小 case。</p>
+<p>下面直接列出操作步骤：</p>
+<h3 id="1）安装-git-filter-repo"><a href="#1）安装-git-filter-repo" class="headerlink" title="1）安装 git-filter-repo"></a>1）安装 git-filter-repo</h3><pre><code>brew install git-filter-repo
+</code></pre>
+<h3 id="2）Clone-原来的-Repo"><a href="#2）Clone-原来的-Repo" class="headerlink" title="2）Clone 原来的 Repo"></a>2）Clone 原来的 Repo</h3><pre><code>mkdir codebase
+cd codebase
+git clone YOUR_GIT_REPO_URL/myProject
+cd myProject
+</code></pre>
+<h3 id="3-拉取所有信息到本地"><a href="#3-拉取所有信息到本地" class="headerlink" title="3) 拉取所有信息到本地"></a>3) 拉取所有信息到本地</h3><pre><code>git fetch --all
+git pull --all
+</code></pre>
+<h3 id="4）执行-filter-repo-命令，让某个子目录成为新-repo-的根目录。"><a href="#4）执行-filter-repo-命令，让某个子目录成为新-repo-的根目录。" class="headerlink" title="4）执行 filter-repo 命令，让某个子目录成为新 repo 的根目录。"></a>4）执行 filter-repo 命令，让某个子目录成为新 repo 的根目录。</h3><pre><code>git filter-repo --subdirectory-filter The_SubDir_in_myProject
+</code></pre>
+<h3 id="5-在-github-gitlab-创建一个新-repo，把这个-repo-设为这个子目录的-remote-目标"><a href="#5-在-github-gitlab-创建一个新-repo，把这个-repo-设为这个子目录的-remote-目标" class="headerlink" title="5) 在 github/gitlab 创建一个新 repo，把这个 repo 设为这个子目录的 remote 目标"></a>5) 在 github/gitlab 创建一个新 repo，把这个 repo 设为这个子目录的 remote 目标</h3><pre><code>git remote add origin YOUR_NEW_REPO_GIT_URL
+</code></pre>
+<h3 id="6-把-master-的-history-push-到新-repo"><a href="#6-把-master-的-history-push-到新-repo" class="headerlink" title="6) 把 master 的 history push 到新 repo"></a>6) 把 master 的 history push 到新 repo</h3><pre><code>git branch -M master
+git push -uf origin master
+</code></pre>
+<h3 id="7）把所有-branchs-tags-都-push-上去"><a href="#7）把所有-branchs-tags-都-push-上去" class="headerlink" title="7）把所有 branchs/tags 都 push 上去"></a>7）把所有 branchs/tags 都 push 上去</h3><pre><code>git push --all origin
+</code></pre>
+<br/>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://github.com/newren/git-filter-repo/">https://github.com/newren/git-filter-repo/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/Authorization-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2023-02-26T07:55:38.000Z"><a href="/2023/02/26/spring/Authorization-in-Spring-Security/">2023-02-26</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2023/02/26/spring/Authorization-in-Spring-Security/">Authorization in Spring Security（1）</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-根据什么数据进行授权"><a href="#1-根据什么数据进行授权" class="headerlink" title="1. 根据什么数据进行授权"></a>1. 根据什么数据进行授权</h3><p><strong>认证成功后以 GrantedAuthority 的形式保存在 Authentication 对象中的 authorities 会别用来进行授权运算。</strong></p>
+<p>请求被 AuthenticationManager 认证之后，其 Principal 的 authorities 以一组 GrantedAuthority 的形式被保存在 Authentication 对象里。</p>
+<pre><code>public interface GrantedAuthority extends Serializable &#123;
+    String getAuthority();
+&#125;
+</code></pre>
+<p>在是否可以对 security object （比如一个方法的调用、一个 web request 的处理）进行访问之前，需要使用 AuthorizationManager 来决定是否可以 invoke 这些 security objects。<br>如果这些授权不能以 String 的形式表达出来，那么就用返回 null 的形式告诉 AuthorizationManager/AccessDecisionManager 需要自己进行特殊的处理。 Spring Security 源码里就有一个这样的例子，请参阅： WebExpressionConfigAttribute， WebExpressionVoter。</p>
+<h3 id="2-通过-AuthorizationManager-体会设计的改进"><a href="#2-通过-AuthorizationManager-体会设计的改进" class="headerlink" title="2. 通过 AuthorizationManager 体会设计的改进"></a>2. 通过 AuthorizationManager 体会设计的改进</h3><p>AuthorizationManager 是在 <a target="_blank" rel="noopener" href="https://github.com/spring-projects/spring-security/releases/tag/5.5.0-M2">spring security 5.5</a> 中被加入。从 spring-security-core-6.0 开始，AccessDecisionManager AccessDecisionVoter 已经被 deprecated，由 AuthorizationManager 取代其作用。 对于之前定制化 AccessDecisionManager AccessDecisionVoter 的代码应该考虑迁移到 AuthorizationManager。</p>
+<p>AuthorizationManager<br><img src="/2023/02/26/spring/Authorization-in-Spring-Security/AuthorizationManager.jpg" alt="AuthorizationManager"></p>
+<p>AccessDecisionManager<br><img src="/2023/02/26/spring/Authorization-in-Spring-Security/AccessDecisionManager.jpg" alt="AccessDecisionManager"></p>
+<p>AccessDecisionVoter<br><img src="/2023/02/26/spring/Authorization-in-Spring-Security/AccessDecisionVoter.jpg" alt="AccessDecisionVoter"></p>
+<ol>
+<li>之前 AccessDecisionManager 通过抛出异常，现在 default 的 verify 也是通过 exception。</li>
+<li>明确返回 AuthorizationDecision 来标识。</li>
+<li>之前有 support 方法，跟 AuthenticationProvider 的思路很像。<br>从方法签名可以直接看出上面这几点。官方文档列出了更有意义的变化：</li>
+<li>AuthorizationManager 的 API 相对于之前 FilterSecurityInterCepter/AccessDecisionManager 要使用 metadata sources, config attributes, decison managers, voters 进行授权判断要简化很多。</li>
+<li>因为通过把 AuthenticationManger 放在 Supplier 中实现了对认证数据的延迟访问，这对一些无需认证的授权是有好处的。</li>
+<li>支持基于 Bean 的配置。</li>
+</ol>
+<h3 id="3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor"><a href="#3-AuthorizationManagers-AuthorizationFilter-以及-AccessDecisionManager-FilterSecurityInterceptor" class="headerlink" title="3. AuthorizationManagers/AuthorizationFilter 以及 AccessDecisionManager/FilterSecurityInterceptor"></a>3. AuthorizationManagers/AuthorizationFilter 以及 AccessDecisionManager/FilterSecurityInterceptor</h3><p>AuthorizationManagers 被 AuthorizationFilter 来使用，负责做出是否允许访问的决定。<br>为了保证向后兼容，FilterSecurityInterceptor 作为用于授权的 security fitler 依旧是默认的 Spring Security Filters 之一，在倒数第二的位置上。</p>
+<pre><code>... ...
+SessionManagementFilter
+ExceptionTranslationFilter
+FilterSecurityInterceptor
+SwitchUserFilter
+</code></pre>
+<h3 id="4-如何在-Security-Filters-中使用-AuthorizationFilter-或-FilterSecurityInterceptor？"><a href="#4-如何在-Security-Filters-中使用-AuthorizationFilter-或-FilterSecurityInterceptor？" class="headerlink" title="4. 如何在 Security Filters 中使用 AuthorizationFilter 或 FilterSecurityInterceptor？"></a>4. 如何在 Security Filters 中使用 AuthorizationFilter 或 FilterSecurityInterceptor？</h3><p>在通过 HttpSecurity 构建 SecurityFilterChain 的时候调用<strong>authorizeHttpRequests()</strong> 就会在 security fitler chain 中插入<code>AuthorizationFilter</code>，而调用****authorizeRequests()****则会插入 security filter <code>FilterSecurityInterceptor</code>。</p>
+<pre><code>@Bean
+SecurityFilterChain web(HttpSecurity http) throws AuthenticationException &#123;
+    http
+        .authorizeHttpRequests((authorize) -&gt; authorize
+            .anyRequest().authenticated();
+        )
+        // ...
+
+    return http.build();
+&#125;
+</code></pre>
+<h3 id="5-详细的使用范式"><a href="#5-详细的使用范式" class="headerlink" title="5. 详细的使用范式"></a>5. 详细的使用范式</h3><p>关于 AuthorizationFilter/AuthorizationManger，可参考：<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html</a></p>
+<p>关于 FilterSecurityInterceptor，可参考： <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html">https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-requests.html</a></p>
+<br>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/authorization/index.html">https://docs.spring.io/spring-security/reference/servlet/authorization/index.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/filters-In-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-12T07:55:38.000Z"><a href="/2022/11/12/spring/filters-In-Spring-Security/">2022-11-12</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/12/spring/filters-In-Spring-Security/">SpringSecurity里的filer们</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这段文字主要源于对 <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a> 的学习和理解，其实就是对下图的理解。<br><img src="/2022/11/12/spring/filters-In-Spring-Security/securityfilterchain.png" alt="SecurityFilterChain"><br>上图表达了下面几个类之间的关系：<br><strong>DelegatingFilterProxy, FilterChainProxy (springSecurityFilterChain), SecurityFilterChain (security filter)</strong><br>通过调用 SecurityFilterChain API 把 Security Filters 组装成一个或多个 chain，再设置给 FilterChainProxy 使用。</p>
+<p>对于下图这样 FilterChainProxy 有多个 SecurityFilterChain 的情况，只会触发第一个匹配的 securityFilterChain。<br><img src="/2022/11/12/spring/filters-In-Spring-Security/multi-securityfilterchain.png" alt="Multiple SecurityFilterChain"></p>
+<h3 id="1）使用-Spring-Security"><a href="#1）使用-Spring-Security" class="headerlink" title="1）使用 Spring Security"></a>1）使用 Spring Security</h3><p>要使用 Spring Security，如果是在 Spring Boot 环境那么只需要导入 security 的 starter，Spring Boot 就会自动做下面的事。<br><strong>Creates a servlet Filter as a bean named springSecurityFilterChain</strong>. This bean is responsible for all the security (protecting the application URLs, validating submitted username and passwords, redirecting to the log in form, and so on) within your application.<br><strong>Registers the Filter with a bean named springSecurityFilterChain</strong> with the Servlet container for every request.<br><strong>Creates a UserDetailsService bean with a username of user and a randomly generated password</strong> that is logged to the console.</p>
+<p>不使用 Spring Boot 的情况下，就需要自己在 web.xml 文件中定义 springSecurityFilterChain。</p>
+<pre><code>&lt;filter&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;filter-class&gt;org.springframework.web.filter.DelegatingFilterProxy&lt;/filter-class&gt;
+&lt;/filter&gt;
+&lt;filter-mapping&gt;
+  &lt;filter-name&gt;springSecurityFilterChain&lt;/filter-name&gt;
+  &lt;url-pattern&gt;/*&lt;/url-pattern&gt;
+&lt;/filter-mapping&gt;
+</code></pre>
+<h3 id="2）入口-DelegatingFilterProxy"><a href="#2）入口-DelegatingFilterProxy" class="headerlink" title="2）入口 DelegatingFilterProxy"></a>2）入口 DelegatingFilterProxy</h3><p>下面通过源码简单看下 DelegatingFilterProxy 实例化的过程。<br>Tomcat 启动时会在 web 容器中初始化 DelegatingFilterProxy 实例，<br><img src="/2022/11/12/spring/filters-In-Spring-Security/registerDelegatingFilterProxy-as-bean.jpg"></p>
+<p>DelegatingFilterProxy 本身既是一个 Filter 也是一个 ServletContextAware 的实例。 Spring 使用 ContextLoaderListener 来加载 spring 的 bean。org.springframework.web.context.support.GenericWebApplicationContext 则是 servlet context 和 spring context 真正交汇的地方。<br>从下面 DelegatingFilterProxy 实现的接口就可以感知到 DelegatingFilterProxy 最关键的作用就是作为<strong>Servlet Container 和 Spring Context 的桥梁</strong>。<br>因为 Spring 要等 web context 初始化完成才能初始化自己的 context，所以在 spring 中定义的 filter beans 就要延迟初始化才行。通过延迟初始化就解决了 Filter 必须定义在 Servlet Container 中的问题。 Spring 很巧妙的通过 FilterChain 接口把这些 filter beans 串在一起</p>
+<pre><code>public class DelegatingFilterProxy extends GenericFilterBean
+</code></pre>
+<p>而 ServletContextAware 是 Spring 的一个接口。</p>
+<pre><code>public abstract class GenericFilterBean implements Filter, BeanNameAware, EnvironmentAware,
+    EnvironmentCapable, ServletContextAware, InitializingBean, DisposableBean
+</code></pre>
+<p>从 DelegatingFilterProxy 的两个关键 fields：WebApplicationContext webApplicationContext 和 Filter delegate，也能知道 DelegatingFilterProxy 桥梁作用。<br><img src="/2022/11/12/spring/filters-In-Spring-Security/DelegatingFilterProxy-properties.jpg"><br>上图中的 delegate 是 FilterChainProxy 的实例。</p>
+<h3 id="3）-FilterChainProxy-包装了-filers。"><a href="#3）-FilterChainProxy-包装了-filers。" class="headerlink" title="3） FilterChainProxy 包装了 filers。"></a>3） FilterChainProxy 包装了 filers。</h3><p>下图中 filterChian 包含的 filters 是不做任何特殊配置时的 16 个 filters。FilerChainProxy 就是通过调用它拥有的 filters 起到了对 request 做 filter 处理的作用，这就是称它为代理的原因.<br><img src="/2022/11/12/spring/filters-In-Spring-Security/construct-FilterChainProxy.jpg"></p>
+<h3 id="4）springSecurityFilterChain-进入-DelegatingFilterProxy"><a href="#4）springSecurityFilterChain-进入-DelegatingFilterProxy" class="headerlink" title="4）springSecurityFilterChain 进入 DelegatingFilterProxy"></a>4）springSecurityFilterChain 进入 DelegatingFilterProxy</h3><p>上面提到 DelegatingFilterProxy 对 filter 延迟初始化的作用，所以对 delegate 的赋值只发生处理第一个 http request 时。被命名为 springSecurityFilterChain 的 FilterChainProxy 会从 spring context 中被找出来并设置到 DelegatingFilterProxy 的 delegate field。<br><img src="/2022/11/12/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy0.jpeg"></p>
+<p><img src="/2022/11/12/spring/filters-In-Spring-Security/set-filerChainProxy-to-DelegatingFilterProxy.jpeg"></p>
+<p>至此，应该对文首的第一个图能说出点儿什么了吧… …</p>
+<p><code>DelegatingFilterProxy</code> 的 field ‘Filter delegate’ 就是<code>名为springSecurityFilterChain 的 FilterChainProxy实例</code>。<br>而 springSecurityFilterChain 默认包含 16 个<code>SecurityFilterChain</code>。</p>
+<hr>
+<p><em>Reference</em>:<br>[1]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-web-contexts">https://www.baeldung.com/spring-web-contexts</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html">https://docs.spring.io/spring-security/reference/servlet/architecture.html</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters">https://docs.spring.io/spring-security/reference/servlet/architecture.html#servlet-security-filters</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-spring/HttpSecurity-class-in-Spring-Security" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-11-10T07:55:38.000Z"><a href="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/">2022-11-10</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/">The HttpSecurity class in Spring Security</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在项目中实际使用 Spring Security 时，我们的大部分工作其实都是配置 HttpSecurity。要么通过 spring 的 http xml element 来配置，要么通过配置类里的 HttpSecurity class 来配置，所以在理解了 DelegatingFilterProxy，FilterChainProxy，SecurityFilterChain 之间的关系之后就很有必要了解一下 HttpSecurity 类了。</p>
+<p>HttpSecurity 这个类的名称与它的实际功用相差甚远，其实把它称为 HttpSecurityFilterChainBuiler 应该更合适，因为它的作用就是利用构造器模式构造出 SecurityFilterChain 的一个实例供 FilterChainProxy 使用。这点从它的类签名就能看出来。</p>
+<p>如果有多个 SecurityFilterChain 被配置、构造出来，它们的顺序可以通过注解 @Order 来设定。没有@Order 注解的优先级最低。同一 order 层级的，就可以通过 SecurityFilterChain 中的 RequestMatcher 来决定了该 chain 是否与 http request 匹配了。我们应该尽量把特殊的匹配放在前面，通用的放在后面。</p>
+<h3 id="1-体会下-HttpSecurity-源码的定义部分："><a href="#1-体会下-HttpSecurity-源码的定义部分：" class="headerlink" title="1) 体会下 HttpSecurity 源码的定义部分："></a>1) 体会下 HttpSecurity 源码的定义部分：</h3><p><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/HttpSecurity_class.jpeg" alt="HttpSecurity"></p>
+<h3 id="2-用-xml-配置-http-security："><a href="#2-用-xml-配置-http-security：" class="headerlink" title="2) 用 xml 配置 http security："></a>2) 用 xml 配置 http security：</h3><p>虽然现在基于 Spring 的开发都是基于注解的了，但是如果遇到遗留系统里通过 http 元素来定义 HttpSecurity，那么俯视一下下面的 schema 应该也能大致了然了。。。<br><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/http-element-for-HttpSecurity.jpeg" alt="http element in security namespace"></p>
+<h3 id="3-fitlers-的顺序定义："><a href="#3-fitlers-的顺序定义：" class="headerlink" title="3) fitlers 的顺序定义："></a>3) fitlers 的顺序定义：</h3><p><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/FilterOrderRegistration.jpeg" alt="FilterOrderRegistration"></p>
+<h3 id="4-HttpSecurity-build-filter-的套路"><a href="#4-HttpSecurity-build-filter-的套路" class="headerlink" title="4) HttpSecurity build filter 的套路"></a>4) HttpSecurity build filter 的套路</h3><p>看看与 authentication 相关的两个 fitler 的构建。</p>
+<h4 id="1）从两个-filter-看规律"><a href="#1）从两个-filter-看规律" class="headerlink" title="1）从两个 filter 看规律"></a>1）从两个 filter 看规律</h4><p>Filter 都是根据 Configurer 构建出来的。我们以 BasicAuthenticationFilter 和 UsernamePasswordAuthenticationFilter 的 Configurer 举例。<br>FormLoginConfigurer 比较“特殊”，它定义了两个 filter。一个是 UsernamePasswordAuthenticationFilter， 一个是 DefaultLoginPageGeneratingFilter，后者提供了一个让用户输入 credential 页面的 filter。<br>HttpBasicConfigurer 则定义了 BasicAuthenticationFilter。</p>
+<pre><code>public FormLoginConfigurer&lt;HttpSecurity&gt; formLogin() throws Exception &#123;
+  return getOrApply(new FormLoginConfigurer&lt;&gt;());
+&#125;
+
+public HttpBasicConfigurer&lt;HttpSecurity&gt; httpBasic() throws Exception &#123;
+  return getOrApply(new HttpBasicConfigurer&lt;&gt;());
+&#125;
+</code></pre>
+<p>FormLoginConfigurer 是 AbstractAuthenticationFilterConfigurer 的子类， HttpBasicConfigurer 是 AbstractHttpConfigurer。这是因为 basic 的认证方式比起 form 形式的认证要简单得多。</p>
+<pre><code>public final class FormLoginConfigurer&lt;H extends HttpSecurityBuilder&lt;H&gt;&gt; extends
+    AbstractAuthenticationFilterConfigurer&lt;H, FormLoginConfigurer&lt;H&gt;, UsernamePasswordAuthenticationFilter&gt; &#123;
+
+public abstract class AbstractAuthenticationFilterConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;, T extends AbstractAuthenticationFilterConfigurer&lt;B, T, F&gt;, F extends AbstractAuthenticationProcessingFilter&gt;
+    extends AbstractHttpConfigurer&lt;T, B&gt; &#123;
+
+public final class HttpBasicConfigurer&lt;B extends HttpSecurityBuilder&lt;B&gt;&gt; extends AbstractHttpConfigurer&lt;HttpBasicConfigurer&lt;B&gt;, B&gt; &#123;
+</code></pre>
+<p>负责根据这些 configuer 构造出对象来的类是 AbstractConfiguredSecurityBuilder。</p>
+<pre><code>public abstract class AbstractConfiguredSecurityBuilder&lt;O, B extends SecurityBuilder&lt;O&gt;&gt; extends AbstractSecurityBuilder&lt;O&gt; &#123;
+</code></pre>
+<h4 id="2-没有被使用的-AuthenticationFilter"><a href="#2-没有被使用的-AuthenticationFilter" class="headerlink" title="2) 没有被使用的 AuthenticationFilter"></a>2) 没有被使用的 AuthenticationFilter</h4><p>很奇怪在 Spring Security 的源码里没有看到 AuthenticationFilter 被使用。估计这是要让程序员通过提供自定义的 authenticationConverter 和 authenticationManagerResolver 来使用吧。<br>对比三个与 authentication 相关的 fitler 体会下。</p>
+<p>BasicAuthenticationFilter<br><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/authnMgr_in_BasicAuthenticationFilter.jpg"></p>
+<p>UsernamePasswordAuthenticationFitler<br><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/authn_inUsernamePasswordAuthenticationFitler.jpg" alt="UsernamePasswordAuthenticationFitler"></p>
+<p>AuthenticationFilter<br><img src="/2022/11/10/spring/HttpSecurity-class-in-Spring-Security/authn_inAuthenticationFilter.jpg" alt="AuthenticationFilter"></p>
+<br/>  
+<br/>
+
+<hr>
+<p><em>References:</em><br>[1]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-httpsecurity</a><br>[2]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#_multiple_httpsecurity</a><br>[3]: <a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls">https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#jc-custom-dsls</a><br>[4]: <a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-onceperrequestfilter">https://www.baeldung.com/spring-onceperrequestfilter</a></p>
 
       
     </div>
@@ -220,17 +762,17 @@ java -jar ./build/libs/cas.war
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/26/notes/cas/enable-OAuth-support-for-Apereo-CAS/">2025-01-26</a></time>
+        <time class="dt-published" datetime="2022-09-30T07:55:38.000Z"><a href="/2022/09/30/notes/cas/enable-OAuth-support-for-Apereo-CAS/">2022-09-30</a></time>
       
       
   
-    <h1 class="title"><a href="/2025/01/26/notes/cas/enable-OAuth-support-for-Apereo-CAS/">Apereo CAS 之 支持OAuth2</a></h1>
+    <h1 class="title"><a href="/2022/09/30/notes/cas/enable-OAuth-support-for-Apereo-CAS/">Apereo CAS 之 支持OAuth2</a></h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>Apereo CAS 通过使用bridge模式来支持多个协议：CAS、SAML2、OAuth2、OpenID Connect等。<br>CAS可部署软件包中已经包含了可以使用SAML2、OAuth2等协议的plugin/bridges/modules，这些plugins模块都是和CAS通信。 可参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html%E3%80%82">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html。</a> </p>
+        <p>Apereo CAS 通过使用 bridge 模式来支持多个协议：CAS、SAML2、OAuth2、OpenID Connect 等。<br>CAS 可部署软件包中已经包含了可以使用 SAML2、OAuth2 等协议的 plugin/bridges/modules，这些 plugins 模块都是和 CAS 通信。 可参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html%E3%80%82">https://apereo.github.io/cas/6.5.x/protocol/Protocol-Overview.html。</a></p>
 <p><code>The right-hand side of that equation is always CAS when you consider, as an example, the following authentication flow with an OAuth2-enabled client application:</code></p>
 <ol>
 <li>The CAS deployment has turned on the OAuth2 plugin.</li>
@@ -243,19 +785,19 @@ java -jar ./build/libs/cas.war
 </ol>
 <h3 id="1-添加依赖库"><a href="#1-添加依赖库" class="headerlink" title="1. 添加依赖库"></a>1. 添加依赖库</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-oauth-webflow&quot;
 </code></pre>
-<h3 id="2-Enable-Actuator-Endpoints-（Optional）"><a href="#2-Enable-Actuator-Endpoints-（Optional）" class="headerlink" title="2. Enable Actuator Endpoints （Optional）"></a>2. Enable Actuator Endpoints （Optional）</h3><p>添加依赖，并设置开放oauthd的actuator端点。</p>
+<h3 id="2-Enable-Actuator-Endpoints-（Optional）"><a href="#2-Enable-Actuator-Endpoints-（Optional）" class="headerlink" title="2. Enable Actuator Endpoints （Optional）"></a>2. Enable Actuator Endpoints （Optional）</h3><p>添加依赖，并设置开放 oauthd 的 actuator 端点。</p>
 <pre><code>implementation &quot;org.apereo.cas:cas-server-support-reports&quot;
 
 management.endpoint.oauthTokens.enabled=true
 management.endpoints.web.exposure.include=oauthTokens
 cas.monitor.endpoints.endpoint.oauthTokens.access=PERMIT
 </code></pre>
-<p>通过访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas/actuator/">https://localhost:8443/cas/actuator/</a> 应该可以看到OAuth相关endpoints。</p>
-<h3 id="3-定义一个OAuth-Client"><a href="#3-定义一个OAuth-Client" class="headerlink" title="3. 定义一个OAuth Client"></a>3. 定义一个OAuth Client</h3><p>可以通过设置</p>
+<p>通过访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas/actuator/">https://localhost:8443/cas/actuator/</a> 应该可以看到 OAuth 相关 endpoints。</p>
+<h3 id="3-定义一个-OAuth-Client"><a href="#3-定义一个-OAuth-Client" class="headerlink" title="3. 定义一个 OAuth Client"></a>3. 定义一个 OAuth Client</h3><p>可以通过设置</p>
 <pre><code>cas.service-registry.json.location=classpath:/services
 cas.service-registry.core.init-from-json=true
 </code></pre>
-<p>在 cas-overlay-template的 resources/services 下定义文件 OAuth2DemoClient-2001.json 包含以下内容来把这个OAuth2 Client ‘OAuth2DemoClient’ 自动导入到MongoDB 的 cas_serviceregistry collection。</p>
+<p>在 cas-overlay-template 的 resources/services 下定义文件 OAuth2DemoClient-2001.json 包含以下内容来把这个 OAuth2 Client ‘OAuth2DemoClient’ 自动导入到 MongoDB 的 cas_serviceregistry collection。</p>
 <pre><code>&#123;
   &quot;@class&quot; : &quot;org.apereo.cas.support.oauth.services.OAuthRegisteredService&quot;,
   &quot;clientId&quot;: &quot;oauth2DemoClientID&quot;,
@@ -267,10 +809,10 @@ cas.service-registry.core.init-from-json=true
   &quot;supportedResponseTypes&quot;: [ &quot;java.util.HashSet&quot;, [ &quot;token&quot;, &quot;code&quot;, &quot;device_code&quot;] ]
 &#125;
 </code></pre>
-<p>grant是获得AccessToken的方式/方法，这篇文章对此进行了详细介绍：<a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/%E3%80%82">https://alexbilbie.com/guide-to-oauth-2-grants/。</a></p>
-<h3 id="4-重启、查看"><a href="#4-重启、查看" class="headerlink" title="4. 重启、查看"></a>4. 重启、查看</h3><p>运行 <code>./gradlew clean copyCasConfiguration build run </code> 后，查看 <code>db.getCollection(&#39;cas_serviceregistry&#39;).find(&#123;&#125;)</code> 应该可以看到id为2001的 OAutho client定义。</p>
-<p>通过CAS Management UI也可以看到刚刚添加的‘OAuth2DemoClient’：<br><img src="/2025/01/25/notes/cas/enable-OAuth-support-for-Apereo-CAS/OAuth2Client_view.jpg" alt="An OAuth Client/Service"></p>
-<p>至此，我们以及把Apereo CAS配置成支持OAuth2协议。</p>
+<p>grant 是获得 AccessToken 的方式/方法，这篇文章对此进行了详细介绍：<a target="_blank" rel="noopener" href="https://alexbilbie.com/guide-to-oauth-2-grants/%E3%80%82">https://alexbilbie.com/guide-to-oauth-2-grants/。</a></p>
+<h3 id="4-重启、查看"><a href="#4-重启、查看" class="headerlink" title="4. 重启、查看"></a>4. 重启、查看</h3><p>运行 <code>./gradlew clean copyCasConfiguration build run </code> 后，查看 <code>db.getCollection(&#39;cas_serviceregistry&#39;).find(&#123;&#125;)</code> 应该可以看到 id 为 2001 的 OAutho client 定义。</p>
+<p>通过 CAS Management UI 也可以看到刚刚添加的‘OAuth2DemoClient’：<br><img src="/2022/09/30/notes/cas/enable-OAuth-support-for-Apereo-CAS/OAuth2Client_view.jpg" alt="An OAuth Client/Service"></p>
+<p>至此，我们以及把 Apereo CAS 配置成支持 OAuth2 协议。</p>
 <br/>
 
 <hr>
@@ -297,24 +839,24 @@ cas.service-registry.core.init-from-json=true
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/26/notes/test/Performance-Test-101/">2025-01-26</a></time>
+        <time class="dt-published" datetime="2022-09-30T07:55:38.000Z"><a href="/2022/09/30/notes/test/Performance-Test-101/">2022-09-30</a></time>
       
       
   
-    <h1 class="title"><a href="/2025/01/26/notes/test/Performance-Test-101/">Performance Test 101</a></h1>
+    <h1 class="title"><a href="/2022/09/30/notes/test/Performance-Test-101/">Performance Test 101</a></h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>无论是哪种测试：单元测试、集成测试、回归测试等，目的都是找到breaking points、消除性能瓶颈。</p>
-<p>对于Performance Test来说，我们希望在期望的负载下验证我们的系统是否在 <strong>速度</strong>、 <strong>伸缩性</strong>、 <strong>稳定性</strong> 方面满足系统对性能的需求。一般来说我们希望系统能在RPS和latency之间达到一个不错的平衡。  </p>
+        <p>无论是哪种测试：单元测试、集成测试、回归测试等，目的都是找到 breaking points、消除性能瓶颈。</p>
+<p>对于 Performance Test 来说，我们希望在期望的负载下验证我们的系统是否在 <strong>速度</strong>、 <strong>伸缩性</strong>、 <strong>稳定性</strong> 方面满足系统对性能的需求。一般来说我们希望系统能在 RPS 和 latency 之间达到一个不错的平衡。</p>
 <p>最最基础的两个指标：</p>
-<p><strong>RPS</strong> (request per sec):<br>每秒系统可接受/处理的请求数。值得注意的时，虽然请求可被接收或者处理，但是处理的结果可能是正常启动的value也有可能因为系统压力的原因而是Error。</p>
-<p>这篇文章讲了<a target="_blank" rel="noopener" href="https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127">RPS和Virtual User的概念</a> ，可以帮助理解为什么不是RPS越高越好而是RPS与Latence之间的平衡。其中讲到Virutal User的生命周期是到测试结束，这一点对我们理解和写测试代码挺重要的。<br><code>The typical virtual user life cycle looks like this — it picks up the scripted tasks and performs them, once it finishes all of them it will start the loop again. And it keeps it going until the test is terminated.</code></p>
-<p>这个和 <a target="_blank" rel="noopener" href="https://docs.locust.io/en/stable/quickstart.html#locust-s-web-interface">Locust 文档</a> 中描述的行为是一致的:  <code>This user will make HTTP requests to /hello, and then /world, again and again. </code></p>
-<p><strong>Latency</strong>:<br>从请求被创建出来发送到接收的endpint开始到收到response的这个段时间。</p>
-<h2 id="1-性能测试类型"><a href="#1-性能测试类型" class="headerlink" title="1. 性能测试类型"></a>1. 性能测试类型</h2><p>这里列出的类型分类是从稍微具体一点的关注点来分类的。我们做性能测试就是希望在下面几个方面得到系统当前的处理能力，以及它的breaking points。</p>
+<p><strong>RPS</strong> (request per sec):<br>每秒系统可接受/处理的请求数。值得注意的时，虽然请求可被接收或者处理，但是处理的结果可能是正常启动的 value 也有可能因为系统压力的原因而是 Error。</p>
+<p>这篇文章讲了<a target="_blank" rel="noopener" href="https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127">RPS 和 Virtual User 的概念</a> ，可以帮助理解为什么不是 RPS 越高越好而是 RPS 与 Latence 之间的平衡。其中讲到 Virutal User 的生命周期是到测试结束，这一点对我们理解和写测试代码挺重要的。<br><code>The typical virtual user life cycle looks like this — it picks up the scripted tasks and performs them, once it finishes all of them it will start the loop again. And it keeps it going until the test is terminated.</code></p>
+<p>这个和 <a target="_blank" rel="noopener" href="https://docs.locust.io/en/stable/quickstart.html#locust-s-web-interface">Locust 文档</a> 中描述的行为是一致的: <code>This user will make HTTP requests to /hello, and then /world, again and again. </code></p>
+<p><strong>Latency</strong>:<br>从请求被创建出来发送到接收的 endpint 开始到收到 response 的这个段时间。</p>
+<h2 id="1-性能测试类型"><a href="#1-性能测试类型" class="headerlink" title="1. 性能测试类型"></a>1. 性能测试类型</h2><p>这里列出的类型分类是从稍微具体一点的关注点来分类的。我们做性能测试就是希望在下面几个方面得到系统当前的处理能力，以及它的 breaking points。</p>
 <ul>
 <li><p>负载测试 Load Test</p>
 </li>
@@ -329,11 +871,11 @@ cas.service-registry.core.init-from-json=true
 <li><p>伸缩测试 Scaliability Test</p>
 </li>
 </ul>
-<p><em>Load testing</em> – checks the application’s ability to perform under anticipated user loads. The objective is to identify performance bottlenecks before the software application goes live.  </p>
-<p><em>Stress testing</em> – involves testing an application under extreme workloads to see how it handles high traffic or data processing. The objective is to identify the breaking point of an application.  </p>
-<p><em>Endurance testing</em> – is done to make sure the software can handle the expected load over a long period of time.  </p>
-<p><em>Spike testing</em> – tests the software’s reaction to sudden large spikes in the load generated by users.  </p>
-<p><em>Volume testing</em> – Under Volume Testing large no. of. Data is populated in a database and the overall software system’s behavior is monitored. The objective is to check software application’s performance under varying database volumes.  </p>
+<p><em>Load testing</em> – checks the application’s ability to perform under anticipated user loads. The objective is to identify performance bottlenecks before the software application goes live.</p>
+<p><em>Stress testing</em> – involves testing an application under extreme workloads to see how it handles high traffic or data processing. The objective is to identify the breaking point of an application.</p>
+<p><em>Endurance testing</em> – is done to make sure the software can handle the expected load over a long period of time.</p>
+<p><em>Spike testing</em> – tests the software’s reaction to sudden large spikes in the load generated by users.</p>
+<p><em>Volume testing</em> – Under Volume Testing large no. of. Data is populated in a database and the overall software system’s behavior is monitored. The objective is to check software application’s performance under varying database volumes.</p>
 <p><em>Scalability testing</em> – The objective of scalability testing is to determine the software application’s effectiveness in “scaling up” to support an increase in user load. It helps plan capacity addition to your software system.</p>
 <h2 id="2-性能测试的三个方面"><a href="#2-性能测试的三个方面" class="headerlink" title="2. 性能测试的三个方面"></a>2. 性能测试的三个方面</h2><p>上面列出的几个测试关注点，都可以放到这三点：速度、伸缩性、稳定性。<br>速度: 负载测试, 压力测试<br>伸缩: 压力测试, Spike Test, Volume Test, Scaliability Test<br>稳定性: Endurance testing</p>
 <h3 id="1-有多快？——-速度"><a href="#1-有多快？——-速度" class="headerlink" title="1. 有多快？—— 速度"></a>1. 有多快？—— 速度</h3><p>常用指标：</p>
@@ -346,7 +888,7 @@ cas.service-registry.core.init-from-json=true
 <li>…</li>
 </ul>
 <p>只看平均值是没有太多意义的，要看百分比分布。</p>
-<h3 id="2-还能有多快？-——-伸缩性"><a href="#2-还能有多快？-——-伸缩性" class="headerlink" title="2. 还能有多快？ —— 伸缩性"></a>2. 还能有多快？ —— 伸缩性</h3><p>这里的scalability是说在外部请求不断增加的情况下，系统的资源分配是否能支持这些增加的负载。同样我们也期望当外部负载变小时，系统占用的资源也能够释放出来。<br>这里的memeory footprint、CPU usage、bandwidth usage都是系统垂直伸缩的指标。<br>如果系统支持水平伸缩，那么就要看系统是否能够在输入负载增加的情况下，系统是否能够通过水平扩展节点来保持期望的处理速度。</p>
+<h3 id="2-还能有多快？-——-伸缩性"><a href="#2-还能有多快？-——-伸缩性" class="headerlink" title="2. 还能有多快？ —— 伸缩性"></a>2. 还能有多快？ —— 伸缩性</h3><p>这里的 scalability 是说在外部请求不断增加的情况下，系统的资源分配是否能支持这些增加的负载。同样我们也期望当外部负载变小时，系统占用的资源也能够释放出来。<br>这里的 memeory footprint、CPU usage、bandwidth usage 都是系统垂直伸缩的指标。<br>如果系统支持水平伸缩，那么就要看系统是否能够在输入负载增加的情况下，系统是否能够通过水平扩展节点来保持期望的处理速度。</p>
 <p>常用指标：</p>
 <ul>
 <li>内存</li>
@@ -356,13 +898,13 @@ cas.service-registry.core.init-from-json=true
 <li>系统处理节点</li>
 <li>… …</li>
 </ul>
-<h3 id="3-可以持续多久？——-稳定性"><a href="#3-可以持续多久？——-稳定性" class="headerlink" title="3. 可以持续多久？—— 稳定性"></a>3. 可以持续多久？—— 稳定性</h3><p>持续的给系统一定的输入负载，看看系统是否能够正常处理请求。一般来说，通过这种持续性测试可以发现系统是否能够对使用后的资源进行了释放，比如内存泄露的情况。<br>如果使用Gatling，对应如下语句进行stability的测试。</p>
+<h3 id="3-可以持续多久？——-稳定性"><a href="#3-可以持续多久？——-稳定性" class="headerlink" title="3. 可以持续多久？—— 稳定性"></a>3. 可以持续多久？—— 稳定性</h3><p>持续的给系统一定的输入负载，看看系统是否能够正常处理请求。一般来说，通过这种持续性测试可以发现系统是否能够对使用后的资源进行了释放，比如内存泄露的情况。<br>如果使用 Gatling，对应如下语句进行 stability 的测试。</p>
 <pre><code>jumpToRps(20),
 holdFor(Duration.ofSeconds(30)),
 </code></pre>
 <p>常用指标：</p>
 <ul>
-<li>Page faults </li>
+<li>Page faults</li>
 <li>Committed memory</li>
 <li>Maximum active sessions</li>
 <li>Thread counts</li>
@@ -372,552 +914,16 @@ holdFor(Duration.ofSeconds(30)),
 <h2 id="3-性能测试步骤"><a href="#3-性能测试步骤" class="headerlink" title="3. 性能测试步骤"></a>3. 性能测试步骤</h2><h3 id="1-Identify-your-testing-environment"><a href="#1-Identify-your-testing-environment" class="headerlink" title="1. Identify your testing environment"></a>1. Identify your testing environment</h3><p>软硬件环境、网络配置、测试工具。</p>
 <h3 id="2-Identify-the-performance-acceptance-criteria"><a href="#2-Identify-the-performance-acceptance-criteria" class="headerlink" title="2. Identify the performance acceptance criteria"></a>2. Identify the performance acceptance criteria</h3><p>针对 吞吐量、响应时间、资源占用等，设定被测程序可接受的性能指标。比如：</p>
 <ul>
-<li>1000个用户同时访问网站时，响应时间不超过4s。</li>
+<li>1000 个用户同时访问网站时，响应时间不超过 4s。</li>
 <li>应用崩溃前可处理器的最大并发用户数。</li>
 <li>在峰值负载的情况下，CPU、内存的使用情况</li>
 <li>测试应用在低、一般、大、超大负载情况下应用的响应时间、吞吐量。</li>
 </ul>
-<h3 id="3-规划设计性能测试方案"><a href="#3-规划设计性能测试方案" class="headerlink" title="3. 规划设计性能测试方案"></a>3. 规划设计性能测试方案</h3><p>对于测试指标因为人力、需求的不同，也没必要面面俱到， 根据需要和场景重点设计需要的测试类型：比如 Load Test, Endurance Test等</p>
+<h3 id="3-规划设计性能测试方案"><a href="#3-规划设计性能测试方案" class="headerlink" title="3. 规划设计性能测试方案"></a>3. 规划设计性能测试方案</h3><p>对于测试指标因为人力、需求的不同，也没必要面面俱到， 根据需要和场景重点设计需要的测试类型：比如 Load Test, Endurance Test 等</p>
 <h3 id="4-配置测试环境"><a href="#4-配置测试环境" class="headerlink" title="4. 配置测试环境"></a>4. 配置测试环境</h3><h3 id="5-实现并运行测试"><a href="#5-实现并运行测试" class="headerlink" title="5. 实现并运行测试"></a>5. 实现并运行测试</h3><h3 id="6-Analyze，Tune，Retest"><a href="#6-Analyze，Tune，Retest" class="headerlink" title="6. Analyze，Tune，Retest"></a>6. Analyze，Tune，Retest</h3><br/>
 
 <hr>
-<p>Reference:<br>[1]: <a target="_blank" rel="noopener" href="https://www.guru99.com/performance-testing.html">https://www.guru99.com/performance-testing.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.onpathtesting.com/blog/performance-testing-metrics">https://www.onpathtesting.com/blog/performance-testing-metrics</a><br>[3]: <a target="_blank" rel="noopener" href="https://nbomber.com/docs/loadtesting-basics/">https://nbomber.com/docs/loadtesting-basics/</a><br>[4]: <a target="_blank" rel="noopener" href="https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127">https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127</a>  </p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-mongo/setupMongoForLocalDevEnv" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/mongo/setupMongoForLocalDevEnv/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/mongo/setupMongoForLocalDevEnv/">为本地Mac开发环境设置mongo服务</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="1）安装"><a href="#1）安装" class="headerlink" title="1）安装"></a>1）安装</h3><p>Mac上通过brew安装Mongo 参考：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/#std-label-install">https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/#std-label-install</a></p>
-<pre><code>brew tap mongodb/brew
-brew install mongodb-community@5.0
-
-brew services start/restart/stop mongodb-community@5.0
-brew services list
-</code></pre>
-<p>通过brew安装后，MongoDB的配置文件在 /usr/local/etc/mongod.conf，可根据实际情况设置端口、认证、复制集等。</p>
-<pre><code>net:
-  port: 27117
-  bindIp: 0.0.0.0
-replication:
-  replSetName: rs0
-</code></pre>
-<h3 id="2-设置密码登录"><a href="#2-设置密码登录" class="headerlink" title="2) 设置密码登录"></a>2) 设置密码登录</h3><p>创建超级用户、普通用户：<br>    mongosh</p>
-<pre><code>use admin
-db.createUser(
-  &#123;
-    user: &quot;root&quot;,
-    pwd: &quot;password&quot;, 
-    roles: [
-      &#123; role: &quot;root&quot;, db: &quot;admin&quot; &#125;
-    ]
-  &#125;
-)
-
-// 创建用户test，对数据库testDB1、testDB2读写的权限，其authorizaiton的DB是testDB1。
-use testDB1
-db.createUser(
-  &#123;
-    user: &quot;testuser&quot;,
-    pwd: &quot;123&quot;, 
-    roles: [
-      &#123; role: &quot;readWrite&quot;, db: &quot;testDB&quot; &#125;,
-      &#123; role: &quot;readWrite&quot;, db: &quot;testDB2&quot; &#125;
-    ]
-  &#125;
-)
-</code></pre>
-<p>给 root 用户设置clusterManager角色，这样才可以使用rs.initiate()、rs.conf()与复制集相关的命令。</p>
-<pre><code>use admin
-db.grantRolesToUser(
-  &quot;root&quot;,
-  [ &quot;clusterManager&quot; ]
-)
-</code></pre>
-<p>这个dbAdminAnyDatabase 角色似乎很‘方便’。</p>
-<pre><code>db.grantRolesToUser(&quot;yourUser&quot;, [&#123;&quot;role&quot;: &quot;dbAdminAnyDatabase&quot;, &quot;db&quot;: &quot;admin&quot;&#125;])
-</code></pre>
-<h3 id="3）设置复制集。"><a href="#3）设置复制集。" class="headerlink" title="3）设置复制集。"></a>3）设置复制集。</h3><p>复制集需要安全通行。首先生成mongodb私钥<br>Reference：<a target="_blank" rel="noopener" href="https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/">https://docs.mongodb.com/manual/tutorial/enforce-keyfile-access-control-in-existing-replica-set/</a></p>
-<pre><code>openssl rand -base64 756 &gt; KEY_PATH/mongo_server.key
-</code></pre>
-<p>修改配置设置keyFile：</p>
-<pre><code>security:
-  keyFile: KEY_PATH/mongo_server.key
-  authorization: enabled
-</code></pre>
-<p>强制设置本地节点复制集名称。</p>
-<pre><code>replication:
-  replSetName: rs0
-</code></pre>
-<p>重启mongo</p>
-<pre><code>brew services restart mongodb-community
-</code></pre>
-<p>进入mongosh，执行rs.initiate()初始化数据集：</p>
-<pre><code>rs.initiate()
-rs.conf()
-</code></pre>
-<h3 id="4）强制设置master复制集。"><a href="#4）强制设置master复制集。" class="headerlink" title="4）强制设置master复制集。"></a>4）强制设置master复制集。</h3><p>遇到的问题及解决：开始在端口为27017的情况下按照 <a target="_blank" rel="noopener" href="https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html">https://mongoing.com/docs/tutorial/convert-standalone-to-replica-set.html</a> 介绍的方式把单节点的mongo服务转变为单复制集的方式运行。</p>
-<p>接着又更改了mongo服务的端口为27117，这样之前的复制集节点就不对了。<br>先加上当前27117端口的mongo服务作为一个复制集。</p>
-<pre><code>rs.add(&quot;127.0.0.1:27117&quot;)
-</code></pre>
-<p>查看复制集配置</p>
-<pre><code>rs0 [direct: primary] test&gt; cfg = rs.conf()
-&#123;
-  _id: &#39;rs0&#39;,
-  version: 4,
-  term: 30,
-  members: [
-    &#123;
-      _id: 0,
-      host: &#39;127.0.0.1:27017&#39;,
-      arbiterOnly: false,
-      buildIndexes: true,
-      hidden: false,
-      priority: 1,
-      tags: &#123;&#125;,
-      secondaryDelaySecs: Long(&quot;0&quot;),
-      votes: 1
-    &#125;,
-    &#123;
-      _id: 1,
-      host: &#39;127.0.0.1:27117&#39;,
-      arbiterOnly: false,
-      buildIndexes: true,
-      hidden: false,
-      priority: 1,
-      tags: &#123;&#125;,
-      secondaryDelaySecs: Long(&quot;0&quot;),
-      votes: 1
-    &#125;
-  ],
-  protocolVersion: Long(&quot;1&quot;),
-  writeConcernMajorityJournalDefault: true,
-  settings: &#123;
-    chainingAllowed: true,
-    heartbeatIntervalMillis: 2000,
-    heartbeatTimeoutSecs: 10,
-    electionTimeoutMillis: 10000,
-    catchUpTimeoutMillis: -1,
-    catchUpTakeoverDelayMillis: 30000,
-    getLastErrorModes: &#123;&#125;,
-    getLastErrorDefaults: &#123; w: 1, wtimeout: 0 &#125;,
-    replicaSetId: ObjectId(&quot;616d08c744db747bb7e580b8&quot;)
-  &#125;
-&#125;
-</code></pre>
-<p>删除第一节点，</p>
-<pre><code>cfg.members.splice(0,1)
-</code></pre>
-<p>强制执行重新配置</p>
-<pre><code>rs.reconfig(cfg, &#123;force : true&#125;)
-</code></pre>
-<h3 id="5）设置复制集。"><a href="#5）设置复制集。" class="headerlink" title="5）设置复制集。"></a>5）设置复制集。</h3><p>通过用户名密码登录</p>
-<pre><code>mongosh --port 27117 -u testuser -p 123 --authenticationDatabase  test 
-</code></pre>
-<h3 id="6）Mac环境设置-maxfile-limit"><a href="#6）Mac环境设置-maxfile-limit" class="headerlink" title="6）Mac环境设置 maxfile limit"></a>6）Mac环境设置 maxfile limit</h3><p>查看当前设置：</p>
-<pre><code>launchctl limit maxfiles
-</code></pre>
-<p>如果soft limit是256，则执行下面命令扩大。否则mongo server可用的线程将受限。</p>
-<pre><code>sudo launchctl limit maxfiles 65536 200000
-</code></pre>
-<p>因为机器重启后以上更改会失效，所以还需要添加以上命令到开机脚本中。因为使用到了sudo，可使用 visudo 修改设置免密码。</p>
-<pre><code>%admin          ALL = (ALL) NOPASSWD: ALL
-</code></pre>
-<h3 id="7）mongo-conf"><a href="#7）mongo-conf" class="headerlink" title="7）mongo.conf"></a>7）mongo.conf</h3><p>mongo.conf 大致如此：<br>如果需要设置MongoDB无需认证登录的话，需要authrozation、keyFile这两个字段同时注释掉。·</p>
-<pre><code>systemLog:
-  destination: file
-  path: /usr/local/var/log/mongodb/mongo.log
-  logAppend: true
-storage:
-  dbPath: /usr/local/var/mongodb
-net:
-  bindIp: 127.0.0.1
-  port: 27017
-  maxIncomingConnections: 4096
-security:
-  keyFile: /YOURPATH/mongo_server.key
-  authorization: enabled
-replication:
-  replSetName: rs0
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/mongo/mongodb-script-collection-fields-size-quantile-analysis/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/mongo/mongodb-script-collection-fields-size-quantile-analysis/">MongoDB脚本：集合中字段数据大小的分位数统计</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
-<p>如果想获得某个collection相关的各种存储统计信息，可以使用 **<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/method/db.collection.stats/">stats</a>、<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/collStats/">collStats</a>**。</p>
-<p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
-<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
-<pre><code>//最大的Top10和百分比分布。
-db.COLLECTION.aggregate([
-  &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
-  &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
-  &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
-  &#123; $sort: &#123; documentSize: 1 &#125; &#125;,
-  &#123; $group: &#123; &#39;_id&#39;: null, &#39;value&#39;: &#123; &#39;$push&#39;: &#39;$documentSize&#39; &#125; &#125; &#125;,
-  &#123; $project: &#123; _id: 0, 
-      &quot;Top1&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-1, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top2&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-2, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top3&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-4, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top4&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-5, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top5&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-6, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top6&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top7&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top8&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-8, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top9&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-9, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;Top10&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-10, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;99-9%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.999, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;99%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.99, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;95%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.95, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;90%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.90, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;50%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.50, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-      &quot;25%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.25, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
-    &#125; &#125;,
-  ]);
-  
-</code></pre>
-<p>对MongoDB 4.2以上版本，可以使用上述aggrigation 语法进行统计。对4.2及其以下版本，需要使用forEach语句迭代进行计算。<br>对于不支持Object.bsonsize的Mongo shell可以使用 BSON.calculateObjectSize 进行替代。</p>
-<pre><code>// const BSON = require(&quot;bson&quot;);
-var fieldsSize = []
-var totalSize = 0
-db.COLLECTION.find(&#123; &quot;status&quot;: &#39;A&#39; &#125;, &#123; FIELD_A: 1, FIELD_B: 1&#125;).forEach(function(doc)
-&#123;
-  var size = Object.bsonsize(doc)
-//   var size = BSON.calculateObjectSize(doc)
-  totalSize += size
-  fieldsSize.push(size)
-&#125;);
-var sortedData = fieldsSize.sort(function(a, b)&#123;return a-b&#125;);
-var statistic = &#123;
-    &quot;Note&quot;: &quot;The Collection Fields(FIELD_A, FIELD_B) Size Statistic Reuslt&quot;,    
-    &quot;numbOfDocs&quot;: sortedData.length,
-    &quot;totalSize&quot;: (totalSize / 1024) + &quot;KB    &quot; +  (totalSize / (1024 * 1024)) + &quot; MB&quot;,
-    &quot;AVG:&quot;: Math.round(totalSize / sortedData.length),
-    &quot;MIN&quot;: sortedData[0],
-    &quot;TOP1&quot;: sortedData[sortedData.length - 1],
-    &quot;TOP2&quot;: sortedData[sortedData.length - 2],
-    &quot;TOP3&quot;: sortedData[sortedData.length - 3],
-    &quot;TOP4&quot;: sortedData[sortedData.length - 4],
-    &quot;TOP5&quot;: sortedData[sortedData.length - 5],
-    &quot;TOP6&quot;: sortedData[sortedData.length - 6],
-    &quot;TOP7&quot;: sortedData[sortedData.length - 7],
-    &quot;TOP8&quot;: sortedData[sortedData.length - 8],
-    &quot;TOP9&quot;: sortedData[sortedData.length - 9],
-    &quot;TOP10&quot;: sortedData[sortedData.length - 10],
-    &quot;99.9%&quot;: sortedData[Math.floor(sortedData.length * 0.999)],
-    &quot;99%&quot;: sortedData[Math.floor(sortedData.length * 0.99)],
-    &quot;95%&quot;: sortedData[Math.floor(sortedData.length * 0.95)],
-    &quot;90%&quot;: sortedData[Math.floor(sortedData.length * 0.90)],
-    &quot;75%&quot;: sortedData[Math.floor(sortedData.length * 0.75)],
-    &quot;50%&quot;: sortedData[Math.floor(sortedData.length * 0.5)],
-    &quot;25%&quot;: sortedData[Math.floor(sortedData.length * 0.25)],
-    &quot;10%&quot;: sortedData[Math.floor(sortedData.length * 0.10)]
-&#125;;
-
-print(statistic)
-</code></pre>
-<br/>
-------
-
-<p>_References:<br>[1]: <a target="_blank" rel="noopener" href="https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/">https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/</a><br>[2]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb">https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb</a><br>[3]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.2/reference/command/collStats/">https://www.mongodb.com/docs/v4.2/reference/command/collStats/</a><br>[4]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-binarysize/">https://database.guide/mongodb-binarysize/</a><br>[5]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-object-bsonsize/">https://database.guide/mongodb-object-bsonsize/</a><br>[6]: <a target="_blank" rel="noopener" href="https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/">https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/aggregation/">https://www.mongodb.com/docs/manual/aggregation/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-mongo/MongoDB-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/mongo/MongoDB-User-Authentication/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/mongo/MongoDB-User-Authentication/">MongoDB的用户管理</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>如果在配置文件中eanble了 authorization，那么用这样的配置启动MongoDB后。如果不是root用户去创建用户会遇到一些权限问题。</p>
-<pre><code>security:
-  authorization: enabled
-</code></pre>
-<p>/usr/local/opt/mongodb-community/bin/mongod –config /usr/local/etc/mongod.conf</p>
-<p>如果你忘记的root用户或者其它管理员用户的密码，那么可以先以无权限控制的方式启动MongoDB：</p>
-<pre><code>mongod --port 27017 --dbpath /usr/local/var/mongodb
-</code></pre>
-<p>再连接到MongoDB：</p>
-<pre><code>mongo --port 27017
-</code></pre>
-<p>根据需要可以更改用户密码或者创建新用户：</p>
-<pre><code>db.changeUserPassword(&quot;root&quot;, passwordPrompt())
-db.changeUserPassword(&quot;root&quot;, &quot;password&quot;)
-
-db.createUser(&#123;
-    &quot;user&quot;: &quot;dahui&quot;,
-    &quot;pwd&quot;: &quot;password&quot;,
-    &quot;roles&quot;:
-    [
-        &#123;
-            &quot;role&quot;: &quot;userAdminAnyDatabase&quot;,
-            &quot;db&quot;: &quot;admin&quot;
-        &#125;,
-        &quot;readWriteAnyDatabase&quot;
-    ]
-&#125;);
-</code></pre>
-<p>添加完这种带有 userAdminAnyDatabase 角色的用户后，关闭MongoDB server：</p>
-<pre><code>db.adminCommand( &#123; shutdown: 1 &#125; )
-</code></pre>
-<p>再以有权限控制的方式重新启动MongoDB Server。（/usr/local/etc/mongod.conf 中设置了 authorization: enabled）</p>
-<pre><code>mongod --config /usr/local/etc/mongod.conf
-或
-mongod --auth --port 27017 --dbpath /var/lib/mongodb
-</code></pre>
-<p>这样使用拥有 userAdminAnyDatabase 角色的用户登录后，就可以通过使用use DB_NAME 的方式给不同的DB添加用户了。</p>
-<pre><code>mongosh --port 27017 -u admin -p password --authenticationDatabase admin
-
-mongosh &quot;mongodb://admin:password@127.0.0.1:27017/center0?authSource=admin&quot;
-</code></pre>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/">https://www.mongodb.com/docs/v5.0/tutorial/enable-authentication/</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/reference/method/js-user-management/">https://www.mongodb.com/docs/manual/reference/method/js-user-management/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-network/tcp_close-wait_time-wait" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/network/tcp_close-wait_time-wait/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/network/tcp_close-wait_time-wait/">关于TCP的好文章</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <h4 id="关于挥手中的close-wait-time-wait。"><a href="#关于挥手中的close-wait-time-wait。" class="headerlink" title="关于挥手中的close-wait, time-wait。"></a>关于挥手中的close-wait, time-wait。</h4><ul>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI4MjA4ODU0Ng==&mid=402163560&idx=1&sn=5269044286ce1d142cca1b5fed3efab1&3rd=MzA3MDU4NTYzMw==&scene=6#rd">又见CLOSE_WAIT</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://juejin.cn/post/6844903734300901390">线上大量CLOSE_WAIT的原因深入分析</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/kevingrace/p/9988354.html">TCP连接的TIME_WAIT和CLOSE_WAIT 状态解说</a></p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/Jt2ss3SsE_iGJp5oW8QDSw">高性能网络 | 你所不知道的TIME_WAIT和CLOSE_WAIT</a></p>
-</li>
-</ul>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-notes/cas/Apereo-CAS-Management-UI" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/notes/cas/Apereo-CAS-Management-UI/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/notes/cas/Apereo-CAS-Management-UI/">Apereo CAS 之 管理界面</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>类似cas-server，先下载cas-management-overlay代码，这里使用6.5分支。</p>
-<pre><code>$ git clone https://github.com/apereo/cas-management-overlay cas-management   
-$ cd cas-management   
-$ git checkout -b 6.5 origin/6.5
-</code></pre>
-<p>cas-management应用本身也需要用户认证之后才能使用。这里使用它自己要管理的cas-server作为认证源。这时，cas-manager本身就是cas-server的一个client或者说service了。<br>因此需要首先 __把management配置为cas-server的一个client/service__。</p>
-<p>Apereo支持不同的存储service注册的方式：json文件、JPA、Redis …，这里使用json文件的方式把cas-management注册为cas-server的service，即让cas-manager使用cas-server来认证用户。</p>
-<h3 id="1）在cas-server的build-gradle中添加依赖。"><a href="#1）在cas-server的build-gradle中添加依赖。" class="headerlink" title="1）在cas-server的build.gradle中添加依赖。"></a>1）在cas-server的build.gradle中添加依赖。</h3><p>可参考官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage</a></p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-json-service-registry:$&#123;project.&#39;cas.version&#39;&#125;&quot;
-</code></pre>
-<h3 id="2）告诉cas-server-在哪里可以找到定义client-service的json文件"><a href="#2）告诉cas-server-在哪里可以找到定义client-service的json文件" class="headerlink" title="2）告诉cas-server 在哪里可以找到定义client/service的json文件"></a>2）告诉cas-server 在哪里可以找到定义client/service的json文件</h3><p>在文件 etc/cas/config/cas.properties 中加入如下配置：<br><code>cas.service-registry.json.location=classpath:/services</code></p>
-<p>在cas-server 项目的 src/resources 目录下创建一个名为casManagement-2000.json的文体。文件名的格式是 clientName + clientId.json，具体请阅读官方文档。</p>
-<pre><code>&#123;
-  &quot;@class&quot; : &quot;org.apereo.cas.services.RegexRegisteredService&quot;,
-  &quot;serviceId&quot; : &quot;^(https|imaps)://.*&quot;,
-  &quot;name&quot; : &quot;casManagement&quot;,
-  &quot;id&quot; : 2000,
-  &quot;logoutType&quot; : &quot;BACK_CHANNEL&quot;,
-  &quot;logoutUrl&quot; : &quot;https://localhost:8444/cas-management/logout&quot;
-&#125;
-</code></pre>
-<h3 id="3）配置cas-management"><a href="#3）配置cas-management" class="headerlink" title="3）配置cas-management"></a>3）配置cas-management</h3><p>上面两步是配置cas-server以把cas-manager作为它的client。现在，配置cas-management。<br>编辑 cas-management 项目里的 etc/case/config/management.properties 文件，内容如下。</p>
-<pre><code>cas.server.name=https://localhost:8443
-cas.server.prefix=$&#123;cas.server.name&#125;/cas
-
-server.port=8444
-mgmt.server-name=https://localhost:8444
-mgmt.admin-roles[0]=ROLE_ADMIN
-mgmt.user-properties-file=file:/etc/cas/config/users.json
-
-logging.config=file:/etc/cas/config/log4j2-management.xml
-
-server.ssl.key-store=file:/etc/cas/thekeystore
-server.ssl.key-store-password=changeit
-
-# Let the cas-management to know where to find/save the registed services
-cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/services
-</code></pre>
-<p>需要注意的是要保证cas.server 和 mgmt server的端口不要冲突，一个是8443，一个是8444。<br>这里方便起见，cas-management和 cas-server共享了同一个keystore。</p>
-<p>配置项<code>cas.service-registry.json.location</code>告诉cas-management到哪里去读写(管理)定义client/service的json文件。这个目录<br>是和cas-server的 <code>cas.service-registry.json.location=classpath:/services</code> 是一致的。</p>
-<h3 id="4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management"><a href="#4）-同时运行cas-server，cas-management后，访问-https-localhost-8444-cas-management" class="headerlink" title="4） 同时运行cas-server，cas-management后，访问 https://localhost:8444/cas-management/"></a>4） 同时运行cas-server，cas-management后，访问 <a target="_blank" rel="noopener" href="https://localhost:8444/cas-management/">https://localhost:8444/cas-management/</a></h3><p><img src="/2025/01/25/notes/cas/Apereo-CAS-Management-UI/apereo_cas_mgmt_ui.jpg" alt="CAS-Management-UI"></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-micro_service/glimpse-of-saga" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2025-01-25T12:22:54.270Z"><a href="/2025/01/26/micro_service/glimpse-of-saga/">2025-01-26</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2025/01/26/micro_service/glimpse-of-saga/">glimpse of saga</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>项目中遇到多个微服务调用需要考虑和处理某个环节失败时的处理。虽然这里不需要很强的事务概念，但是需要对失败的动作进行重试等操作。这里的重试本质上就是rollback的另一种形式，在saga里算是“forward recovery”。<br>借机又翻看了一下相关的文章，贴到了文末。</p>
-<h3 id="Saga-vs-TCC"><a href="#Saga-vs-TCC" class="headerlink" title="Saga vs TCC"></a>Saga vs TCC</h3><ol>
-<li>Saga相比TCC的缺点是缺少预留动作，所以某些情况补偿的实现比较麻烦甚至无法撤销只能补救。不过没有预留动作也意味着不必担心资源释放的问题。</li>
-<li>TCC最少通信次数为2n，Saga为n（n=sub-transaction的数量）。</li>
-<li>第三方服务没需要提供有Try接口。<br>总体感觉下来SAGA更适合微服务的多数场景。</li>
-</ol>
-<h3 id="Simple-Saga"><a href="#Simple-Saga" class="headerlink" title="Simple Saga"></a>Simple Saga</h3><p>解决这类问题当然可以直接引入一些已存在的saga框架，不过这里存在学习、部署等成本。如果只是小范围的解决问题，或许可以使用下面的形式。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/poc.jpg" alt="示意图"><br>上面示意图针对的场景是：服务的执行都需要较长时间、并且是异步调用。<br>如果各个服务执行时间都不长，一个调用链下来小于几百毫秒，那么直接使用reactive style的编码也应该可以。<br>因为各服务执行时间较长，所以不能使用同步调用。这里耗时指的是对于有UI的程序至少影响到到UI前的用户，如果是后台应用那么至少阻塞的时长影响到系统的资源可用性。<br>即使服务执行时间短，同步调用也会使调用链的availability降低，所以微服务的场景下使用异步调用有天然的好处。  </p>
-<p>从这个示意图其实可以看作是Chris演讲中提到的最最原始的模式。可以把callback看作是saga事务参与方发送消息到message broker。而调用链的第一个节点就充当了saga的协调者。<br>各个微服务的updateStatus端点就是message的listner，只不过这里直接通过callback实现而没有利用消息队列。<br>最开始的endpoint负责生成一个transactionId并依次传递给每个下游服务，每个下游服务通过callback把自己的状态更新给上游。</p>
-<ol>
-<li><p>getStatus() 端点提供给UI获取当前状态。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/ui_option.png" alt="UI上的状态显示"></p>
-</li>
-<li><p>transCheckAndAmend(trans_n) 每个服务暴露的业务方法都需要提供一个补偿方法。<br><img src="/2025/01/25/micro_service/glimpse-of-saga/tc.png" alt="Compensating transactions"></p>
-</li>
-<li><p>服务的入口方法其实充当了协调者, 更像orchestration的，而不是choreography的。</p>
-</li>
-<li><p>Timer 是个后台定时器不停的检查服务状态，如果状态不成功就调用compensating endpoint.</p>
-</li>
-</ol>
-<p><em>Reference:</em><br>[1]: Saga的经典论文 <a target="_blank" rel="noopener" href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf</a><br>[2]: 《Microservice Pattern》”Chapter4, Managing transactions with sagas”<br>[3]: Chris Richardson 在2017年的演讲：<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=YPbGW3Fnmbc">https://www.youtube.com/watch?v=YPbGW3Fnmbc</a>   </p>
-<p>一些中文网文：<br>[3] 分布式事务：Saga模式 <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/e4b662407c66">https://www.jianshu.com/p/e4b662407c66</a><br>[4] 七种分布式事务的解决方案 <a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1806989">https://cloud.tencent.com/developer/article/1806989</a><br>[5] 分布式事务六种解决方案 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/183753774">https://zhuanlan.zhihu.com/p/183753774</a>   </p>
+<p>Reference:<br>[1]: <a target="_blank" rel="noopener" href="https://www.guru99.com/performance-testing.html">https://www.guru99.com/performance-testing.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://www.onpathtesting.com/blog/performance-testing-metrics">https://www.onpathtesting.com/blog/performance-testing-metrics</a><br>[3]: <a target="_blank" rel="noopener" href="https://nbomber.com/docs/loadtesting-basics/">https://nbomber.com/docs/loadtesting-basics/</a><br>[4]: <a target="_blank" rel="noopener" href="https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127">https://medium.com/@novyludek/virtual-users-vs-rps-77627b384127</a></p>
 
       
     </div>
@@ -1012,7 +1018,7 @@ cas.service-registry.json.location=file:YOUR_PATH_TO_DIR_CONTAINS_JSONFILES/serv
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">9</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/05/">五月 2022</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">九月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

@@ -45,236 +45,42 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-notes/cas/Apereo-CAS-Service-Registry-Storage" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <article id="post-micro_service/glimpse-of-saga" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2022-09-27T07:55:38.000Z"><a href="/2022/09/27/notes/cas/Apereo-CAS-Service-Registry-Storage/">2022-09-27</a></time>
+        <time class="dt-published" datetime="2022-05-19T07:55:38.000Z"><a href="/2022/05/19/micro_service/glimpse-of-saga/">2022-05-19</a></time>
       
       
   
-    <h1 class="title"><a href="/2022/09/27/notes/cas/Apereo-CAS-Service-Registry-Storage/">Apereo CAS 使用MongoDB作为Service注册的存储</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>可以以不同的方式保存 Servcie 的注册信息，参考这里获得完整列表：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage%E3%80%82">https://apereo.github.io/cas/6.5.x/services/Service-Management.html#storage。</a><br>这里只记录下如何设置 MongoDB 作为存储端，官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html%E3%80%82">https://apereo.github.io/cas/6.5.x/services/MongoDb-Service-Management.html。</a></p>
-<h3 id="1-添加依赖"><a href="#1-添加依赖" class="headerlink" title="1. 添加依赖"></a>1. 添加依赖</h3><pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
-</code></pre>
-<h3 id="2-设置"><a href="#2-设置" class="headerlink" title="2. 设置"></a>2. 设置</h3><pre><code>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db
-cas.service-registry.mongo.collection=cas_serviceregistry
-</code></pre>
-<h3 id="3-服务注册初始化"><a href="#3-服务注册初始化" class="headerlink" title="3. 服务注册初始化"></a>3. 服务注册初始化</h3><p>参数 <code>cas.service-registry.core.init-from-json</code> 用于控制在 CAS 系统启动时对发现的 json 格式的服务注册信息是否导入到对应的后端存储。默认为 true，这样启动时会把用 json 文件定义的服务注册信息写入到后端存储，这里是 cas_db 的 cas_serviceregistry collection。<br>开发初期可以使用 json 的方式调试，然后通过 init-from-json=true 把数据导入 DB 之后，再设置 init-from-json 为 false。</p>
-<h3 id="4-设置-CAS-Management-使用-MongoDB-作为服务注册信息源。"><a href="#4-设置-CAS-Management-使用-MongoDB-作为服务注册信息源。" class="headerlink" title="4. 设置 CAS-Management 使用 MongoDB 作为服务注册信息源。"></a>4. 设置 CAS-Management 使用 MongoDB 作为服务注册信息源。</h3><p>CAS Management 应用之前通过下面的信息找到注册的服务数据，使用 MongoDDB 作为存储后，需要在 cas-management 的 build.gradle 中添加依赖：</p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo-service-registry&quot;
-</code></pre>
-<p>同时 删除掉 cas.service-registry.json.location 的设置，并把把 cas-server 中关于 cas.service-registry.mongo 的配置 copy 过来。<br>cas.service-registry.mongo.client-uri=mongodb://casdb_user:password@localhost:27017/cas_db<br>cas.service-registry.mongo.collection=cas_serviceregistry</p>
-<h3 id="5-通过-WebUI-注册一个新的-CAS-Service。"><a href="#5-通过-WebUI-注册一个新的-CAS-Service。" class="headerlink" title="5. 通过 WebUI 注册一个新的 CAS Service。"></a>5. 通过 WebUI 注册一个新的 CAS Service。</h3><p>通过 Web 界面添加一个新的 CAS Client 之后，查看 MongoDB 的 cas_serviceregistry collection，可以看到一个新的 document 数据被成功创建出来。</p>
-<br/>
-
-<hr>
-<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html">https://apereo.github.io/cas/6.5.x/services/AutoInitialization-Service-Management.html</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-notes/cas/Apereo-CAS-User-Authentication" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-09-21T07:55:38.000Z"><a href="/2022/09/21/notes/cas/Apereo-CAS-User-Authentication/">2022-09-21</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/09/21/notes/cas/Apereo-CAS-User-Authentication/">Apereo CAS 之 用户认证</a></h1>
+    <h1 class="title"><a href="/2022/05/19/micro_service/glimpse-of-saga/">glimpse of saga</a></h1>
   
 
     </header>
     <div class="e-content entry" itemprop="articleBody">
       
-        <p>上篇使用默认的用户名密码登录 casuser/Mellon 登录 cas。我们可以通过 etc/cas/config/cas.properties 配置不同的后端存储用来进行用户信息的 authentication 的校验。</p>
-<p>这里使用 MongoDB 作为用户信息认证的后端存储，参考这里官方文档：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html%E3%80%82">https://apereo.github.io/cas/6.5.x/authentication/MongoDb-Authentication.html。</a><br>主要是三个步骤，但需要先把 cas-server-support-mongo 加到 build.gradle 文件。</p>
-<pre><code>implementation &quot;org.apereo.cas:cas-server-support-mongo&quot;
-</code></pre>
-<h3 id="1）在-MongoDb-中保存用户信息"><a href="#1）在-MongoDb-中保存用户信息" class="headerlink" title="1）在 MongoDb 中保存用户信息"></a>1）在 MongoDb 中保存用户信息</h3><p>获得密码’md5password’的 MD5 值，并保存到 collection。<br>$ md5 -s ‘md5password’<br>MD5 (“md5password”) = ec85070aa70e598eda72cbe82d99fabc</p>
-<pre><code>db.cas_user.insert(&#123;
-    &quot;username&quot;: &quot;casuser&quot;,
-    &quot;password&quot;: &quot;ec85070aa70e598eda72cbe82d99fabc&quot;,
-    &quot;first_name&quot;: &quot;john&quot;,
-    &quot;last_name&quot;: &quot;smith&quot;
-&#125;)
-</code></pre>
-<h3 id="2）-配置-cas-从-MongoDB-获取用户信息"><a href="#2）-配置-cas-从-MongoDB-获取用户信息" class="headerlink" title="2） 配置 cas 从 MongoDB 获取用户信息"></a>2） 配置 cas 从 MongoDB 获取用户信息</h3><p>通过直接设置 client-uri 表明连接到 mongoDB 的哪个库做认证，就不用再分别设置注入 host、database 这样的参数了。<br><code>cas-user</code>是保存用户数据的 collection。<br>如果因为我们使用 MD5 作为密码摘要来验证，所以这里 password-encoder.type 设置为 DEFAULT，encoding-algorithm 设置为 MD5。可以查看源码 DefaultPasswordEncoder 理解这个设置，诸如 BCrypt 是不需要 encoding-algorithm 的。<br>cas 也支持 BCRYPT、PBKDF2 这样的密码编码。也可以把 type 设置为一个自己实现的 PasswordEncoder。<br>如果密码是明文保存的，则可把 password-encoder.type 设为 NONE。</p>
-<pre><code># -- Use MongoDB as the authentication data source.
-cas.authn.mongo.client-uri=mongodb://admin:password@localhost:27017/center0
-cas.authn.mongo.collection=cas_user
-# cas.authn.mongo.database-name=
-# cas.authn.mongo.host=localhost=
-# cas.authn.mongo.password=
-# cas.authn.mongo.port=27017
-# cas.authn.mongo.principal-transformation.groovy.location=
-# cas.authn.mongo.user-id=
-cas.authn.mongo.password-encoder.type=DEFAULT
-cas.authn.mongo.password-encoder.encoding-algorithm=MD5
-</code></pre>
-<h3 id="3）登录验证"><a href="#3）登录验证" class="headerlink" title="3）登录验证"></a>3）登录验证</h3><p>运行<code>./gradlew clean copyCasConfiguration build run</code>，在浏览器输入 casuser / md5password 进行登录。</p>
-<h3 id="4）使用-BCrypt"><a href="#4）使用-BCrypt" class="headerlink" title="4）使用 BCrypt"></a>4）使用 BCrypt</h3><p>BCrypt 是当前最通用的 password encoding 方式了。BCrypt 会自己内部产生一个随机 salt 并和 hash 的结果保存在一起作为 encode 的结果。这样每次做 BCrypt 的结果都不同并且再校验时也无需提供 salt。可参考这篇文章<a target="_blank" rel="noopener" href="https://www.baeldung.com/spring-security-registration-password-encoding-bcrypt">spring-security-registration-password-encoding-bcrypt</a>。</p>
-<p>生成一个密码 bcpassword 的 BCrypt 值：</p>
-<pre><code>$ brew tap spring-io/tap
-$ brew install spring-boot
-$ spring encodepassword bcpassword
-&#123;bcrypt&#125;$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy
-</code></pre>
-<p>更新数据库里的 password 为<code>$2a$10$fJc2wH.Oc1SES8Ju/fCoFOjqs6CRnIgPAbUXqRJQ.DGnBVTGG.bLy</code>。</p>
-<p>设置 cas.authn.mongo.password-encoder.type=BCRYPT<br>注释掉 cas.authn.mongo.password-encoder.encoding-algorithm。</p>
-<p>重新使用新配置启动 cas server，用密码 bcpassword 登录。这个时候 cas 后台就已经使用 BCrypt 来验证密码了。<br><code>./gradlew clean copyCasConfiguration build run</code></p>
-<p>其实 Type=BCRYPT 就对应到了 class org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder。</p>
-<h3 id="5）使用多个不同的-DataSource-用于认证"><a href="#5）使用多个不同的-DataSource-用于认证" class="headerlink" title="5）使用多个不同的 DataSource 用于认证"></a>5）使用多个不同的 DataSource 用于认证</h3><p>可同时使用多个不同的 DataSource 用于认证，但是相同类型的数据源只能有一个。<br>对于同时使用多个认证源的情况，关键是要设置好 authentication policy。请参考：<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">Authentication Manager</a> 和 <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">Authentication Policy
-</a>。</p>
-<p>同时用 json file， texfile，MongoDB 作为认证源的<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/commit/fc72643a88e93f1c1214e51ec3d88610b90109e1#diff-b94e97ddebc92ca55c272b4fe7917b097e9f38b4f042603370216252d0fb3494">一个例子</a>。</p>
-<p>如果需要同时设置两个 MongoDB 作为认证源，就需要自己通过继承 AbstractUsernamePasswordAuthenticationHandler 来实现了。</p>
-<br>
-
-<hr>
-<p>_References_：<br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html">https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Policy.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://fawnoos.com/2018/06/12/cas53-authn-handlers/">https://fawnoos.com/2018/06/12/cas53-authn-handlers/</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-11T07:55:38.000Z"><a href="/2022/08/11/spring/BsonUndefined_caused_ConverterNotFoundException/">2022-08-11</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/08/11/spring/BsonUndefined_caused_ConverterNotFoundException/">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>因为 MongoDB 数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下 exception</p>
-<blockquote>
-<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
-</blockquote>
-<p>我们可以通过一下几步解决这个问题：</p>
-<h3 id="1）我们首先需要分析是什么情况导致数据中存在-undefined-值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在-undefined-值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在 undefined 值。"></a>1）我们首先需要分析是什么情况导致数据中存在 undefined 值。</h3><p>从 BSON 的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined 已经是 depricated。数据库中出现 undefined 的多半说明程序有问题，所以需要找出是在哪里、什么情况下向 MongoDB 写入了 undefined value 并进行修改。</p>
-<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
-<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个 converter 类</p>
-<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt;
-</code></pre>
-<p>把 undefined 转为<strong>任意类型</strong>对象的 null，就可以避免如上的 Exception。代码如 stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把 Converter 传给 mongoTemplate，我们就需要定义一个 MongoCustomConversions Bean。为什么需要这样的 Bean，可以参考 AbstractMongoClientConfiguration 的源代码。因为 AbstractMongoClientConfiguration 中已经定义了一个 MongoCustomConversions bean，我们就需要给自己的 Bean 加上@Primary，以便让 spring-data-mongo 优先使用我们设置了自定义 converter 的 MongoCustomConversions bean。</p>
-<p>如果你的 spring application 还是通过 XML 方式进行 beans 定义与组装的，那么你就不能通过定义一个 ConverterFactory 来方便地把 undefined 转为<strong>任意类型</strong>对象的 null 了。这是因为 XML 不支持类型化参数。这时，只能把 converter 一个个地定义出来。XML 的组装大致如下：</p>
-<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
-    &lt;mongo:custom-converters&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-        &lt;mongo:converter&gt;
-            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
-        &lt;/mongo:converter&gt;
-    &lt;/mongo:custom-converters&gt;
-&lt;/mongo:mapping-converter&gt;
-</code></pre>
-<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个 converter 才能避免 exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在 converter 返回 o -&gt; null 之前，执行下面的代码就可以通过 log 看到是哪个 DAO 触发了这个转换，进而可以分析出哪个 collection 存在脏数据。如果我们清理了这个 collection 的所有脏数据之后这种 undefined 脏数据还是会产生出来，那么我们就应该好好 review 一下之前的代码是哪里有问题并进行修改了。</p>
-<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
-for(StackTraceElement st : causes)&#123;
-    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
-        log.warn(st.toString());
-    &#125; else &#123;
-        log.info(st.toString());
-    &#125;
-&#125;
-</code></pre>
-<p>如果是使用 JDK9 及以上，那么可以使用 StackWalker 避免 getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a></p>
-<p>写了个 Demo 来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
-<p><em>Reference:</em></p>
-<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-spring/spring_jdbc_and_data" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2022-08-11T07:55:38.000Z"><a href="/2022/08/11/spring/spring_jdbc_and_data/">2022-08-11</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2022/08/11/spring/spring_jdbc_and_data/">Spring提供的对数据(库)访问的几个套路</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>不使用 Spring 框架的情况下，Java 访问 RDBMS 会通过原始的 JDBC 或者借助 MyBatis、Hibernate、Jooq 这些能够进行对象封装的库。<br>MyBatis 在国内挺流行的，在欧美背景的企业里基本没有使用。</p>
-<p>在 Spring 的世界里进行 SQL 数据库访问，基本可分为三种方式：1）Spring JDBC；2）Spring Data JDBC；3）Spring Data JPA。</p>
-<h3 id="1）Spring-JDBC；"><a href="#1）Spring-JDBC；" class="headerlink" title="1）Spring JDBC；"></a>1）Spring JDBC；</h3><p>使用 JdbcTemplate 进行各种数据库操作。对于实体类不用加注任何 annotation。在@Repository 类中通过 jdbcTemplate 操作数据库数据。</p>
-<h3 id="2）Spring-Data-JDBC；"><a href="#2）Spring-Data-JDBC；" class="headerlink" title="2）Spring Data JDBC；"></a>2）Spring Data JDBC；</h3><p>这个就有些领域对象的味道。每个实体类需要定义@Id (org.springframework.data.annotation.Id)字段。<br>定义接口@Repository  继承 CrudRepository&lt;T, R&gt;，在方法上标注@Query 定义查询语句，而无需实现。有 Spring 自动生成实现类，底层就是借助 JdbcTemplate、NamedParameterJdbcTemplate。<br>在 pom 中需导入 spring-data-jdbc，并使用@EnableJdbcRepositories 进行配置。。</p>
-<h3 id="3）Spring-Data-JPA。"><a href="#3）Spring-Data-JPA。" class="headerlink" title="3）Spring Data JPA。"></a>3）Spring Data JPA。</h3><p>Spring Data JPA 内部基于 Hibernate 这样的 ORM 实现，可以看作是 spring 对 JPA 的封装(解决方案)。<br>实体类需要标注@Entity、@Table 定义对应的表，还需要有个@Id（javax.persistence.Id）字段。<br>定义的@Repository 接口中可以通过@Query 标注查询语句之外还可以通过约定的 metho name 自动生成查询。</p>
-<p>对于 NoSQL 数据库，Spring 对不同的数据库提供对应的模块进行支持。对于 MongoDB 来说就是 spring-boot-starter-data-mongodb。</p>
-<h3 id="4）MongoRepository"><a href="#4）MongoRepository" class="headerlink" title="4）MongoRepository"></a>4）MongoRepository</h3><p>实体类上使用标注@Document，属性字段上可使用@Id（org.bson.types.ObjectId），@Indexed，@Field 等。<br>定义的@Repository 接口继承 MongoRepository&lt;T, R&gt;，同 Spring Data JPA 一样：方法名上加@Query 定义查询、也可通过约定的 metho name 自动生成查询。spring 自动生成实现类。</p>
-<h3 id="5）ReactiveMongoRepository"><a href="#5）ReactiveMongoRepository" class="headerlink" title="5）ReactiveMongoRepository"></a>5）ReactiveMongoRepository</h3><p>MongoDB 驱动是支持 reactive 的。Spring 通过 spring-boot-starter-data-mongo-reactive 进行支持。<br>实体类如使用 MongoRepository 一样，通过@Document、@org.bson.types.ObjectId 标识自己。@Repository 接口继承 ReactiveMongoRepository&lt;T, R&gt;即可。这样就可以愉快地使用 Flux、Mono 了。</p>
-<p>上面简单的罗列了一下是 Spring 对数据访问支持的几个方案。没有特殊要求，作为业务开发使用相对高层的 JPA 应该是不错的选择。如果进行响应式编程，根据后台数据服务的不同选用 ReactiveMongoRepository、ReactiveCRUDRepository。</p>
-<h3 id="6）测试-ReactiveMongoRepository"><a href="#6）测试-ReactiveMongoRepository" class="headerlink" title="6）测试 ReactiveMongoRepository"></a>6）测试 ReactiveMongoRepository</h3><p>如果是使用 Junit5，通过 org.junit.jupiter.api.Test 测试，那么只要在测试类上标注@DataMongoTest 即可。<br>如果是基于 Junit4，则需要在测试类上除了@DataMongoTest 还需再标注@RunWith(SpringRunner.class)。<br>@DataMongoTest 的作用是“disable full auto-configuration and instead apply only configuration relevant to MongoDB tests.” 因为对 DAO 这个层面进行测试完全没必要引入类似 WebContext 这样耗能的上下文环境，如下所示即可。</p>
-<pre><code>@DataMongoTest
-public class UserDaoTest &#123;
-
-    @Autowired
-    private ReactiveMongoUserRepository userRepository;
-
-    @Test
-    public void testCreateUser() &#123;
-      ... ...
-</code></pre>
+        <p>项目中遇到多个微服务调用需要考虑和处理某个环节失败时的处理。虽然这里不需要很强的事务概念，但是需要对失败的动作进行重试等操作。这里的重试本质上就是 rollback 的另一种形式，在 saga 里算是“forward recovery”。<br>借机又翻看了一下相关的文章，贴到了文末。</p>
+<h3 id="Saga-vs-TCC"><a href="#Saga-vs-TCC" class="headerlink" title="Saga vs TCC"></a>Saga vs TCC</h3><ol>
+<li>Saga 相比 TCC 的缺点是缺少预留动作，所以某些情况补偿的实现比较麻烦甚至无法撤销只能补救。不过没有预留动作也意味着不必担心资源释放的问题。</li>
+<li>TCC 最少通信次数为 2n，Saga 为 n（n=sub-transaction 的数量）。</li>
+<li>第三方服务没需要提供有 Try 接口。<br>总体感觉下来 SAGA 更适合微服务的多数场景。</li>
+</ol>
+<h3 id="Simple-Saga"><a href="#Simple-Saga" class="headerlink" title="Simple Saga"></a>Simple Saga</h3><p>解决这类问题当然可以直接引入一些已存在的 saga 框架，不过这里存在学习、部署等成本。如果只是小范围的解决问题，或许可以使用下面的形式。<br><img src="/2022/05/19/micro_service/glimpse-of-saga/poc.jpg" alt="示意图"><br>上面示意图针对的场景是：服务的执行都需要较长时间、并且是异步调用。<br>如果各个服务执行时间都不长，一个调用链下来小于几百毫秒，那么直接使用 reactive style 的编码也应该可以。<br>因为各服务执行时间较长，所以不能使用同步调用。这里耗时指的是对于有 UI 的程序至少影响到到 UI 前的用户，如果是后台应用那么至少阻塞的时长影响到系统的资源可用性。<br>即使服务执行时间短，同步调用也会使调用链的 availability 降低，所以微服务的场景下使用异步调用有天然的好处。</p>
+<p>从这个示意图其实可以看作是 Chris 演讲中提到的最最原始的模式。可以把 callback 看作是 saga 事务参与方发送消息到 message broker。而调用链的第一个节点就充当了 saga 的协调者。<br>各个微服务的 updateStatus 端点就是 message 的 listner，只不过这里直接通过 callback 实现而没有利用消息队列。<br>最开始的 endpoint 负责生成一个 transactionId 并依次传递给每个下游服务，每个下游服务通过 callback 把自己的状态更新给上游。</p>
+<ol>
+<li><p>getStatus() 端点提供给 UI 获取当前状态。<br><img src="/2022/05/19/micro_service/glimpse-of-saga/ui_option.png" alt="UI上的状态显示"></p>
+</li>
+<li><p>transCheckAndAmend(trans_n) 每个服务暴露的业务方法都需要提供一个补偿方法。<br><img src="/2022/05/19/micro_service/glimpse-of-saga/tc.png" alt="Compensating transactions"></p>
+</li>
+<li><p>服务的入口方法其实充当了协调者, 更像 orchestration 的，而不是 choreography 的。</p>
+</li>
+<li><p>Timer 是个后台定时器不停的检查服务状态，如果状态不成功就调用 compensating endpoint.</p>
+</li>
+</ol>
+<p><em>Reference:</em><br>[1]: Saga 的经典论文 <a target="_blank" rel="noopener" href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf</a><br>[2]: 《Microservice Pattern》”Chapter4, Managing transactions with sagas”<br>[3]: Chris Richardson 在 2017 年的演讲：<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=YPbGW3Fnmbc">https://www.youtube.com/watch?v=YPbGW3Fnmbc</a></p>
+<p>一些中文网文：<br>[3] 分布式事务：Saga 模式 <a target="_blank" rel="noopener" href="https://www.jianshu.com/p/e4b662407c66">https://www.jianshu.com/p/e4b662407c66</a><br>[4] 七种分布式事务的解决方案 <a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1806989">https://cloud.tencent.com/developer/article/1806989</a><br>[5] 分布式事务六种解决方案 <a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/183753774">https://zhuanlan.zhihu.com/p/183753774</a></p>
 
       
     </div>
@@ -654,6 +460,75 @@ sudo systemctl start systemd-networkd.service
 
 
 
+  <article id="post-devops/nginx-workshop-environment" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-05-18T07:55:38.000Z"><a href="/2021/05/18/devops/nginx-workshop-environment/">2021-05-18</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/05/18/devops/nginx-workshop-environment/">利用docker在本地搭建nginx环境</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>利用 docker 搭建如下拓扑结构的的实验环境。相关代码可以在 <a target="_blank" rel="noopener" href="https://github.com/dhyuan/dockerEnv/tree/main/nginx">https://github.com/dhyuan/dockerEnv/tree/main/nginx</a> 获得。</p>
+<p><img src="/2021/05/18/devops/nginx-workshop-environment/topology.jpg" alt="Topology"></p>
+<h3 id="1-网路"><a href="#1-网路" class="headerlink" title="1) 网路"></a>1) 网路</h3><p>首先创建一个网络’nginx-net’，把所有的相关的容器放在这个网络里以方便容器之间的访问。<br>这个网络地址范围 172.50.0.0/16。相关脚本 createNetwork.sh。</p>
+<pre><code>docker network create --subnet=172.50.0.0/16 nginx-net
+</code></pre>
+<h3 id="2-创建并运行-Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’"><a href="#2-创建并运行-Nginx-容器-‘nginxA’-‘nginxB’-‘nginxC’" class="headerlink" title="2) 创建并运行 Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’."></a>2) 创建并运行 Nginx 容器 ‘nginxA’, ‘nginxB’, ‘nginxC’.</h3><p>并把个容器的 IP 固定下来防止容器重启后 IP 变化以影响日志观察。<br>把相关配置影射到本地方便修改。相关脚本 startNginx.sh。</p>
+<p>下面是配置 nginx 容器 nginxA。</p>
+<pre><code>docker run --name nginxA \
+--network nginx-net --ip 172.50.0.11 \
+-v ~/dockerEnv/nginx/nginxA/html:/usr/share/nginx/html:ro \
+-v ~/dockerEnv/nginx/nginxA/config/conf.d:/etc/nginx/conf.d \
+-v ~/dockerEnv/nginx/nginxA/config/nginx.conf:/etc/nginx/nginx.conf:ro \
+-v ~/dockerEnv/nginx/nginxA/log:/var/log/nginx \
+-p 18080:9090 \
+-d nginx:1.22.0
+</code></pre>
+<p>Nginx 镜像不包含 ping，curl 这样的常用工具，可以自行安装。</p>
+<pre><code>docker exec -it nginxA sh
+apt-get update
+apt-get install iputils-ping curl
+</code></pre>
+<h3 id="3-创建一个容器作为-client"><a href="#3-创建一个容器作为-client" class="headerlink" title="3) 创建一个容器作为 client"></a>3) 创建一个容器作为 client</h3><p>因为 nginx 容器都在自己的网络 nginx-net 里，为了方便测试通过创建一个 Alpine 容器作为客户端环境。Alpine 容器以-it 交互模式运行。</p>
+<pre><code>docker run --name nclient100 --network nginx-net --ip 172.50.0.100 -it alpine:3.16.0
+</code></pre>
+<p>Alpine 镜像没有 curl 命令，可以通过 apk 安装。</p>
+<pre><code>apk add curl
+</code></pre>
+<p>可以在 console 发送 curl 命令进行测试。</p>
+<pre><code>curl http://nginxA:9090/testProxy/index.html
+curl -H &quot;X-FORWARDED-FOR: 12.3.4.5&quot;  http://nginxA:9090/testProxy/index.html
+</code></pre>
+<h3 id="4-Play-around"><a href="#4-Play-around" class="headerlink" title="4) Play around"></a>4) Play around</h3><p>因为 ngix 容器的配置、日志、html 目录都映射到了本地，所以可以本地的这些内容进行测试、验证。<br>可以根据自己的需要修改 nginxA(B|C)/config/confd/9090.conf 里的**”location /testProxy”** 来进行相关 nginx 相关参数的验证。</p>
+<p>查看各容器的 IP，可运行 ./showInfo.sh<br>清除各容器的 nginx 日志，可运行 ./cleanlog.sh<br>修改 nginx 的配置后进行语法检查，可运行 ./testCfg.sh<br>变更了 nginx 的配置使之生效，可运行 ./reload.sh</p>
+<h3 id="5）-Demo"><a href="#5）-Demo" class="headerlink" title="5） Demo"></a>5） Demo</h3><p>下图显示了一个测试获取真实用户 IP 的场景。</p>
+<p>为了查看 HTTP header 里的 X_REAL_IP 字段，在‘log_format main’里加上了 <strong>“ | $http_x_real_ip”</strong> ,这样在 access.log 就就可以看到 nginx 接收到的 HEADER X_REAL_IP 的值。</p>
+<p>从图里 nginxC 的 access.log 中可以看到，nginxC 收到的 X_REAL_IP 是 ngixA 的 IP。如果我们希望这里的 X_REAL_IP 记录的是真正 web client 的 IP 就需要把 nginxB 中的指令 “proxy_set_header X-Real-IP $remote_addr;” 注释掉。这样，ngixC中收到的X_REAL_IP就是 nginxA中看到的$remote_addr，及 ngixA 看到的 client 的 IP 了。</p>
+<p><img src="/2021/05/18/devops/nginx-workshop-environment/Nginx-X-FORWARDED-FOR.drawio.png" alt="X-FORWARDED_FOR_demo"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
   <article id="post-devops/jenkins_maven_allure" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -824,6 +699,296 @@ gitlab/gitlab-ce:13.11.3-ce.0
 
 
 
+  <article id="post-reactive/spring_security_reactive_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">2021-04-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">Spring响应式CSRF相关源码</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>上篇介绍了 CSRF 及 Spring Security 对防范 CSRF 所做的支持。Spring Security 实现了基于 Session 和 Cookie 的 Sychronizer Token Pattern，以防范 CSRF。并且默认是基于 session 的。</p>
+<p>Spring Security 基于 Servlet 和 WebFlux 技术分别进行了实现。<br>其中，基于 Servlet 技术栈的实现代码是：</p>
+<pre><code>CsrfFilter：执行过滤、验证。
+CsrfTokenRepository：存储 csrf token 的接口。
+CookieCsrfTokenRepository： 用 cookie 保存 csrf token
+HttpSessionCsrfTokenRepository：用session 保存csrf token
+CsrfAuthenticationStrategy.onAuthentication() 每次请求生成新 csrf token
+</code></pre>
+<p>基于 WebFlux 技术栈的实现代码没有与 CsrfAuthenticationStrategy 对应的类，而是直接在 CsrfWebFilter.filter()–&gt; continueFilterChain() –&gt; … this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange)) 完成了。</p>
+<p>Filter 和 TokenRepository 都有对应的类，如下：</p>
+<pre><code>CsrfWebFilter
+ServerCsrfTokenRepository
+  CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+</code></pre>
+<p>CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository 的逻辑更直接一些。下面以注释的方式解读一下 CsrfWebFilter 代码。</p>
+<p>除了基本的 fitler，flatMap 这些 operators，可以特别留意以下几个 operators：<br>switchIfEmpty()<br>filterWhen()<br>delayUntil()<br>Mono.defer()</p>
+<pre><code>public class CsrfWebFilter implements WebFilter &#123;
+
+  public static final ServerWebExchangeMatcher DEFAULT_CSRF_MATCHER = new DefaultRequireCsrfProtectionMatcher();
+
+  /**
+  * The attribute name to use when marking a given request as one that should not be
+  * filtered.
+  *
+  * To use, set the attribute on your &#123;@link ServerWebExchange&#125;: &lt;pre&gt;
+  *     CsrfWebFilter.skipExchange(exchange);
+  * &lt;/pre&gt;
+  */
+  private static final String SHOULD_NOT_FILTER = &quot;SHOULD_NOT_FILTER&quot; + CsrfWebFilter.class.getName();
+
+  private ServerWebExchangeMatcher requireCsrfProtectionMatcher = DEFAULT_CSRF_MATCHER;
+
+  // 默认基于Session保存csrf token。
+  private ServerCsrfTokenRepository csrfTokenRepository = new WebSessionServerCsrfTokenRepository();
+
+  private ServerAccessDeniedHandler accessDeniedHandler = new HttpStatusServerAccessDeniedHandler(
+      HttpStatus.FORBIDDEN);
+
+  private boolean isTokenFromMultipartDataEnabled;
+
+  public void setAccessDeniedHandler(ServerAccessDeniedHandler accessDeniedHandler) &#123;
+    Assert.notNull(accessDeniedHandler, &quot;accessDeniedHandler&quot;);
+    this.accessDeniedHandler = accessDeniedHandler;
+  &#125;
+
+  public void setCsrfTokenRepository(ServerCsrfTokenRepository csrfTokenRepository) &#123;
+    Assert.notNull(csrfTokenRepository, &quot;csrfTokenRepository cannot be null&quot;);
+    this.csrfTokenRepository = csrfTokenRepository;
+  &#125;
+
+  /**
+  * 如果我们的应用GET，HEAD，TRACE，OPTIONS 这些方法会改变应用的状态，就需要自定义matcher。
+  * 自定义的matcher可以有更复杂的匹配逻辑，而不仅仅限于DefaultRequireCsrfProtectionMatcher 中所用的request method。
+  * 可参考 DefaultRequireCsrfProtectionMatcher。
+  *
+  * @param requireCsrfProtectionMatcher
+  */
+  public void setRequireCsrfProtectionMatcher(ServerWebExchangeMatcher requireCsrfProtectionMatcher) &#123;
+    Assert.notNull(requireCsrfProtectionMatcher, &quot;requireCsrfProtectionMatcher cannot be null&quot;);
+    this.requireCsrfProtectionMatcher = requireCsrfProtectionMatcher;
+  &#125;
+
+  /**
+  * Specifies if the &#123;@code CsrfWebFilter&#125; should try to resolve the actual CSRF token
+  * from the body of multipart data requests.
+  * @param tokenFromMultipartDataEnabled true if should read from multipart form body,
+  * else false. Default is false
+  */
+  public void setTokenFromMultipartDataEnabled(boolean tokenFromMultipartDataEnabled) &#123;
+    this.isTokenFromMultipartDataEnabled = tokenFromMultipartDataEnabled;
+  &#125;
+
+  @Override
+  public Mono&lt;Void&gt; filter(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    // 如果代码通过调用 CsrfWebFilter.skipExchange(exchange) 设置无需进行CSRF保护，则继续chain的下一个节点。
+    if (Boolean.TRUE.equals(exchange.getAttribute(SHOULD_NOT_FILTER))) &#123;
+      return chain.filter(exchange).then(Mono.empty());
+    &#125;
+
+    return this.requireCsrfProtectionMatcher.matches(exchange) // 根据 requireCsrfProtectionMatcher 进行匹配
+        .filter(MatchResult::isMatch) // 如果需要CSRF保护。
+        // 这里matchResult只是个占位符。过滤出已经设置了CsrfToken的exchange。
+        .filter((matchResult) -&gt; !exchange.getAttributes().containsKey(CsrfToken.class.getName()))
+        // 验证这个csrf token，这个验证逻辑是CSRF的核心。根据csrf token是保存在session还是cookie，逻辑不同。
+        // 详细逻辑参考 ServerCsrfTokenRepository 的两个实现 CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
+        .flatMap((m) -&gt; validateToken(exchange))
+        // 校验文csrf token，继续chain的下个节点处理。
+        .flatMap((m) -&gt; continueFilterChain(exchange, chain))
+        // switchIfEmpty实际是继续.filter(MatchResult::isMatch).filter((matchResult) -&gt; 。。。) 这两个filter之后的情况。
+        .switchIfEmpty(continueFilterChain(exchange, chain).then(Mono.empty()))
+        .onErrorResume(CsrfException.class, (ex) -&gt; this.accessDeniedHandler.handle(exchange, ex));
+  &#125;
+
+  public static void skipExchange(ServerWebExchange exchange) &#123;
+    exchange.getAttributes().put(SHOULD_NOT_FILTER, Boolean.TRUE);
+  &#125;
+
+  private Mono&lt;Void&gt; validateToken(ServerWebExchange exchange) &#123;
+    return this.csrfTokenRepository.loadToken(exchange) // 从session或者cookie中得到csrf token，作为比较基准。
+        // 如果没有找到csrf token则抛出异常没有找到期望的csrf token。（之前版本的错误信息有误 https://github.com/spring-projects/spring-security/commit/a1083d9a5ce3fef8fa458a47e5a6b7a6576ec01e#diff-9c109ef13a33c07de3231051c08e424e664985d142f54ccd7830169d4adcadb1）
+        // 注意这里用的defer而不是just用来避免不必要的对象创建。
+        // switchIfEmpty() 感觉上就是reactive stream里的的if语句：如果是空流，则用另一个publisher。
+        .switchIfEmpty(
+            Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;An expected CSRF token cannot be found&quot;))))
+        /**
+        * 判断用户从页面提交的csrf token和从session/cookie中保存的是否一致。
+        * 注意，这里用了filterWhen而不是filter。表面的原因是containsValidCsrfToken()的返回值是Mono&lt;Boolean&gt;而不是Boolean。
+        * 而更深层的原因应该是CsrfWebFilter不应该是阻塞的，因为这个filter要处理所有的request，所以需要异步地测试、过滤。
+        * 感觉上也有点像flatMap，都是接收Publisher参数。
+        **/
+        .filterWhen((expected) -&gt; containsValidCsrfToken(exchange, expected))
+        // 如果没有找到有效的csrf token，那么就抛出异常。
+        .switchIfEmpty(Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;Invalid CSRF Token&quot;)))).then();
+  &#125;
+
+  private Mono&lt;Boolean&gt; containsValidCsrfToken(ServerWebExchange exchange, CsrfToken expected) &#123;
+    // 先从form里找用户提交的csrf token。
+    return exchange.getFormData().flatMap((data) -&gt; Mono.justOrEmpty(data.getFirst(expected.getParameterName())))
+        // form 表单里没有，就从header里找
+        .switchIfEmpty(Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(expected.getHeaderName())))
+        // 最后从multipart里找
+        .switchIfEmpty(tokenFromMultipartData(exchange, expected))
+        // 如果找到了，则和从session或cookie里得到的csrf token做比较
+        .map((actual) -&gt; equalsConstantTime(actual, expected.getToken()));
+  &#125;
+
+  private Mono&lt;String&gt; tokenFromMultipartData(ServerWebExchange exchange, CsrfToken expected) &#123;
+    if (!this.isTokenFromMultipartDataEnabled) &#123;
+      return Mono.empty();
+    &#125;
+    ServerHttpRequest request = exchange.getRequest();
+    HttpHeaders headers = request.getHeaders();
+    MediaType contentType = headers.getContentType();
+    if (!contentType.includes(MediaType.MULTIPART_FORM_DATA)) &#123;
+      return Mono.empty();
+    &#125;
+    return exchange.getMultipartData().map((d) -&gt; d.getFirst(expected.getParameterName())).cast(FormFieldPart.class)
+        .map(FormFieldPart::value);
+  &#125;
+
+  private Mono&lt;Void&gt; continueFilterChain(ServerWebExchange exchange, WebFilterChain chain) &#123;
+    return Mono.defer(() -&gt; &#123;
+      Mono&lt;CsrfToken&gt; csrfToken = csrfToken(exchange);
+      exchange.getAttributes().put(CsrfToken.class.getName(), csrfToken);
+      return chain.filter(exchange);
+    &#125;);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; csrfToken(ServerWebExchange exchange) &#123;
+    // 如果从repository中找到了csrf token就返回，否则就生成一个token返回。
+    return this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange));
+  &#125;
+
+  /**
+  * Constant time comparison to prevent against timing attacks.
+  * @param expected
+  * @param actual
+  * @return
+  */
+  private static boolean equalsConstantTime(String expected, String actual) &#123;
+    if (expected == actual) &#123;
+      return true;
+    &#125;
+    if (expected == null || actual == null) &#123;
+      return false;
+    &#125;
+    // Encode after ensure that the string is not null
+    byte[] expectedBytes = Utf8.encode(expected);
+    byte[] actualBytes = Utf8.encode(actual);
+    return MessageDigest.isEqual(expectedBytes, actualBytes);
+  &#125;
+
+  private Mono&lt;CsrfToken&gt; generateToken(ServerWebExchange exchange) &#123;
+    // 委托给csrfTokenRepository 产生一个新token。
+    return this.csrfTokenRepository.generateToken(exchange)
+        // 注意这里的delayUntil()用法：直到token保存好之后，上步由csrfTokenRepository产生的Mono&lt;CsrfToken&gt;才继续走流水线。
+        .delayUntil((token) -&gt; this.csrfTokenRepository.saveToken(exchange, token));
+  &#125;
+
+  private static class DefaultRequireCsrfProtectionMatcher implements ServerWebExchangeMatcher &#123;
+
+    // 如果我们应用在保证GET，HEAD，TRACE，OPTIONS等方法不改变系统状态，不需要进行CSRF保护，就可使用这个默认的matcher类。
+    private static final Set&lt;HttpMethod&gt; ALLOWED_METHODS = new HashSet&lt;&gt;(
+        Arrays.asList(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.TRACE, HttpMethod.OPTIONS));
+
+    @Override
+    public Mono&lt;MatchResult&gt; matches(ServerWebExchange exchange) &#123;
+      return Mono.just(exchange.getRequest()) // 从exchagne得到request对象
+          .flatMap((r) -&gt; Mono.justOrEmpty(r.getMethod())) // 得到http request的method。
+          .filter(ALLOWED_METHODS::contains) // 仅保留无需CSRF保护的方法
+          .flatMap((m) -&gt; MatchResult.notMatch()) // 过滤后，有无需CSRF保护的方法则不匹配（无需CSRF保护）。
+          .switchIfEmpty(MatchResult.match()); // 过滤后，没有匹配到方法，则匹配（需CSRF保护）。
+    &#125;
+
+  &#125;
+
+&#125;
+</code></pre>
+<p>Reference：<br><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-reactive/webflux_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/15/reactive/webflux_csrf/">2021-04-15</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/04/15/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>这篇基本上是<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/">Spring Security Reference</a>关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。</p>
+<h3 id="什么是-CSRF"><a href="#什么是-CSRF" class="headerlink" title="什么是 CSRF"></a>什么是 CSRF</h3><p>跨站请求伪造。经典场景是：</p>
+<h5 id="1）受害者首先登录了银行网站"><a href="#1）受害者首先登录了银行网站" class="headerlink" title="1）受害者首先登录了银行网站"></a>1）受害者首先登录了银行网站</h5><h5 id="2）用户没有-longout-的情况下"><a href="#2）用户没有-longout-的情况下" class="headerlink" title="2）用户没有 longout 的情况下"></a>2）用户没有 longout 的情况下</h5><h5 id="3）用同一个浏览器访问了“坏”网站"><a href="#3）用同一个浏览器访问了“坏”网站" class="headerlink" title="3）用同一个浏览器访问了“坏”网站"></a>3）用同一个浏览器访问了“坏”网站</h5><h5 id="4）“坏”网站有一个向银行网站提交业务请求的页面"><a href="#4）“坏”网站有一个向银行网站提交业务请求的页面" class="headerlink" title="4）“坏”网站有一个向银行网站提交业务请求的页面"></a>4）“坏”网站有一个向银行网站提交业务请求的页面</h5><h5 id="5）诱使用户发送这个请求。"><a href="#5）诱使用户发送这个请求。" class="headerlink" title="5）诱使用户发送这个请求。"></a>5）诱使用户发送这个请求。</h5><p>实际上利用有 XSS 漏洞，完全可以无需受害者参与利用 javascript 而自动触发第 4 第 5 步。</p>
+<h4 id="这个场景背后有些逻辑："><a href="#这个场景背后有些逻辑：" class="headerlink" title="这个场景背后有些逻辑："></a><strong>这个场景背后有些逻辑：</strong></h4><p>这里我们把浏览器等同于用户，有些数据是用户自己可见的，有些数据是浏览器自动处理、发送而用户对这些数据是无感知的（比如 SessionId）。<br>银行网站以 cookie 的形式把 sessionId 发送给浏览器（set-cookie），浏览器每次请求都会再自动带上 cookie（cookie）。<br>上面场景第 5 步虽然“坏”表单不是源于银行网站页面而是在第三方网站的页面上，但是<strong>浏览器</strong>发现目标地址是银行网站，因此会自动带上响应的 cookie，比如 JSESSION 就会随带着被发送了。从服务器的角度看，来自第 4 步的数据与正常数据没有任何差别，因为这个业务请求便会被执行。</p>
+<p>归根结底，这种 CSRF 的问题是 cookie 和浏览器工作方式引起的。</p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>一个是主流的“Synchronizer Token Pattern”方法，另一个是渐成主流的“SameSite Attribute”。</p>
+<p>因为<strong>SameSite Attribute</strong>的方式实施和理解比较容易，我们先说。<br>服务端利用 cookie 的 SameSite 属性可以禁止浏览器从外部站点发送请求时带上 cookie。比如下面的 cookie 就不会被放在由在第三方网页发起而目标是银行网站的请求上。这就自然解决了上面的 CSRF 的问题。</p>
+<pre><code>Set-Cookie: JSESSIONID=randomid; Domain=bank.example.com; Secure; HttpOnly; SameSite=Lax
+</code></pre>
+<p><strong>Synchronizer Token Pattern</strong><br>这个解决办法的原理是对来自浏览器的请求我们都回送一个随机数，下次浏览器再请求业务时需要在 header 里或者表单里带上这个随机数。这个随机数就是 csrf token。<br>这个办法之所以能防范 CSRF，是因为 sessionId 来自 cookie，而 csrf token 来自 header 或者 form。相当于分别在两条不同的路径上传递。</p>
+<p>Spring Security 模块生成 csrf token 后可放在两个地方。Spring 默认的，随机数与 sessionId 关联，放在 session 里。另一个方式：随机数放在 cookie 里。</p>
+<h3 id="基于-Session-保存-csrf-token"><a href="#基于-Session-保存-csrf-token" class="headerlink" title="基于 Session 保存 csrf token"></a>基于 Session 保存 csrf token</h3><p>与 session 关联比较容易理解，下次浏览器发送请求过来，服务端就可以从 header 或 form 里取出来的 csrf token 与 session 中的随机数相比较来进行判断。</p>
+<h3 id="基于-Cookie-保存-csrf-token"><a href="#基于-Cookie-保存-csrf-token" class="headerlink" title="基于 Cookie 保存 csrf token"></a>基于 Cookie 保存 csrf token</h3><p>通过 cookie 保存 csrf 是怎么回事呢？如果 csrf token 通过 cookie 发送给浏览器，那这个随机数不就跟 JSESSIONID 一样了会被浏览器自动传回到服务器了吗？<br>是的，这个 csrf 会被浏览器传回给服务器，我们也正是利用这一点“保存”了 csrf token。之所以使用基于 cookie 的方式，是因为要针对前后端分离的情形让前端可以使用 javascript 获得 csrf token，并把这个 token 作为下次请求的 header 参数或者 form 参数传递给服务端。服务端所要做的就是对比来自 cookie 的 csrf token 和来自 header/form 里的 csrftoken 来做出判断。</p>
+<p>下面代码设置使用 cookie 保存，注意使用 cookie 传递 token 需要把 cookie 的 HttpOnly 属性设置为 false，以便让 javascript 能读到此值。</p>
+<pre><code>@EnableWebSecurity
+public class WebSecurityConfig extends
+        WebSecurityConfigurerAdapter &#123;
+
+    @Override
+    protected void configure(HttpSecurity http) &#123;
+        http
+            .csrf(csrf -&gt; csrf
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            );
+    &#125;
+&#125;
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -904,7 +1069,7 @@ gitlab/gitlab-ce:13.11.3-ce.0
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">9</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/05/">五月 2022</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">九月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

@@ -45,296 +45,6 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-reactive/spring_security_reactive_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">2021-04-17</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">Spring响应式CSRF相关源码</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>上篇介绍了 CSRF 及 Spring Security 对防范 CSRF 所做的支持。Spring Security 实现了基于 Session 和 Cookie 的 Sychronizer Token Pattern，以防范 CSRF。并且默认是基于 session 的。</p>
-<p>Spring Security 基于 Servlet 和 WebFlux 技术分别进行了实现。<br>其中，基于 Servlet 技术栈的实现代码是：</p>
-<pre><code>CsrfFilter：执行过滤、验证。
-CsrfTokenRepository：存储 csrf token 的接口。
-CookieCsrfTokenRepository： 用 cookie 保存 csrf token
-HttpSessionCsrfTokenRepository：用session 保存csrf token
-CsrfAuthenticationStrategy.onAuthentication() 每次请求生成新 csrf token
-</code></pre>
-<p>基于 WebFlux 技术栈的实现代码没有与 CsrfAuthenticationStrategy 对应的类，而是直接在 CsrfWebFilter.filter()–&gt; continueFilterChain() –&gt; … this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange)) 完成了。</p>
-<p>Filter 和 TokenRepository 都有对应的类，如下：</p>
-<pre><code>CsrfWebFilter
-ServerCsrfTokenRepository
-  CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
-</code></pre>
-<p>CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository 的逻辑更直接一些。下面以注释的方式解读一下 CsrfWebFilter 代码。</p>
-<p>除了基本的 fitler，flatMap 这些 operators，可以特别留意以下几个 operators：<br>switchIfEmpty()<br>filterWhen()<br>delayUntil()<br>Mono.defer()</p>
-<pre><code>public class CsrfWebFilter implements WebFilter &#123;
-
-  public static final ServerWebExchangeMatcher DEFAULT_CSRF_MATCHER = new DefaultRequireCsrfProtectionMatcher();
-
-  /**
-  * The attribute name to use when marking a given request as one that should not be
-  * filtered.
-  *
-  * To use, set the attribute on your &#123;@link ServerWebExchange&#125;: &lt;pre&gt;
-  *     CsrfWebFilter.skipExchange(exchange);
-  * &lt;/pre&gt;
-  */
-  private static final String SHOULD_NOT_FILTER = &quot;SHOULD_NOT_FILTER&quot; + CsrfWebFilter.class.getName();
-
-  private ServerWebExchangeMatcher requireCsrfProtectionMatcher = DEFAULT_CSRF_MATCHER;
-
-  // 默认基于Session保存csrf token。
-  private ServerCsrfTokenRepository csrfTokenRepository = new WebSessionServerCsrfTokenRepository();
-
-  private ServerAccessDeniedHandler accessDeniedHandler = new HttpStatusServerAccessDeniedHandler(
-      HttpStatus.FORBIDDEN);
-
-  private boolean isTokenFromMultipartDataEnabled;
-
-  public void setAccessDeniedHandler(ServerAccessDeniedHandler accessDeniedHandler) &#123;
-    Assert.notNull(accessDeniedHandler, &quot;accessDeniedHandler&quot;);
-    this.accessDeniedHandler = accessDeniedHandler;
-  &#125;
-
-  public void setCsrfTokenRepository(ServerCsrfTokenRepository csrfTokenRepository) &#123;
-    Assert.notNull(csrfTokenRepository, &quot;csrfTokenRepository cannot be null&quot;);
-    this.csrfTokenRepository = csrfTokenRepository;
-  &#125;
-
-  /**
-  * 如果我们的应用GET，HEAD，TRACE，OPTIONS 这些方法会改变应用的状态，就需要自定义matcher。
-  * 自定义的matcher可以有更复杂的匹配逻辑，而不仅仅限于DefaultRequireCsrfProtectionMatcher 中所用的request method。
-  * 可参考 DefaultRequireCsrfProtectionMatcher。
-  *
-  * @param requireCsrfProtectionMatcher
-  */
-  public void setRequireCsrfProtectionMatcher(ServerWebExchangeMatcher requireCsrfProtectionMatcher) &#123;
-    Assert.notNull(requireCsrfProtectionMatcher, &quot;requireCsrfProtectionMatcher cannot be null&quot;);
-    this.requireCsrfProtectionMatcher = requireCsrfProtectionMatcher;
-  &#125;
-
-  /**
-  * Specifies if the &#123;@code CsrfWebFilter&#125; should try to resolve the actual CSRF token
-  * from the body of multipart data requests.
-  * @param tokenFromMultipartDataEnabled true if should read from multipart form body,
-  * else false. Default is false
-  */
-  public void setTokenFromMultipartDataEnabled(boolean tokenFromMultipartDataEnabled) &#123;
-    this.isTokenFromMultipartDataEnabled = tokenFromMultipartDataEnabled;
-  &#125;
-
-  @Override
-  public Mono&lt;Void&gt; filter(ServerWebExchange exchange, WebFilterChain chain) &#123;
-    // 如果代码通过调用 CsrfWebFilter.skipExchange(exchange) 设置无需进行CSRF保护，则继续chain的下一个节点。
-    if (Boolean.TRUE.equals(exchange.getAttribute(SHOULD_NOT_FILTER))) &#123;
-      return chain.filter(exchange).then(Mono.empty());
-    &#125;
-
-    return this.requireCsrfProtectionMatcher.matches(exchange) // 根据 requireCsrfProtectionMatcher 进行匹配
-        .filter(MatchResult::isMatch) // 如果需要CSRF保护。
-        // 这里matchResult只是个占位符。过滤出已经设置了CsrfToken的exchange。
-        .filter((matchResult) -&gt; !exchange.getAttributes().containsKey(CsrfToken.class.getName()))
-        // 验证这个csrf token，这个验证逻辑是CSRF的核心。根据csrf token是保存在session还是cookie，逻辑不同。
-        // 详细逻辑参考 ServerCsrfTokenRepository 的两个实现 CookieServerCsrfTokenRepository WebSessionServerCsrfTokenRepository
-        .flatMap((m) -&gt; validateToken(exchange))
-        // 校验文csrf token，继续chain的下个节点处理。
-        .flatMap((m) -&gt; continueFilterChain(exchange, chain))
-        // switchIfEmpty实际是继续.filter(MatchResult::isMatch).filter((matchResult) -&gt; 。。。) 这两个filter之后的情况。
-        .switchIfEmpty(continueFilterChain(exchange, chain).then(Mono.empty()))
-        .onErrorResume(CsrfException.class, (ex) -&gt; this.accessDeniedHandler.handle(exchange, ex));
-  &#125;
-
-  public static void skipExchange(ServerWebExchange exchange) &#123;
-    exchange.getAttributes().put(SHOULD_NOT_FILTER, Boolean.TRUE);
-  &#125;
-
-  private Mono&lt;Void&gt; validateToken(ServerWebExchange exchange) &#123;
-    return this.csrfTokenRepository.loadToken(exchange) // 从session或者cookie中得到csrf token，作为比较基准。
-        // 如果没有找到csrf token则抛出异常没有找到期望的csrf token。（之前版本的错误信息有误 https://github.com/spring-projects/spring-security/commit/a1083d9a5ce3fef8fa458a47e5a6b7a6576ec01e#diff-9c109ef13a33c07de3231051c08e424e664985d142f54ccd7830169d4adcadb1）
-        // 注意这里用的defer而不是just用来避免不必要的对象创建。
-        // switchIfEmpty() 感觉上就是reactive stream里的的if语句：如果是空流，则用另一个publisher。
-        .switchIfEmpty(
-            Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;An expected CSRF token cannot be found&quot;))))
-        /**
-        * 判断用户从页面提交的csrf token和从session/cookie中保存的是否一致。
-        * 注意，这里用了filterWhen而不是filter。表面的原因是containsValidCsrfToken()的返回值是Mono&lt;Boolean&gt;而不是Boolean。
-        * 而更深层的原因应该是CsrfWebFilter不应该是阻塞的，因为这个filter要处理所有的request，所以需要异步地测试、过滤。
-        * 感觉上也有点像flatMap，都是接收Publisher参数。
-        **/
-        .filterWhen((expected) -&gt; containsValidCsrfToken(exchange, expected))
-        // 如果没有找到有效的csrf token，那么就抛出异常。
-        .switchIfEmpty(Mono.defer(() -&gt; Mono.error(new CsrfException(&quot;Invalid CSRF Token&quot;)))).then();
-  &#125;
-
-  private Mono&lt;Boolean&gt; containsValidCsrfToken(ServerWebExchange exchange, CsrfToken expected) &#123;
-    // 先从form里找用户提交的csrf token。
-    return exchange.getFormData().flatMap((data) -&gt; Mono.justOrEmpty(data.getFirst(expected.getParameterName())))
-        // form 表单里没有，就从header里找
-        .switchIfEmpty(Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(expected.getHeaderName())))
-        // 最后从multipart里找
-        .switchIfEmpty(tokenFromMultipartData(exchange, expected))
-        // 如果找到了，则和从session或cookie里得到的csrf token做比较
-        .map((actual) -&gt; equalsConstantTime(actual, expected.getToken()));
-  &#125;
-
-  private Mono&lt;String&gt; tokenFromMultipartData(ServerWebExchange exchange, CsrfToken expected) &#123;
-    if (!this.isTokenFromMultipartDataEnabled) &#123;
-      return Mono.empty();
-    &#125;
-    ServerHttpRequest request = exchange.getRequest();
-    HttpHeaders headers = request.getHeaders();
-    MediaType contentType = headers.getContentType();
-    if (!contentType.includes(MediaType.MULTIPART_FORM_DATA)) &#123;
-      return Mono.empty();
-    &#125;
-    return exchange.getMultipartData().map((d) -&gt; d.getFirst(expected.getParameterName())).cast(FormFieldPart.class)
-        .map(FormFieldPart::value);
-  &#125;
-
-  private Mono&lt;Void&gt; continueFilterChain(ServerWebExchange exchange, WebFilterChain chain) &#123;
-    return Mono.defer(() -&gt; &#123;
-      Mono&lt;CsrfToken&gt; csrfToken = csrfToken(exchange);
-      exchange.getAttributes().put(CsrfToken.class.getName(), csrfToken);
-      return chain.filter(exchange);
-    &#125;);
-  &#125;
-
-  private Mono&lt;CsrfToken&gt; csrfToken(ServerWebExchange exchange) &#123;
-    // 如果从repository中找到了csrf token就返回，否则就生成一个token返回。
-    return this.csrfTokenRepository.loadToken(exchange).switchIfEmpty(generateToken(exchange));
-  &#125;
-
-  /**
-  * Constant time comparison to prevent against timing attacks.
-  * @param expected
-  * @param actual
-  * @return
-  */
-  private static boolean equalsConstantTime(String expected, String actual) &#123;
-    if (expected == actual) &#123;
-      return true;
-    &#125;
-    if (expected == null || actual == null) &#123;
-      return false;
-    &#125;
-    // Encode after ensure that the string is not null
-    byte[] expectedBytes = Utf8.encode(expected);
-    byte[] actualBytes = Utf8.encode(actual);
-    return MessageDigest.isEqual(expectedBytes, actualBytes);
-  &#125;
-
-  private Mono&lt;CsrfToken&gt; generateToken(ServerWebExchange exchange) &#123;
-    // 委托给csrfTokenRepository 产生一个新token。
-    return this.csrfTokenRepository.generateToken(exchange)
-        // 注意这里的delayUntil()用法：直到token保存好之后，上步由csrfTokenRepository产生的Mono&lt;CsrfToken&gt;才继续走流水线。
-        .delayUntil((token) -&gt; this.csrfTokenRepository.saveToken(exchange, token));
-  &#125;
-
-  private static class DefaultRequireCsrfProtectionMatcher implements ServerWebExchangeMatcher &#123;
-
-    // 如果我们应用在保证GET，HEAD，TRACE，OPTIONS等方法不改变系统状态，不需要进行CSRF保护，就可使用这个默认的matcher类。
-    private static final Set&lt;HttpMethod&gt; ALLOWED_METHODS = new HashSet&lt;&gt;(
-        Arrays.asList(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.TRACE, HttpMethod.OPTIONS));
-
-    @Override
-    public Mono&lt;MatchResult&gt; matches(ServerWebExchange exchange) &#123;
-      return Mono.just(exchange.getRequest()) // 从exchagne得到request对象
-          .flatMap((r) -&gt; Mono.justOrEmpty(r.getMethod())) // 得到http request的method。
-          .filter(ALLOWED_METHODS::contains) // 仅保留无需CSRF保护的方法
-          .flatMap((m) -&gt; MatchResult.notMatch()) // 过滤后，有无需CSRF保护的方法则不匹配（无需CSRF保护）。
-          .switchIfEmpty(MatchResult.match()); // 过滤后，没有匹配到方法，则匹配（需CSRF保护）。
-    &#125;
-
-  &#125;
-
-&#125;
-</code></pre>
-<p>Reference：<br><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf">https://docs.spring.io/spring-security/site/docs/5.4.5/reference/html5/#csrf</a></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
-  <article id="post-reactive/webflux_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/15/reactive/webflux_csrf/">2021-04-15</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/04/15/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>这篇基本上是<a target="_blank" rel="noopener" href="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/">Spring Security Reference</a>关于 CSRF 部分的一个笔记，只是记录一下核心逻辑。其它很多细节还是要参考官方文档。</p>
-<h3 id="什么是-CSRF"><a href="#什么是-CSRF" class="headerlink" title="什么是 CSRF"></a>什么是 CSRF</h3><p>跨站请求伪造。经典场景是：</p>
-<h5 id="1）受害者首先登录了银行网站"><a href="#1）受害者首先登录了银行网站" class="headerlink" title="1）受害者首先登录了银行网站"></a>1）受害者首先登录了银行网站</h5><h5 id="2）用户没有-longout-的情况下"><a href="#2）用户没有-longout-的情况下" class="headerlink" title="2）用户没有 longout 的情况下"></a>2）用户没有 longout 的情况下</h5><h5 id="3）用同一个浏览器访问了“坏”网站"><a href="#3）用同一个浏览器访问了“坏”网站" class="headerlink" title="3）用同一个浏览器访问了“坏”网站"></a>3）用同一个浏览器访问了“坏”网站</h5><h5 id="4）“坏”网站有一个向银行网站提交业务请求的页面"><a href="#4）“坏”网站有一个向银行网站提交业务请求的页面" class="headerlink" title="4）“坏”网站有一个向银行网站提交业务请求的页面"></a>4）“坏”网站有一个向银行网站提交业务请求的页面</h5><h5 id="5）诱使用户发送这个请求。"><a href="#5）诱使用户发送这个请求。" class="headerlink" title="5）诱使用户发送这个请求。"></a>5）诱使用户发送这个请求。</h5><p>实际上利用有 XSS 漏洞，完全可以无需受害者参与利用 javascript 而自动触发第 4 第 5 步。</p>
-<h4 id="这个场景背后有些逻辑："><a href="#这个场景背后有些逻辑：" class="headerlink" title="这个场景背后有些逻辑："></a><strong>这个场景背后有些逻辑：</strong></h4><p>这里我们把浏览器等同于用户，有些数据是用户自己可见的，有些数据是浏览器自动处理、发送而用户对这些数据是无感知的（比如 SessionId）。<br>银行网站以 cookie 的形式把 sessionId 发送给浏览器（set-cookie），浏览器每次请求都会再自动带上 cookie（cookie）。<br>上面场景第 5 步虽然“坏”表单不是源于银行网站页面而是在第三方网站的页面上，但是<strong>浏览器</strong>发现目标地址是银行网站，因此会自动带上响应的 cookie，比如 JSESSION 就会随带着被发送了。从服务器的角度看，来自第 4 步的数据与正常数据没有任何差别，因为这个业务请求便会被执行。</p>
-<p>归根结底，这种 CSRF 的问题是 cookie 和浏览器工作方式引起的。</p>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>一个是主流的“Synchronizer Token Pattern”方法，另一个是渐成主流的“SameSite Attribute”。</p>
-<p>因为<strong>SameSite Attribute</strong>的方式实施和理解比较容易，我们先说。<br>服务端利用 cookie 的 SameSite 属性可以禁止浏览器从外部站点发送请求时带上 cookie。比如下面的 cookie 就不会被放在由在第三方网页发起而目标是银行网站的请求上。这就自然解决了上面的 CSRF 的问题。</p>
-<pre><code>Set-Cookie: JSESSIONID=randomid; Domain=bank.example.com; Secure; HttpOnly; SameSite=Lax
-</code></pre>
-<p><strong>Synchronizer Token Pattern</strong><br>这个解决办法的原理是对来自浏览器的请求我们都回送一个随机数，下次浏览器再请求业务时需要在 header 里或者表单里带上这个随机数。这个随机数就是 csrf token。<br>这个办法之所以能防范 CSRF，是因为 sessionId 来自 cookie，而 csrf token 来自 header 或者 form。相当于分别在两条不同的路径上传递。</p>
-<p>Spring Security 模块生成 csrf token 后可放在两个地方。Spring 默认的，随机数与 sessionId 关联，放在 session 里。另一个方式：随机数放在 cookie 里。</p>
-<h3 id="基于-Session-保存-csrf-token"><a href="#基于-Session-保存-csrf-token" class="headerlink" title="基于 Session 保存 csrf token"></a>基于 Session 保存 csrf token</h3><p>与 session 关联比较容易理解，下次浏览器发送请求过来，服务端就可以从 header 或 form 里取出来的 csrf token 与 session 中的随机数相比较来进行判断。</p>
-<h3 id="基于-Cookie-保存-csrf-token"><a href="#基于-Cookie-保存-csrf-token" class="headerlink" title="基于 Cookie 保存 csrf token"></a>基于 Cookie 保存 csrf token</h3><p>通过 cookie 保存 csrf 是怎么回事呢？如果 csrf token 通过 cookie 发送给浏览器，那这个随机数不就跟 JSESSIONID 一样了会被浏览器自动传回到服务器了吗？<br>是的，这个 csrf 会被浏览器传回给服务器，我们也正是利用这一点“保存”了 csrf token。之所以使用基于 cookie 的方式，是因为要针对前后端分离的情形让前端可以使用 javascript 获得 csrf token，并把这个 token 作为下次请求的 header 参数或者 form 参数传递给服务端。服务端所要做的就是对比来自 cookie 的 csrf token 和来自 header/form 里的 csrftoken 来做出判断。</p>
-<p>下面代码设置使用 cookie 保存，注意使用 cookie 传递 token 需要把 cookie 的 HttpOnly 属性设置为 false，以便让 javascript 能读到此值。</p>
-<pre><code>@EnableWebSecurity
-public class WebSecurityConfig extends
-        WebSecurityConfigurerAdapter &#123;
-
-    @Override
-    protected void configure(HttpSecurity http) &#123;
-        http
-            .csrf(csrf -&gt; csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-            );
-    &#125;
-&#125;
-</code></pre>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-reactive/reactive_stream_lifecycle" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -958,6 +668,225 @@ docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-D
 
 
 
+  <article id="post-devops/use_aliyun_ubuntu_apt_source" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T12:09:35.000Z"><a href="/2021/03/06/devops/use_aliyun_ubuntu_apt_source/">2021-03-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/06/devops/use_aliyun_ubuntu_apt_source/">设置Ubuntu Guest使用aliyun apt镜像源</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>本文记录如何更改 disk-create.yml 来让 Ubunt Guest 使用阿里云镜像作为 apt source。最终的命令形式如下：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true
+</code></pre>
+<p>通过在命令行里设置参数 change_to_ali_ubuntu_source=yes 来创建虚拟机的时候进行 ali ubunt apt source 的设置。</p>
+<p>1）禁止使用 could init 设置默认的 apt sources</p>
+<pre><code>- name: Do not use cloud source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &quot;echo &#39;apt_preserve_sources_list: true&#39; &gt;&gt; /etc/cloud/cloud.cfg&quot;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>2）使用 aliyun 的 ubuntu apt source 镜像。</p>
+<pre><code>- name: Setup Aliyun Source
+  command: &gt;
+    virt-customize
+    -a &#123;&#123; hostvars[groups['kvmhost'][0]].virt_infra_host_image_path | default(virt_infra_host_image_path) &#125;&#125;/&#123;&#123; inventory_hostname &#125;&#125;-boot.qcow2
+    --run-command &#39;mv /etc/apt/sources.list /etc/apt/sources.list.bak&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs) main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-backports main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-proposed main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-security main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+    --run-command &#39;echo &quot;deb-src http://mirrors.aliyun.com/ubuntu/ $(lsb_release -cs)-updates main multiverse restricted universe&quot; &gt;&gt; /etc/apt/sources.list&#39;
+  register: result_disk_cmd
+  retries: 2
+  delay: 2
+  until: result_disk_cmd is succeeded
+  become: true
+  when:
+    - inventory_hostname not in groups[&#39;kvmhost&#39;]
+    - inventory_hostname not in hostvars[groups[&#39;kvmhost&#39;][0]].result_all_vms.list_vms
+    - virt_infra_state != &quot;undefined&quot;
+    - change_to_ali_ubuntu_source is defined and change_to_ali_ubuntu_source
+  delegate_to: &quot;&#123;&#123; groups['kvmhost'][0] &#125;&#125;&quot;
+</code></pre>
+<p>3）删除已存在的 Guest 并重新创建。这个虚拟使用 Ali 源并跟随宿主机启动时自动启动。</p>
+<pre><code>[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars virt_infra_state=undefined
+[devops@localhost virt-infra-ansible]$ ansible-playbook ./virt-infra.yml --limit kvmhost,ubuntu20Server --extra-vars change_to_ali_ubuntu_source=true --extra-vars virt_infra_autostart=yes
+</code></pre>
+<ol start="4">
+<li><p>安装 Docker 环境</p>
+<p>[devops@localhost virt-infra-ansible]$ ansible-playbook ./install_docker.yml –limit ubuntu20Server -vv –extra-vars docker_version=5:20.10.4<del>3-0</del>ubuntu-focal</p>
+</li>
+</ol>
+<p>参考：</p>
+<p>关于 virt-customize 命令<br><a target="_blank" rel="noopener" href="https://libguestfs.org/virt-customize.1.html">https://libguestfs.org/virt-customize.1.html</a><br> <a target="_blank" rel="noopener" href="https://ywnz.com/linuxjc/5680.html">https://ywnz.com/linuxjc/5680.html</a></p>
+<p>关于 Ansible yaml 中 command<br><a target="_blank" rel="noopener" href="https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html">https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
+  <article id="post-devops/add_an_devServer_in_kvm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-02-27T10:18:01.000Z"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">2021-02-27</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/02/27/devops/add_an_devServer_in_kvm/">在基于KVM的环境中添加一组开发服务器</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>好久没动 K8S，DevOps，准备折腾个 devops 的环境。考虑到 CentOS 未来的命运，这里使用 Ubuntu 20. 先在 KVM Host 上下载 ubuntu 并 copy 到目录/var/lib/libvirt/images/。</p>
+<h3 id="在-KVM-HOST-上准备-Ubuntu20-的镜像"><a href="#在-KVM-HOST-上准备-Ubuntu20-的镜像" class="headerlink" title="在 KVM HOST 上准备 Ubuntu20 的镜像"></a>在 KVM HOST 上准备 Ubuntu20 的镜像</h3><pre><code>curl -O http://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+mv -iv focal-server-cloudimg-amd64.img /var/lib/libvirt/images/
+</code></pre>
+<h3 id="在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。"><a href="#在文件-virt-infra-ansible-inventory-devopServers-yml-中定义待创建的-devop-servers-虚拟机参数。" class="headerlink" title="在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。"></a>在文件 virt-infra-ansible/inventory/devopServers.yml 中定义待创建的 devop servers 虚拟机参数。</h3><p>进入目录 virt-infra-ansible/inventory，创建文件</p>
+<p>参考：<a href="https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/">https://dhyuan.github.io/2020/09/28/devops/create_k8s_by_kubeadm/</a> 。对，本文就是在这个环境的基础上再添加 4 个与 degvops 相关的服务器。其中 repositoryServer 用于安装 Nexus、Harbor、GitLab 等。devopsServer0-2 用于其它 devops 相关服务。<br>需注意的是 focal 的 python 版本是 3，所以设置 /usr/bin/python3，考虑到 repositoryServer 的用途，其磁盘容量设为 500G。<br>… virt-infra-ansible/inventory/devopServers.yml，内容如下：</p>
+<pre><code>devopServers:
+    hosts:
+        repositoryServer:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_size: 500
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+        devopsServer[0:2]:
+        virt_infra_state: running
+        virt_infra_distro: ubuntu
+        virt_infra_distro_image: focal-server-cloudimg-amd64.img
+        ansible_python_interpreter: /usr/bin/python3
+        virt_infra_timezone: &quot;Asia/Shanghai&quot;
+        virt_infra_disk_cmd:
+            - apt update
+            - apt install -y net-tools
+            - apt install -y lsb
+            - useradd -m devops
+            - echo &quot;devops:password&quot;| chpasswd
+    vars:
+        virt_infra_root_password: password
+        virt_infra_disk_size: 80
+        virt_infra_ram: 4094
+        virt_infra_ram_max: 8192
+        virt_infra_cpus: 4
+        virt_infra_cpus_max: 8
+        virt_infra_state: running
+        virt_infra_networks:
+        - name: br0
+            type: bridge
+</code></pre>
+<h3 id="一键创建-devop-servers-虚拟机"><a href="#一键创建-devop-servers-虚拟机" class="headerlink" title="一键创建 devop servers 虚拟机"></a>一键创建 devop servers 虚拟机</h3><pre><code>cd virt-infra-ansible
+ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers
+</code></pre>
+<h4 id="如果出现问题，可删除刚才创建的-guest-虚拟机"><a href="#如果出现问题，可删除刚才创建的-guest-虚拟机" class="headerlink" title="如果出现问题，可删除刚才创建的 guest 虚拟机"></a>如果出现问题，可删除刚才创建的 guest 虚拟机</h4><p>通过使用参数 –extra-vars virt_infra_state=undefined 来删除。比如：</p>
+<pre><code>ansible-playbook ./virt-infra.yml --limit kvmhost,devopServers --extra-vars virt_infra_state=undefined
+</code></pre>
+<h3 id="一键在-devop-servers-节点上安装-docker"><a href="#一键在-devop-servers-节点上安装-docker" class="headerlink" title="一键在 devop servers 节点上安装 docker"></a>一键在 devop servers 节点上安装 docker</h3><p>在 Ubuntu 环境中安装 docker，<br>1）添加 Docker 的阿里云源。<br>在文件 ansible-role-docker-ce/tasks/setup-repository-Ubuntu.yml 尾部设置 aliyun source。</p>
+<pre><code>- name: Add Aliyun Docker official GPG key
+become: true
+apt_key:
+url: http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
+state: present
+register: \_pkg_result
+until: \_pkg_result is succeeded
+when:
+
+- docker_network_access | bool
+- (\_docker_os_dist == &quot;Ubuntu&quot; and \_docker_os_dist_major_version | int &gt; 14) or
+    (\_docker_os_dist == &quot;Debian&quot; and \_docker_os_dist_major_version | int &gt; 7)
+
+- name: Add Aliyun Docker CE repository with correct channels (Ubuntu/Debian)
+become: true
+lineinfile:
+path: /etc/apt/sources.list.d/docker-ce.list
+line: &quot;deb [arch=&#123;&#123; _docker_os_arch|lower &#125;&#125;] http://mirrors.aliyun.com/docker-ce/linux/&#123;&#123; \_docker_os_dist|lower &#125;&#125; &#123;&#123; ansible_lsb.codename &#125;&#125; stable&quot;
+insertbefore: BOF
+</code></pre>
+<p>2）找到适合自己 Ubuntu 版本的 Docker 版本。<br>可用命令 apt-cache madison docker-ce 查看。</p>
+<pre><code>root@basehost0:~# apt-cache madison docker-ce
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.4~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.3~3-0~ubuntu-focal | https://download.docker.com/linux/ubuntu focal/stable amd64 Packages
+docker-ce | 5:20.10.2~3-0~ubuntu-focal | http://mirrors.aliyun.com/docker-ce/linux/ubuntu focal/stable amd64 Packages
+。。。 。。。
+</code></pre>
+<p>3）在 Ubuntu Guest 上安装 Docker。<br>因为 virt-infra-ansible/install_docker.yml 中 docker 版本默认为 19.03.8，并不适用于 Ubuntu20 的环境。<br>可以通过在命令行指定参数 docker_version 来安装，如下：</p>
+<pre><code>    ansible-playbook ./install_docker.yml --limit devopServers -vv --extra-vars docker_version=5:20.10.4~3-0~ubuntu-focal
+</code></pre>
+<p>之前 CentOS7 Guest 上安装 Docker 的命令：</p>
+<pre><code>ansible-playbook ./install_docker.yml \
+--limit devopServers -v \
+-e &#39;&#123;&quot;docker_repository_url&quot;: &#123;&quot;Ubuntu focal&quot;: &quot; http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable&quot; &#125;&#125;&#39;
+</code></pre>
+<p>登录到一台 Ubuntu Guest 机器，查看已安装的 Docker 版本以确认成功。</p>
+<pre><code>root@basehost0:~# docker -v
+Docker version 20.10.4, build d3cb89e
+</code></pre>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -1038,7 +967,7 @@ docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-D
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/05/">五月 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">9</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/05/">五月 2022</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/09/">九月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 
