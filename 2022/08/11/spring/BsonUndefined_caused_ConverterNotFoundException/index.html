@@ -1,0 +1,254 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="因为 MongoDB 数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下 exception
+
+org.springframework.core.convert.ConverterNotFoundException: No converter found capable of">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-spring/BsonUndefined_caused_ConverterNotFoundException" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2022-08-11T07:55:38.000Z"><a href="/2022/08/11/spring/BsonUndefined_caused_ConverterNotFoundException/">2022-08-11</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">如何解决 No converter found capable of converting from type org.bson.BsonUndefined 问题</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>因为 MongoDB 数据中有的字段值为’undefined’，程序程序访问到这个数据时抛出如下 exception</p>
+<blockquote>
+<p>org.springframework.core.convert.ConverterNotFoundException: No converter found capable of converting from type org.bson.BsonUndefined to type XXXXX.</p>
+</blockquote>
+<p>我们可以通过一下几步解决这个问题：</p>
+<h3 id="1）我们首先需要分析是什么情况导致数据中存在-undefined-值。"><a href="#1）我们首先需要分析是什么情况导致数据中存在-undefined-值。" class="headerlink" title="1）我们首先需要分析是什么情况导致数据中存在 undefined 值。"></a>1）我们首先需要分析是什么情况导致数据中存在 undefined 值。</h3><p>从 BSON 的规范 <a target="_blank" rel="noopener" href="https://bsonspec.org/spec.html">https://bsonspec.org/spec.html</a> 看，undefined 已经是 depricated。数据库中出现 undefined 的多半说明程序有问题，所以需要找出是在哪里、什么情况下向 MongoDB 写入了 undefined value 并进行修改。</p>
+<h3 id="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"><a href="#2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。" class="headerlink" title="2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。"></a>2）如果这个问题仅存在于开发、测试环境，而不是遗留数据导致。</h3><p>那么修正代码出错的地方并清理数据库中的脏数据就可以了。</p>
+<h3 id="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"><a href="#3）如果这种脏数据是遗留数据并且在生产环境也是存在的。" class="headerlink" title="3）如果这种脏数据是遗留数据并且在生产环境也是存在的。"></a>3）如果这种脏数据是遗留数据并且在生产环境也是存在的。</h3><p>那么我们可以通过添加一个 converter 类</p>
+<pre><code>BsonUndefinedToNullObjectConverterFactory implements ConverterFactory&lt;BsonUndefined, Object&gt;
+</code></pre>
+<p>把 undefined 转为<strong>任意类型</strong>对象的 null，就可以避免如上的 Exception。代码如 stackoverflow 上的<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/37066690/no-converter-found-capable-of-converting-from-type-org-bson-bsonundefined">这篇帖子</a>。把 Converter 传给 mongoTemplate，我们就需要定义一个 MongoCustomConversions Bean。为什么需要这样的 Bean，可以参考 AbstractMongoClientConfiguration 的源代码。因为 AbstractMongoClientConfiguration 中已经定义了一个 MongoCustomConversions bean，我们就需要给自己的 Bean 加上@Primary，以便让 spring-data-mongo 优先使用我们设置了自定义 converter 的 MongoCustomConversions bean。</p>
+<p>如果你的 spring application 还是通过 XML 方式进行 beans 定义与组装的，那么你就不能通过定义一个 ConverterFactory 来方便地把 undefined 转为<strong>任意类型</strong>对象的 null 了。这是因为 XML 不支持类型化参数。这时，只能把 converter 一个个地定义出来。XML 的组装大致如下：</p>
+<pre><code>&lt;mongo:mapping-converter id=&quot;mappingConverter&quot; &gt;
+    &lt;mongo:custom-converters&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToLongNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+        &lt;mongo:converter&gt;
+            &lt;bean class=&quot;your.package.UndefinedToStringNullReadConverter&quot;/&gt;
+        &lt;/mongo:converter&gt;
+    &lt;/mongo:custom-converters&gt;
+&lt;/mongo:mapping-converter&gt;
+</code></pre>
+<h3 id="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"><a href="#4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。" class="headerlink" title="4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。"></a>4）到这里即使数据库里有脏数据，程序也能‘愉快’地运行了。问题似乎已经被彻底解决了，其实没有。</h3><p>因为生产环境的脏数据还没有被清理，我们现在只是容忍了脏数据的存在。在当前微服务架构下，这样的数据可能会被多个不同的微服务访问到，这就意味着这些微服务都要使用如上所述的一个 converter 才能避免 exception。我们有必要发现这些脏数据存在的位置，并进行清理。<br>通过在 converter 返回 o -&gt; null 之前，执行下面的代码就可以通过 log 看到是哪个 DAO 触发了这个转换，进而可以分析出哪个 collection 存在脏数据。如果我们清理了这个 collection 的所有脏数据之后这种 undefined 脏数据还是会产生出来，那么我们就应该好好 review 一下之前的代码是哪里有问题并进行修改了。</p>
+<pre><code>StackTraceElement[] causes = Thread.currentThread().getStackTrace();
+for(StackTraceElement st : causes)&#123;
+    if (st.toString().indexOf(&quot;YOUR_DAO_PACKAGE&quot;) &gt;= 0) &#123;
+        log.warn(st.toString());
+    &#125; else &#123;
+        log.info(st.toString());
+    &#125;
+&#125;
+</code></pre>
+<p>如果是使用 JDK9 及以上，那么可以使用 StackWalker 避免 getStackTrace()的性能损耗。可以参考 <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace%E3%80%82">https://stackoverflow.com/questions/2347828/how-expensive-is-thread-getstacktrace。</a></p>
+<p>写了个 Demo 来复现并解决这个问题，代码可参考<a target="_blank" rel="noopener" href="https://github.com/dhyuan/demo_projects/tree/master/mongo_testcontainer">这里</a>。</p>
+<p><em>Reference:</em></p>
+<p><em><a target="_blank" rel="noopener" href="https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter">https://docs.spring.io/spring-data/mongodb/docs/current/reference/html/#mapping-chapter</a></em></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/Spring/">Spring</a>, <a href="/tags/MongoDB/">MongoDB</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2022/08/11/spring/BsonUndefined_caused_ConverterNotFoundException/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

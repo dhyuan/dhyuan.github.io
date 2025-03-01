@@ -1,0 +1,291 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>MongoDB脚本：集合中字段数据大小的分位数统计 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="查询某个collection 的文档大小分布日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="MongoDB脚本：集合中字段数据大小的分位数统计"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-mongo/mongodb-script-collection-fields-size-quantile-analysis" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.275Z"><a href="/2025/01/26/mongo/mongodb-script-collection-fields-size-quantile-analysis/">2025-01-26</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">MongoDB脚本：集合中字段数据大小的分位数统计</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="查询某个collection-的文档大小分布"><a href="#查询某个collection-的文档大小分布" class="headerlink" title="查询某个collection 的文档大小分布"></a>查询某个collection 的文档大小分布</h3><p>日常开发中，有时需要了解数据分布的一些特点，比如这个colllection里documents的平均大小、全部大小等，来调整程序的设计。<br>对于系统中已经存在大量数据的情况，这种提前分析数据分布模式的工作套路（最佳实践）可以帮助我们有的放矢的进行设计，避免不必要的过度设计或者进行更细致的设计。</p>
+<p>如果想获得某个collection相关的各种存储统计信息，可以使用 **<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/method/db.collection.stats/">stats</a>、<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v6.0/reference/operator/aggregation/collStats/">collStats</a>**。</p>
+<p>如果想获取总计、平均等简单的统计信息，可以参考这里：<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline%E3%80%82">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/#std-label-aggregation-pipeline。</a></p>
+<p>下面的命令可以显示 COLLECTION 中满足条件status=’active’，字段FIELD_A， FIELD_B的数据大小的Quantile analysis。<br>如果去掉第三行，就是对COLLECTION中所有文档数据的大小分布的统计。</p>
+<pre><code>//最大的Top10和百分比分布。
+db.COLLECTION.aggregate([
+  &#123; $match: &#123; &quot;status&quot;: &#39;active&#39; &#125; &#125;,
+  &#123; $project: &#123; _id: 1, FIELD_A: 1, FIELD_B: 1&#125; &#125;,
+  &#123; $project: &#123; documentSize: &#123; $sum: &#123; $bsonSize: &quot;$$ROOT&quot; &#125; &#125; &#125; &#125;,
+  &#123; $sort: &#123; documentSize: 1 &#125; &#125;,
+  &#123; $group: &#123; &#39;_id&#39;: null, &#39;value&#39;: &#123; &#39;$push&#39;: &#39;$documentSize&#39; &#125; &#125; &#125;,
+  &#123; $project: &#123; _id: 0, 
+      &quot;Top1&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-1, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top2&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-2, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top3&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-4, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top4&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-5, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top5&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-6, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top6&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top7&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-7, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top8&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-8, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top9&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-9, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;Top10&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $add: [-10, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99-9%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.999, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;99%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.99, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;95%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.95, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;90%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.90, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;50%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.50, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+      &quot;25%&quot;: &#123; $arrayElemAt: [&quot;$value&quot;, &#123; $floor: &#123; $multiply: [0.25, &#123; $size: &quot;$value&quot; &#125;] &#125; &#125; ] &#125;,
+    &#125; &#125;,
+  ]);
+  
+</code></pre>
+<p>对MongoDB 4.2以上版本，可以使用上述aggrigation 语法进行统计。对4.2及其以下版本，需要使用forEach语句迭代进行计算。<br>对于不支持Object.bsonsize的Mongo shell可以使用 BSON.calculateObjectSize 进行替代。</p>
+<pre><code>// const BSON = require(&quot;bson&quot;);
+var fieldsSize = []
+var totalSize = 0
+db.COLLECTION.find(&#123; &quot;status&quot;: &#39;A&#39; &#125;, &#123; FIELD_A: 1, FIELD_B: 1&#125;).forEach(function(doc)
+&#123;
+  var size = Object.bsonsize(doc)
+//   var size = BSON.calculateObjectSize(doc)
+  totalSize += size
+  fieldsSize.push(size)
+&#125;);
+var sortedData = fieldsSize.sort(function(a, b)&#123;return a-b&#125;);
+var statistic = &#123;
+    &quot;Note&quot;: &quot;The Collection Fields(FIELD_A, FIELD_B) Size Statistic Reuslt&quot;,    
+    &quot;numbOfDocs&quot;: sortedData.length,
+    &quot;totalSize&quot;: (totalSize / 1024) + &quot;KB    &quot; +  (totalSize / (1024 * 1024)) + &quot; MB&quot;,
+    &quot;AVG:&quot;: Math.round(totalSize / sortedData.length),
+    &quot;MIN&quot;: sortedData[0],
+    &quot;TOP1&quot;: sortedData[sortedData.length - 1],
+    &quot;TOP2&quot;: sortedData[sortedData.length - 2],
+    &quot;TOP3&quot;: sortedData[sortedData.length - 3],
+    &quot;TOP4&quot;: sortedData[sortedData.length - 4],
+    &quot;TOP5&quot;: sortedData[sortedData.length - 5],
+    &quot;TOP6&quot;: sortedData[sortedData.length - 6],
+    &quot;TOP7&quot;: sortedData[sortedData.length - 7],
+    &quot;TOP8&quot;: sortedData[sortedData.length - 8],
+    &quot;TOP9&quot;: sortedData[sortedData.length - 9],
+    &quot;TOP10&quot;: sortedData[sortedData.length - 10],
+    &quot;99.9%&quot;: sortedData[Math.floor(sortedData.length * 0.999)],
+    &quot;99%&quot;: sortedData[Math.floor(sortedData.length * 0.99)],
+    &quot;95%&quot;: sortedData[Math.floor(sortedData.length * 0.95)],
+    &quot;90%&quot;: sortedData[Math.floor(sortedData.length * 0.90)],
+    &quot;75%&quot;: sortedData[Math.floor(sortedData.length * 0.75)],
+    &quot;50%&quot;: sortedData[Math.floor(sortedData.length * 0.5)],
+    &quot;25%&quot;: sortedData[Math.floor(sortedData.length * 0.25)],
+    &quot;10%&quot;: sortedData[Math.floor(sortedData.length * 0.10)]
+&#125;;
+
+print(statistic)
+</code></pre>
+<br/>
+------
+
+<p>_References:<br>[1]: <a target="_blank" rel="noopener" href="https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/">https://database.guide/2-ways-to-get-a-documents-size-in-mongodb/</a><br>[2]: <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb">https://stackoverflow.com/questions/22008822/how-to-get-the-size-of-single-document-in-mongodb</a><br>[3]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/v4.2/reference/command/collStats/">https://www.mongodb.com/docs/v4.2/reference/command/collStats/</a><br>[4]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-binarysize/">https://database.guide/mongodb-binarysize/</a><br>[5]: <a target="_blank" rel="noopener" href="https://database.guide/mongodb-object-bsonsize/">https://database.guide/mongodb-object-bsonsize/</a><br>[6]: <a target="_blank" rel="noopener" href="https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/">https://flowygo.com/en/blog/mongodb-compass-extract-statistics-using-aggregation-pipeline/</a><br>[7]: <a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/aggregation/">https://www.mongodb.com/docs/manual/aggregation/</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/MongoDB/">MongoDB</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/26/mongo/mongodb-script-collection-fields-size-quantile-analysis/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

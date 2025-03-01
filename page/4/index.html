@@ -45,125 +45,17 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-devops/jenkins_pipeline_maven" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2021-05-09T12:49:50.000Z"><a href="/2021/05/09/devops/jenkins_pipeline_maven/">2021-05-09</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2021/05/09/devops/jenkins_pipeline_maven/">通过Jenkins pipeline build Maven项目</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>如之前的文章<a href="/2021/03/05/devops/install_dockers_coredns_gitlab_jenkins/" title="安装 CoreDNS、GitLab、Jenkins 容器">安装 CoreDNS、GitLab、Jenkins 容器</a> 所述熟悉了基本的容器安装之后就可以配置 Jenkins pipeline 构建基于 maven 的 Java 项目了。</p>
-<h3 id="1）安装-JDK-及-Maven"><a href="#1）安装-JDK-及-Maven" class="headerlink" title="1）安装 JDK 及 Maven"></a>1）安装 JDK 及 Maven</h3><p>不要通过 apt install 的方式安装，而通过下载 zip 解压的方式安装。</p>
-<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/tools/
-cd /home/devops/dockerSrvStorage/jenkins/tools/
-wget https://download.java.net/openjdk/jdk11/ri/openjdk-11+28_linux-x64_bin.tar.gz
-tar xvzf openjdk-11+28_linux-x64_bin.tar.gz
-wget https://mirrors.bfsu.edu.cn/apache/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.zip
-unzip apache-maven-3.8.1-bin.zip
-</code></pre>
-<h3 id="2）启动-GitLab、Jenkins-容器。"><a href="#2）启动-GitLab、Jenkins-容器。" class="headerlink" title="2）启动 GitLab、Jenkins 容器。"></a>2）启动 GitLab、Jenkins 容器。</h3><p>停止并删除旧的 Jenkins, GitLab 容器：</p>
-<pre><code>docker stop jenkins gitlab
-docker rm jenkins gitlab
-</code></pre>
-<p>Jenkins 和 GitLab 容器的互联互通至少有下面两种方式。一种是通过先定义出一个 network，然后 Jenkins 和 GitLab 加入这个网络来完成，这时容器间的访问是在 docker 自己内部网络上完成的而与宿主机 IP 无关。。一种是通过外部 DNS Server 完成容器间域名字的解析，这时容器间的访问是通过宿主机的 IP+映射到宿主机的端口完成的。</p>
-<p>docker 网络内部互联的方式，如果是跨主机容器间通讯可以通过 overlay 完成。（如果跨主机这种方式，就没有理由不上 K8S 了。）下面是用于在同一宿主机下的命令：<br>首先创建一个网络：</p>
-<pre><code>docker network create devopNet
-</code></pre>
-<p>启动 Jenkins 和 GitLab 容器，注意这里通过–net 设定它们的网络都是 devNet</p>
-<pre><code>docker run --detach \
---name jenkins \
---net devopNet \
---hostname jenkins.telbox.cn \
---publish 9183:8080 --publish 9184:50000 \
---restart always \
--v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
-jenkins/jenkins:2.277.4-lts-jdk11
-
-docker run --detach \
---name gitlab \
---net devopNet \
---hostname gitlab.telbox.cn \
---publish 9181:443 --publish 9180:80 --publish 9182:22 \
---restart always \
--v /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
--v /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
--v /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
-gitlab/gitlab-ce:13.11.3-ce.0
-</code></pre>
-<p>通过 DNS 来通许的容器，相当于容器可以使用传入的 DNS 服务，也就可以通过 DNS 中定义的机器名通讯了。这样 jenkins 容器和 gitlab 容器运行在不同的主机，DNS 解析不同宿主机 IP/域名。这种情形， Jenkins 容器 ssh 到非 22 的 GitLab 上（假设 gitlab 容器映射 22 端口到其宿主机的 9182 端口），那么就需要设置 Jenkins 里 ssh config 文件。比如下面的/home/devops/dockerSrvStorage/jenkins/.ssh/config 这样：</p>
-<pre><code>Host gitlab.telbox.cn
-    Hostname gitlab.telbox.cn
-    Port 9182
-    User dhyuan
-</code></pre>
-<p>这样在 jenkins 容器的 ssh 才能默认连接到 gitlab 容器宿主机的 9182 端口。</p>
-<pre><code>docker run --detach \
---name jenkins \
---dns 192.168.0.114 \
---hostname jenkins.telbox.cn \
---publish 9183:8080 --publish 9184:50000 \
---restart always \
--v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
-jenkins/jenkins:2.277.4-lts-jdk11
-
-docker run --detach \
---name gitlab \
---dns 192.168.0.114 \
---hostname gitlab.telbox.cn \
---publish 9181:443 --publish 9180:80 --publish 9182:22 \
---restart always \
--v /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
--v /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
--v /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
-gitlab/gitlab-ce:13.11.3-ce.0
-</code></pre>
-<p>另外，之前使用的 GitLab 容器镜像 gitlab/gitlab-ce:13.9.2-ce.0 的 Integration-Jenkins CI 部分有 bug，换用 gitlab/gitlab-ce:13.11.3-ce.0 后 webhook 就可以工作了。</p>
-<h3 id="3）配置-Jenkins-使用-JDK、Maven-如图："><a href="#3）配置-Jenkins-使用-JDK、Maven-如图：" class="headerlink" title="3）配置 Jenkins 使用 JDK、Maven, 如图："></a>3）配置 Jenkins 使用 JDK、Maven, 如图：</h3><p>配置 JDK<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_tool_jdk.png" alt="设置JDK"></p>
-<p>配置 Maven<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_tool_maven.png" alt="设置JDK"></p>
-<h3 id="4）通过-ssh-gen-生成-RSA-公私钥对，并配置-Jenkins-和-GitLab"><a href="#4）通过-ssh-gen-生成-RSA-公私钥对，并配置-Jenkins-和-GitLab" class="headerlink" title="4）通过 ssh-gen 生成 RSA 公私钥对，并配置 Jenkins 和 GitLab"></a>4）通过 ssh-gen 生成 RSA 公私钥对，并配置 Jenkins 和 GitLab</h3><pre><code>ssh-keygen -t rsa -b 2048 -C &quot;Used for dhyuan GitLab&quot;
-</code></pre>
-<p>把生成的私钥通过 Jenkins 界面：Dashboard –&gt; Credentials –&gt; System Global credentials 设置为 GitLab 账号的私钥。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_to_gitlab_privatekey.png"></p>
-<p>把生成的公钥通过 GitLab 界面进行设置, 如下图：<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_to_gitlab_publickey.png"></p>
-<h3 id="4）创建一个-Pipeline-项目并以从-GitLab-获取-Jenkinsfile-的形式定义-pipeline。"><a href="#4）创建一个-Pipeline-项目并以从-GitLab-获取-Jenkinsfile-的形式定义-pipeline。" class="headerlink" title="4）创建一个 Pipeline 项目并以从 GitLab 获取 Jenkinsfile 的形式定义 pipeline。"></a>4）创建一个 Pipeline 项目并以从 GitLab 获取 Jenkinsfile 的形式定义 pipeline。</h3><p>设置 pipeline 文件来自 git 管理的仓库：<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/pipeline_setting_jenkinsfile.png"></p>
-<p>需要注意的是，如果 branch 设置为*/master，那么就不要勾选 Lightweight checkout。如果勾选了 Lightweight checkout<br>，可把 branch 设置为*/*。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/pipeline_setting_lightweight_checkout.png"></p>
-<p>设置 pipeline 可由 GitLab 代码仓库事件触发执行，并在其高级选项中生成 Secret token。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/jenkins_pipeline_triggered_by_push.png"></p>
-<h3 id="5-设置当-GitLab-发生-push-等操作是触发-Jenkins-Pipeline-运行。"><a href="#5-设置当-GitLab-发生-push-等操作是触发-Jenkins-Pipeline-运行。" class="headerlink" title="5) 设置当 GitLab 发生 push 等操作是触发 Jenkins Pipeline 运行。"></a>5) 设置当 GitLab 发生 push 等操作是触发 Jenkins Pipeline 运行。</h3><p>如图设置完毕就可以通过点击测试按钮发送“push”消息来触发 pipeline 的运行了。<br><img src="/2021/05/09/devops/jenkins_pipeline_maven/gitlab_webhook_to_jenkins.png"></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-reactive/spring_security_reactive_csrf" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/16/reactive/spring_security_reactive_csrf/">2021-04-16</a></time>
+        <time class="dt-published" datetime="2021-04-16T12:49:09.000Z"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">2021-04-17</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/16/reactive/spring_security_reactive_csrf/">Spring响应式CSRF相关源码</a></h1>
+    <h1 class="title"><a href="/2021/04/17/reactive/spring_security_reactive_csrf/">Spring响应式CSRF相关源码</a></h1>
   
 
     </header>
@@ -390,11 +282,11 @@ ServerCsrfTokenRepository
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/14/reactive/webflux_csrf/">2021-04-14</a></time>
+        <time class="dt-published" datetime="2021-04-14T13:05:54.000Z"><a href="/2021/04/15/reactive/webflux_csrf/">2021-04-15</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/14/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
+    <h1 class="title"><a href="/2021/04/15/reactive/webflux_csrf/">Spring对CSRF的防范</a></h1>
   
 
     </header>
@@ -449,11 +341,11 @@ public class WebSecurityConfig extends
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">2021-04-13</a></time>
+        <time class="dt-published" datetime="2021-04-13T13:09:32.000Z"><a href="/2021/04/14/reactive/reactive_stream_lifecycle/">2021-04-14</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/13/reactive/reactive_stream_lifecycle/">响应式流的生命周期</a></h1>
+    <h1 class="title"><a href="/2021/04/14/reactive/reactive_stream_lifecycle/">响应式流的生命周期</a></h1>
   
 
     </header>
@@ -489,11 +381,11 @@ public class WebSecurityConfig extends
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-08T12:50:59.000Z"><a href="/2021/04/08/micro_service/keywords_of_cipher/">2021-04-08</a></time>
+        <time class="dt-published" datetime="2021-04-08T12:50:59.000Z"><a href="/2021/04/09/micro_service/keywords_of_cipher/">2021-04-09</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/08/micro_service/keywords_of_cipher/">与加密相关的一些名词</a></h1>
+    <h1 class="title"><a href="/2021/04/09/micro_service/keywords_of_cipher/">与加密相关的一些名词</a></h1>
   
 
     </header>
@@ -550,11 +442,11 @@ public class WebSecurityConfig extends
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-07T12:21:32.000Z"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">2021-04-07</a></time>
+        <time class="dt-published" datetime="2021-04-07T12:21:32.000Z"><a href="/2021/04/08/micro_service/http_nginx_to_https_upstream/">2021-04-08</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/07/micro_service/http_nginx_to_https_upstream/">Nginx以HTTP反向代理HTTPS服务</a></h1>
+    <h1 class="title"><a href="/2021/04/08/micro_service/http_nginx_to_https_upstream/">Nginx以HTTP反向代理HTTPS服务</a></h1>
   
 
     </header>
@@ -686,11 +578,11 @@ server &#123;
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">2021-04-01</a></time>
+        <time class="dt-published" datetime="2021-04-01T11:01:36.000Z"><a href="/2021/04/02/micro_service/secure_your_service_with_https/">2021-04-02</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/04/01/micro_service/secure_your_service_with_https/">创建基于HTTPS的服务</a></h1>
+    <h1 class="title"><a href="/2021/04/02/micro_service/secure_your_service_with_https/">创建基于HTTPS的服务</a></h1>
   
 
     </header>
@@ -734,11 +626,11 @@ server &#123;
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2021-03-22T13:49:17.000Z"><a href="/2021/03/22/micro_service/api_gateway/">2021-03-22</a></time>
+        <time class="dt-published" datetime="2021-03-22T13:49:17.000Z"><a href="/2021/03/23/micro_service/api_gateway/">2021-03-23</a></time>
       
       
   
-    <h1 class="title"><a href="/2021/03/22/micro_service/api_gateway/">API网关</a></h1>
+    <h1 class="title"><a href="/2021/03/23/micro_service/api_gateway/">API网关</a></h1>
   
 
     </header>
@@ -936,6 +828,136 @@ tracker_server=dfsServer0
 
 
 
+  <article id="post-devops/install_dockers_coredns_gitlab_jenkins" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T14:59:25.000Z"><a href="/2021/03/06/devops/install_dockers_coredns_gitlab_jenkins/">2021-03-06</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2021/03/06/devops/install_dockers_coredns_gitlab_jenkins/">安装CoreDNS、GitLab、Jenkins</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在之前创建的 repository server 上安装下面的服务。</p>
+<h3 id="1）搭建-CoreDNS-服务"><a href="#1）搭建-CoreDNS-服务" class="headerlink" title="1）搭建 CoreDNS 服务"></a>1）搭建 CoreDNS 服务</h3><h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+</code></pre>
+<h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
+<pre><code>sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+</code></pre>
+<h4 id="在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下："><a href="#在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下：" class="headerlink" title="在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下："></a>在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下：</h4><p>192.168.0.1 是家里无线路由器的 IP 地址。我这里用的是 TL-WDR7650 千兆易展无线路由。</p>
+<pre><code># ls
+Corefile  hostsfile
+# cat Corefile
+.:53 &#123;
+    hosts /etc/coredns/hostsfile &#123;
+        fallthrough
+    &#125;
+    forward . 192.168.0.1:53
+    log
+&#125;
+</code></pre>
+<p>把之前创建的 Guest 虚拟机 IP 都加进来。</p>
+<pre><code># cat hostsfile
+devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
+192.168.0.114 repositoryServer dnsServer gitlab jenkins gitlab.telbox.cn jenkins.telbox.cn
+192.168.0.112 devopServer0
+192.168.0.113 devopServer1
+192.168.0.115 devopServer2
+
+192.168.0.106 k8s-master-0
+192.168.0.107 k8s-node-0
+192.168.0.109 k8s-node-1
+192.168.0.108 k8s-node-2
+
+192.168.0.114 basehost0
+192.168.0.111 ubuntu20Server
+</code></pre>
+<h4 id="运行-CoreDNS-镜像"><a href="#运行-CoreDNS-镜像" class="headerlink" title="运行 CoreDNS 镜像"></a>运行 CoreDNS 镜像</h4><pre><code>docker run -it -d --net=host \
+--name=coredns --restart=always \
+-v /home/devops/dockerSrvStorage/coredns:/etc/coredns/ \
+coredns/coredns:1.8.3 \
+-conf /etc/coredns/Corefile
+</code></pre>
+<p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<p>Reference:</p>
+<p>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）：<br><a target="_blank" rel="noopener" href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker：<br><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_36938307/article/details/105390004">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
+<h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
+sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
+
+sudo docker run --detach \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--name gitlab \
+--restart always \
+--volume /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.9.2-ce.0
+</code></pre>
+<p>可修改 /home/devops/dockerSrvStorage/gitlab/config 里的配置文件。如有需要，可进入 GitLab 容器进行配置。</p>
+<pre><code>sudo docker exec -it gitlab bash
+cd /opt/gitlab/embedded/service/gitlab-rails/config
+vi gitlab.yml
+</code></pre>
+<p>执行命令 gitlab-ctl reconfigure 使之生效</p>
+<pre><code>sudo docker exec gitlab gitlab-ctl reconfigure
+</code></pre>
+<p>第一次访问安装好的 GitLab 服务<a target="_blank" rel="noopener" href="http://gitlab.telbox.cn:9180/%E9%9C%80%E8%A6%81%E8%AE%BE%E7%BD%AEroot%E7%94%A8%E6%88%B7%E7%9A%84%E5%8F%A3%E4%BB%A4%E3%80%82">http://gitlab.telbox.cn:9180/需要设置root用户的口令。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/080a962c35b6">https://www.jianshu.com/p/080a962c35b6</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/63786567">https://zhuanlan.zhihu.com/p/63786567</a></p>
+<h3 id="3）Jenkins"><a href="#3）Jenkins" class="headerlink" title="3）Jenkins"></a>3）Jenkins</h3><pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins
+
+
+sudo docker run -p 9183:8080 -p 9184:50000 \
+--name jenkins -d \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+-v /home/devops/dockerSrvStorage/jdk/java-se-8u41-ri:/var/jenkins_home/tools/jdk/java-se-8u41-ri \
+-v /home/devops/dockerSrvStorage/jdk/jdk-11.0.2:/var/jenkins_home/tools/jdk/jdk-11.0.2 \
+-v /home/devops/dockerSrvStorage/apache-maven-3.6.3:/var/jenkins_home/tools/apache-maven-3.6.3 \
+jenkins/jenkins:lts
+</code></pre>
+<p>上面通过-v 的方式把 JDK 和 Maven mount 给 Jenkins 容器，之后可以通过 Jenkins Tools 配置他们给 Pipline 使用。<br>启动后，进入 docker 查看初始密码。首次访问 jenkins.telbox.cn:9183 时会用到这个密码。</p>
+<pre><code>sudo docker exec -it jenkins bash
+jenkins@e061aa64ed7b:/$ cat /var/jenkins_home/secrets/initialAdminPassword
+</code></pre>
+<p>访问 jenkins.telbox.cn:9183 输入初始密码，选择安装建议的插件。<br>插件安装完毕后，要求输入 Jenkins URL，这里输入 jenkins.telbox.cn:9183</p>
+<blockquote>
+<p>The Jenkins URL is used to provide the root URL for absolute links to various Jenkins resources. That means this value is required for proper operation of many Jenkins features including email notifications, PR status updates, and the BUILD_URL environment variable provided to build steps.<br>The proposed default value shown is not saved yet and is generated from the current request, if possible. The best practice is to set this value to the URL that users are expected to use. This will avoid confusion when sharing or viewing links.</p>
+</blockquote>
+<p>如果需要，<strong>可以给 Jenkins 配置日志</strong>：</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/data
+cat &gt; /home/devops/dockerSrvStorage/jenkins/data/log.properties &lt;&lt;EOF
+handlers=java.util.logging.ConsoleHandler
+jenkins.level=FINEST
+java.util.logging.ConsoleHandler.level=FINEST
+EOF
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-Djava.util.logging.config.file=/var/jenkins_home/log.properties&quot; -v `pwd`/data:/var/jenkins_home jenkins
+</code></pre>
+<p>如果 Jenkins 插件安装比较慢，可以使用国内插件镜像源，参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525%E3%80%82">https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/docker/blob/master/README.md">https://github.com/jenkinsci/docker/blob/master/README.md</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html">https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -1016,7 +1038,7 @@ tracker_server=dfsServer0
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

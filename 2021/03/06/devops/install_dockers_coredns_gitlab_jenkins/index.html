@@ -1,0 +1,316 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>安装CoreDNS、GitLab、Jenkins | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="在之前创建的 repository server 上安装下面的服务。
+1）搭建 CoreDNS 服务先从 Docer Hub 上拉取 CoreDNS 镜像。docker pull coredns/coredns:1.8.3
+
+停止 Ubuntu 上默认启动的 DNS 服务。在下载 coredns 镜">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="安装CoreDNS、GitLab、Jenkins"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-devops/install_dockers_coredns_gitlab_jenkins" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-03-05T14:59:25.000Z"><a href="/2021/03/06/devops/install_dockers_coredns_gitlab_jenkins/">2021-03-06</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">安装CoreDNS、GitLab、Jenkins</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>在之前创建的 repository server 上安装下面的服务。</p>
+<h3 id="1）搭建-CoreDNS-服务"><a href="#1）搭建-CoreDNS-服务" class="headerlink" title="1）搭建 CoreDNS 服务"></a>1）搭建 CoreDNS 服务</h3><h4 id="先从-Docer-Hub-上拉取-CoreDNS-镜像。"><a href="#先从-Docer-Hub-上拉取-CoreDNS-镜像。" class="headerlink" title="先从 Docer Hub 上拉取 CoreDNS 镜像。"></a>先从 Docer Hub 上拉取 CoreDNS 镜像。</h4><pre><code>docker pull coredns/coredns:1.8.3
+</code></pre>
+<h4 id="停止-Ubuntu-上默认启动的-DNS-服务。"><a href="#停止-Ubuntu-上默认启动的-DNS-服务。" class="headerlink" title="停止 Ubuntu 上默认启动的 DNS 服务。"></a>停止 Ubuntu 上默认启动的 DNS 服务。</h4><p>在下载 coredns 镜像之前先不要停止 DNS 服务，否则解析不到 docker 镜像仓库服务器。</p>
+<pre><code>sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+</code></pre>
+<h4 id="在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下："><a href="#在目录-home-devops-dockerSrvStorage-coredns-下创建-2-个文件-Corefile-hostsfile，内容如下：" class="headerlink" title="在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下："></a>在目录 /home/devops/dockerSrvStorage/coredns 下创建 2 个文件 Corefile hostsfile，内容如下：</h4><p>192.168.0.1 是家里无线路由器的 IP 地址。我这里用的是 TL-WDR7650 千兆易展无线路由。</p>
+<pre><code># ls
+Corefile  hostsfile
+# cat Corefile
+.:53 &#123;
+    hosts /etc/coredns/hostsfile &#123;
+        fallthrough
+    &#125;
+    forward . 192.168.0.1:53
+    log
+&#125;
+</code></pre>
+<p>把之前创建的 Guest 虚拟机 IP 都加进来。</p>
+<pre><code># cat hostsfile
+devops@repositoryServer:~/dockerSrvStorage/coredns$ cat hostsfile
+192.168.0.114 repositoryServer dnsServer gitlab jenkins gitlab.telbox.cn jenkins.telbox.cn
+192.168.0.112 devopServer0
+192.168.0.113 devopServer1
+192.168.0.115 devopServer2
+
+192.168.0.106 k8s-master-0
+192.168.0.107 k8s-node-0
+192.168.0.109 k8s-node-1
+192.168.0.108 k8s-node-2
+
+192.168.0.114 basehost0
+192.168.0.111 ubuntu20Server
+</code></pre>
+<h4 id="运行-CoreDNS-镜像"><a href="#运行-CoreDNS-镜像" class="headerlink" title="运行 CoreDNS 镜像"></a>运行 CoreDNS 镜像</h4><pre><code>docker run -it -d --net=host \
+--name=coredns --restart=always \
+-v /home/devops/dockerSrvStorage/coredns:/etc/coredns/ \
+coredns/coredns:1.8.3 \
+-conf /etc/coredns/Corefile
+</code></pre>
+<p>备注：<br>–net=host 要指定，如果不指定，在同宿主机的容器中无法查询 DNS。如果指定了该项，则无须指定-p 选项。默认使用宿主机的端口。</p>
+<p>Reference:</p>
+<p>BIND, Dnsmasq 等常见 DNS Server（却不包含 CoreDNS）：<br><a target="_blank" rel="noopener" href="https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/">https://computingforgeeks.com/bind-vs-dnsmasq-vs-powerdns-vs-unbound/</a><br>安装 Core DNS Docker：<br><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin_36938307/article/details/105390004">https://blog.csdn.net/weixin_36938307/article/details/105390004</a></p>
+<h3 id="2）GitLab"><a href="#2）GitLab" class="headerlink" title="2）GitLab"></a>2）GitLab</h3><p>各种 docker 服务一般都需要持久化映射，以方便配置、数据的保存。本地使用 /home/devops/dockerSrvStorage 作为各种应用存储的根目录。<br>其中<strong>参数 –hostname gitlab.telbox.cn 定义了用户访问 gitlab 服务的主机域名</strong>。</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/gitlab
+sudo docker pull gitlab/gitlab-ce:13.9.2-ce.0
+
+sudo docker run --detach \
+--hostname gitlab.telbox.cn \
+--publish 9181:443 --publish 9180:80 --publish 9182:22 \
+--name gitlab \
+--restart always \
+--volume /home/devops/dockerSrvStorage/gitlab/config:/etc/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/logs:/var/log/gitlab \
+--volume /home/devops/dockerSrvStorage/gitlab/data:/var/opt/gitlab \
+gitlab/gitlab-ce:13.9.2-ce.0
+</code></pre>
+<p>可修改 /home/devops/dockerSrvStorage/gitlab/config 里的配置文件。如有需要，可进入 GitLab 容器进行配置。</p>
+<pre><code>sudo docker exec -it gitlab bash
+cd /opt/gitlab/embedded/service/gitlab-rails/config
+vi gitlab.yml
+</code></pre>
+<p>执行命令 gitlab-ctl reconfigure 使之生效</p>
+<pre><code>sudo docker exec gitlab gitlab-ctl reconfigure
+</code></pre>
+<p>第一次访问安装好的 GitLab 服务<a target="_blank" rel="noopener" href="http://gitlab.telbox.cn:9180/%E9%9C%80%E8%A6%81%E8%AE%BE%E7%BD%AEroot%E7%94%A8%E6%88%B7%E7%9A%84%E5%8F%A3%E4%BB%A4%E3%80%82">http://gitlab.telbox.cn:9180/需要设置root用户的口令。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/080a962c35b6">https://www.jianshu.com/p/080a962c35b6</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/63786567">https://zhuanlan.zhihu.com/p/63786567</a></p>
+<h3 id="3）Jenkins"><a href="#3）Jenkins" class="headerlink" title="3）Jenkins"></a>3）Jenkins</h3><pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins
+
+
+sudo docker run -p 9183:8080 -p 9184:50000 \
+--name jenkins -d \
+-v /home/devops/dockerSrvStorage/jenkins:/var/jenkins_home \
+-v /home/devops/dockerSrvStorage/jdk/java-se-8u41-ri:/var/jenkins_home/tools/jdk/java-se-8u41-ri \
+-v /home/devops/dockerSrvStorage/jdk/jdk-11.0.2:/var/jenkins_home/tools/jdk/jdk-11.0.2 \
+-v /home/devops/dockerSrvStorage/apache-maven-3.6.3:/var/jenkins_home/tools/apache-maven-3.6.3 \
+jenkins/jenkins:lts
+</code></pre>
+<p>上面通过-v 的方式把 JDK 和 Maven mount 给 Jenkins 容器，之后可以通过 Jenkins Tools 配置他们给 Pipline 使用。<br>启动后，进入 docker 查看初始密码。首次访问 jenkins.telbox.cn:9183 时会用到这个密码。</p>
+<pre><code>sudo docker exec -it jenkins bash
+jenkins@e061aa64ed7b:/$ cat /var/jenkins_home/secrets/initialAdminPassword
+</code></pre>
+<p>访问 jenkins.telbox.cn:9183 输入初始密码，选择安装建议的插件。<br>插件安装完毕后，要求输入 Jenkins URL，这里输入 jenkins.telbox.cn:9183</p>
+<blockquote>
+<p>The Jenkins URL is used to provide the root URL for absolute links to various Jenkins resources. That means this value is required for proper operation of many Jenkins features including email notifications, PR status updates, and the BUILD_URL environment variable provided to build steps.<br>The proposed default value shown is not saved yet and is generated from the current request, if possible. The best practice is to set this value to the URL that users are expected to use. This will avoid confusion when sharing or viewing links.</p>
+</blockquote>
+<p>如果需要，<strong>可以给 Jenkins 配置日志</strong>：</p>
+<pre><code>mkdir -p /home/devops/dockerSrvStorage/jenkins/data
+cat &gt; /home/devops/dockerSrvStorage/jenkins/data/log.properties &lt;&lt;EOF
+handlers=java.util.logging.ConsoleHandler
+jenkins.level=FINEST
+java.util.logging.ConsoleHandler.level=FINEST
+EOF
+docker run --name myjenkins -p 8080:8080 -p 50000:50000 --env JAVA_OPTS=&quot;-Djava.util.logging.config.file=/var/jenkins_home/log.properties&quot; -v `pwd`/data:/var/jenkins_home jenkins
+</code></pre>
+<p>如果 Jenkins 插件安装比较慢，可以使用国内插件镜像源，参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525%E3%80%82">https://blog.csdn.net/oYinHeZhiGuang/article/details/104867525。</a></p>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://github.com/jenkinsci/docker/blob/master/README.md">https://github.com/jenkinsci/docker/blob/master/README.md</a><br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html">https://www.cnblogs.com/xiaoqi/p/docker-jenkins-cicd.html</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/03/06/devops/install_dockers_coredns_gitlab_jenkins/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

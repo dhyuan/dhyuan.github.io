@@ -45,63 +45,6 @@
 </header>
   <div id="content" class="inner">
     <div id="main-col" class="alignleft"><div id="wrapper">
-  <article id="post-devops/install_dashboard_for_k8s_cluster" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  
-  <div class="post-content">
-    <header>
-      
-        <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-30T03:21:02.000Z"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">2020-09-30</a></time>
-      
-      
-  
-    <h1 class="title"><a href="/2020/09/30/devops/install_dashboard_for_k8s_cluster/">安装k8s的Dashboard</a></h1>
-  
-
-    </header>
-    <div class="e-content entry" itemprop="articleBody">
-      
-        <p>安装 Dashboard 相较之前的步骤就容易很多了。</p>
-<h3 id="下载-Dashboard-yaml"><a href="#下载-Dashboard-yaml" class="headerlink" title="下载 Dashboard yaml"></a>下载 Dashboard yaml</h3><p>这里使用 Dashboard 2.0.4。</p>
-<pre><code>wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
-
-vi recommended.yml
-
-# 设置node port，让集群外部通过node port可以访问Dashboard
-    nodePort: 30443
-type: NodePort
-</code></pre>
-<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_node_port.png" alt="Dashboard Home Page"></p>
-<h3 id="安装-Dashboard"><a href="#安装-Dashboard" class="headerlink" title="安装 Dashboard"></a>安装 Dashboard</h3><pre><code>kubectl apply -f recommended.yaml
-kubectl get pods -n kubernetes-dashboard
-</code></pre>
-<h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h3><p>此时访问 <a target="_blank" rel="noopener" href="http://master_node_ip:30443/">http://master_node_ip:30443</a> 并用 kubeadmin init 输出的 token 可以登录到 Dashboard 管理界面。</p>
-<h3 id="创建-Dashboard-专用登录用户"><a href="#创建-Dashboard-专用登录用户" class="headerlink" title="创建 Dashboard 专用登录用户"></a>创建 Dashboard 专用登录用户</h3><pre><code># 创建用户 devops
-kubectl create serviceaccount devops -n kube-system
-
-# 授权
-kubectl create clusterrolebinding devops --clusterrole=cluster-admin --serviceaccount=kube-system:devops
-
-kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | awk &#39;/devops/&#123;print $1&#125;&#39;)
-</code></pre>
-<p>访问 <a target="_blank" rel="noopener" href="http://master_node_ip:30443/">http://master_node_ip:30443</a> 并用 devops 的 token 登录。</p>
-<p><img src="/2020/09/30/devops/install_dashboard_for_k8s_cluster/dashboard_home_page.png" alt="kubelet up"></p>
-
-      
-    </div>
-    <footer>
-      
-        
-        
-      
-      <div class="clearfix"></div>
-    </footer>
-  </div>
-</article>
-
-
-
-
   <article id="post-devops/create_k8s_by_kubeadm" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   
   <div class="post-content">
@@ -283,11 +226,11 @@ k8s-node-2     Ready    &lt;none&gt;   89s     v1.19.2
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-27T13:17:11.000Z"><a href="/2020/09/27/devops/setup_local_docker_registry/">2020-09-27</a></time>
+        <time class="dt-published" datetime="2020-09-27T13:17:11.000Z"><a href="/2020/09/28/devops/setup_local_docker_registry/">2020-09-28</a></time>
       
       
   
-    <h1 class="title"><a href="/2020/09/27/devops/setup_local_docker_registry/">建立本地docker镜像中心</a></h1>
+    <h1 class="title"><a href="/2020/09/28/devops/setup_local_docker_registry/">建立本地docker镜像中心</a></h1>
   
 
     </header>
@@ -477,11 +420,11 @@ Xauth username
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-21T14:29:20.000Z"><a href="/2020/09/21/devops/create_bridge_on_centos7/">2020-09-21</a></time>
+        <time class="dt-published" datetime="2020-09-21T14:29:20.000Z"><a href="/2020/09/22/devops/create_bridge_on_centos7/">2020-09-22</a></time>
       
       
   
-    <h1 class="title"><a href="/2020/09/21/devops/create_bridge_on_centos7/">在CentOS7上创建持久化的桥接网络及Guests</a></h1>
+    <h1 class="title"><a href="/2020/09/22/devops/create_bridge_on_centos7/">在CentOS7上创建持久化的桥接网络及Guests</a></h1>
   
 
     </header>
@@ -798,11 +741,11 @@ brctl addif br0 em1
     <header>
       
         <div class="icon"></div>
-        <time class="dt-published" datetime="2020-09-18T15:09:43.000Z"><a href="/2020/09/18/devops/hypervisor_types/">2020-09-18</a></time>
+        <time class="dt-published" datetime="2020-09-18T15:09:43.000Z"><a href="/2020/09/19/devops/hypervisor_types/">2020-09-19</a></time>
       
       
   
-    <h1 class="title"><a href="/2020/09/18/devops/hypervisor_types/">虚拟化的分类</a></h1>
+    <h1 class="title"><a href="/2020/09/19/devops/hypervisor_types/">虚拟化的分类</a></h1>
   
 
     </header>
@@ -911,6 +854,89 @@ kvmhost | success | rc=0 &gt;&gt;
 
 
 
+  <article id="post-网站环境设置（1）" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2020-09-16T13:53:29.000Z"><a href="/2020/09/17/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/">2020-09-17</a></time>
+      
+      
+  
+    <h1 class="title"><a href="/2020/09/17/%E7%BD%91%E7%AB%99%E7%8E%AF%E5%A2%83%E8%AE%BE%E7%BD%AE%EF%BC%881%EF%BC%89/">网站环境设置（1）</a></h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <h3 id="1-免密登录服务区。"><a href="#1-免密登录服务区。" class="headerlink" title="1) 免密登录服务区。"></a>1) 免密登录服务区。</h3><h4 id="制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。"><a href="#制作密钥。在本地生成私钥、公钥-比如-server-name-rsa-server-name-rsa-pub-。" class="headerlink" title="制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。"></a>制作密钥。在本地生成私钥、公钥(比如 server_name.rsa server_name.rsa.pub)。</h4><pre><code>cd ~/.ssh
+ssh-keygen -t rsa
+</code></pre>
+<h4 id="把公钥-copy-到服务器。"><a href="#把公钥-copy-到服务器。" class="headerlink" title="把公钥 copy 到服务器。"></a>把公钥 copy 到服务器。</h4><pre><code>ssh-copy-id -i server_name.rsa.pub userId@server_ip
+</code></pre>
+<h4 id="可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。"><a href="#可以打开-server-上的-userId-HOME-ssh-authorized-keys-查看公钥是否添加成功。" class="headerlink" title="可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。"></a>可以打开 server 上的 userId_HOME/.ssh/authorized_keys 查看公钥是否添加成功。</h4><h4 id="修改本地-ssh-config-文件，添加以下内容。"><a href="#修改本地-ssh-config-文件，添加以下内容。" class="headerlink" title="修改本地~/.ssh/config 文件，添加以下内容。"></a>修改本地~/.ssh/config 文件，添加以下内容。</h4><pre><code>Host Server_IP
+HostName Server_Name
+IdentityFile YOUR_PRIVATE_KEY_FILE_PATH
+</code></pre>
+<h3 id="2）免密-sudo"><a href="#2）免密-sudo" class="headerlink" title="2）免密 sudo"></a>2）免密 sudo</h3><p>visudo 加入类似这样的一句，注意应该放在组的设置之后。<br>USER_ID ALL=(ALL) NOPASSWD: ALL</p>
+<h3 id="3）-nginx-虚拟主机设置。"><a href="#3）-nginx-虚拟主机设置。" class="headerlink" title="3） nginx 虚拟主机设置。"></a>3） nginx 虚拟主机设置。</h3><p>nginx 虚拟主机可以通过 IP、域名、端口这三种方式进行设置。购买了一台阿里云主机，有多个域名，通过域名进行设置就好。</p>
+<h4 id="安装-nginx，设置不同域名的虚拟主机。"><a href="#安装-nginx，设置不同域名的虚拟主机。" class="headerlink" title="安装 nginx，设置不同域名的虚拟主机。"></a>安装 nginx，设置不同域名的虚拟主机。</h4><p>编辑 /etc/nginx/nginx.conf, 在 http 部分 include 对虚拟主机定义。<br>include /etc/nginx/conf.d/*.conf;<br>include /etc/nginx/sites-enabled/telbox;<br>include /etc/nginx/sites-enabled/linkedall;</p>
+<h4 id="linkedall-文件内容如下（静态-web）："><a href="#linkedall-文件内容如下（静态-web）：" class="headerlink" title="linkedall 文件内容如下（静态 web）："></a>linkedall 文件内容如下（静态 web）：</h4><p>server {<br>listen 80;</p>
+<pre><code>root /home/devop/linkedall/web;
+index index.html index.htm;
+
+server_name www.linkedall.netlinkedall.net *.linkedall.net;
+
+location / &#123;
+  try_files $uri $uri/ =404;
+&#125;
+location ~* \.(html)$ &#123;
+  access_log off;
+  add_header  Cache-Control  max-age=no-cache;
+&#125;
+
+location ~* \.(css|js|png|jpg|jpeg|gif|gz|svg|mp4|ogg|ogv|webm|htc|xml|woff)$ &#123;
+  access_log off;
+  add_header    Cache-Control  max-age=360000;
+&#125;
+... ...
+</code></pre>
+<h4 id="telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）："><a href="#telbox-虚拟主机定义如下（作为-proxy-转向后端的运行在-8080-端口的服务）：" class="headerlink" title="telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）："></a>telbox 虚拟主机定义如下（作为 proxy 转向后端的运行在 8080 端口的服务）：</h4><pre><code>server &#123;
+  listen 80 default_server;
+  listen [::]:80 default_server ipv6only=on;
+  root /usr/share/nginx/html;
+  index index.html index.htm;
+
+  # Make site accessible from http://localhost/
+  server_name www.telbox.cn;
+
+  location / &#123;
+          proxy_pass http://localhost:8080;
+          # First attempt to serve request as file, then
+          # as directory, then fall back to displaying a 404.
+  # try_files $uri $uri/ =404;
+          # Uncomment to enable naxsi on this location
+          # include /etc/nginx/naxsi.rules
+  &#125;
+</code></pre>
+<p>Reference:<br><a target="_blank" rel="noopener" href="https://juejin.im/post/6844903604034240525">https://juejin.im/post/6844903604034240525</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+
+
 
 <nav id="pagination">
   
@@ -991,7 +1017,7 @@ kvmhost | success | rc=0 &gt;&gt;
   <div class="widget widget-archives">
     <h3 class="title">归档</h3>
     <div class="entry">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">25</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 

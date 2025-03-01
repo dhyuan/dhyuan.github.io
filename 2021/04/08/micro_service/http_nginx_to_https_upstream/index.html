@@ -1,0 +1,320 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Nginx以HTTP反向代理HTTPS服务 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。
+背景有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 作为反向代理向外">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Nginx以HTTP反向代理HTTPS服务"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-micro_service/http_nginx_to_https_upstream" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2021-04-07T12:21:32.000Z"><a href="/2021/04/08/micro_service/http_nginx_to_https_upstream/">2021-04-08</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Nginx以HTTP反向代理HTTPS服务</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>简单记录一下 Nginx 作为反向代理以 HTTP 协议向下游客户端代理使用 Spring Security 实现的上游 HTTPS 服务时遇到的问题及解决办法。</p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>有个基于 Spring Security、Spring MVC 实现的 HTTPS Web 应用，通过 Nginx 作为反向代理向外提供服务。<br>Nginx 和 Web 应用部署在同一台机器，IP 为 10.115.6.165。Web 应用以 HTTPS 协议监听在端口 19026。<br>如果是 Windows 环境，推荐在 <a target="_blank" rel="noopener" href="http://nginx-win.ecsds.eu/">http://nginx-win.ecsds.eu/</a> 下载编译带入了更多模块的 Nginx，因为在下面我们会需要 headers more 模块中的 more_set_headers 指令。如果是 Linux 环境，也请确认 headers more 模块的 more_set_headers 指令可用。</p>
+<h3 id="Nginx-以-HTTP-的方式反向代理。"><a href="#Nginx-以-HTTP-的方式反向代理。" class="headerlink" title="Nginx 以 HTTP 的方式反向代理。"></a>Nginx 以 HTTP 的方式反向代理。</h3><p>用以下配置运行 Ngnix， 使其用 HTTP 协议在 9080 端口反向代理 19026 上的 HTTPS 服务。</p>
+<pre><code>server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+    &#125;
+&#125;
+</code></pre>
+<p>但是如果我们用浏览器访问<a target="_blank" rel="noopener" href="http://10.115.6.165:9080/databoard/login%EF%BC%8C%E5%B0%B1%E4%BC%9A%E5%8F%91%E7%8E%B0%E5%A6%82%E4%B8%8B%E5%9B%BE%E6%89%80%E7%A4%BA%E7%9A%84%E4%B8%A4%E9%97%AE%E9%A2%98%EF%BC%9A">http://10.115.6.165:9080/databoard/login，就会发现如下图所示的两问题：</a><br><img src="/2021/04/07/micro_service/http_nginx_to_https_upstream/nginxSetting.png"></p>
+<h4 id="1）后端服务使用-redirect-重定向导致的问题"><a href="#1）后端服务使用-redirect-重定向导致的问题" class="headerlink" title="1）后端服务使用 redirect 重定向导致的问题"></a>1）后端服务使用 redirect 重定向导致的问题</h4><p>浏览器地址栏上显示被重定向到了<a target="_blank" rel="noopener" href="https://10.115.6.165/databoard/dataCmder%E3%80%82%E8%BF%99%E6%98%AF%E5%9B%A0%E4%B8%BA%E5%90%8E%E7%AB%AFWeb%E5%BA%94%E7%94%A8%E6%89%A7%E8%A1%8C%E4%BA%86redirect%E9%87%8D%E5%AE%9A%E5%90%91%E8%AF%AD%E5%8F%A5%EF%BC%8C%E8%80%8C%E9%87%8D%E5%AE%9A%E5%90%91%E7%9A%84%E5%8D%8F%E8%AE%AE%E3%80%81%E5%9C%B0%E5%9D%80%E6%98%AF%E5%9F%BA%E4%BA%8Eweb%E5%BA%94%E7%94%A8%E4%B8%8A%E4%B8%8B%E6%96%87%E7%9A%84%EF%BC%8C%E8%80%8Cnginx%E5%B9%B6%E6%B2%A1%E6%9C%89%E5%81%9A%E7%89%B9%E5%88%AB%E7%9A%84%E5%A4%84%E7%90%86%E5%B0%B1%E8%BD%AC%E5%8F%91%E7%BB%99%E4%BA%86%E6%B5%8F%E8%A7%88%E5%99%A8%EF%BC%8C%E6%B5%8F%E8%A7%88%E5%99%A8%E8%87%AA%E7%84%B6%E4%B8%8D%E8%83%BD%E8%AE%BF%E9%97%AE%E5%88%B0%E8%BF%99%E4%B8%AA%E5%9C%B0%E5%9D%80%E3%80%82%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95%E5%A6%82%E4%B8%8B%EF%BC%9A">https://10.115.6.165/databoard/dataCmder。这是因为后端Web应用执行了redirect重定向语句，而重定向的协议、地址是基于web应用上下文的，而nginx并没有做特别的处理就转发给了浏览器，浏览器自然不能访问到这个地址。解决办法如下：</a></p>
+<pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+</code></pre>
+<h4 id="2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。"><a href="#2）Cookie-携带-Secure-属性导致浏览器不能在请求中携带-SessionID-的问题。" class="headerlink" title="2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。"></a>2）Cookie 携带 Secure 属性导致浏览器不能在请求中携带 SessionID 的问题。</h4><p>有 Secure 属性的 Cookie 意味着如果浏览器不是用 HTTPS 与服务建立链接，那么这个 cookie 里的值不会随请求一起向服务器发送。所以要解决这个问题就需要在 Nginx 中把 cookie 中的 Secure 属性去掉再传给浏览器。解决办法如下：</p>
+<pre><code>map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    ... ...
+    location /databoard/ &#123;
+        ... ...
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+</code></pre>
+<h4 id="完整的相关配置"><a href="#完整的相关配置" class="headerlink" title="完整的相关配置"></a>完整的相关配置</h4><pre><code>map $upstream_http_Location $location &#123;
+  ~https://10.115.6.165/(?&lt;param&gt;.*) http://10.115.6.165:9080/$param;
+  default $upstream_http_Location;
+&#125;
+
+map $sent_http_set_cookie $resp_cookie &#123;
+    ~*(?&lt;CK_WITHOUT_SECURE&gt;.+)Secure $CK_WITHOUT_SECURE;
+&#125;
+
+server &#123;
+    listen       9080;
+    server_name  10.115.6.165;
+
+    location /databoard/ &#123;
+        proxy_pass  https://10.115.6.165:19026/databoard/;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST        $remote_addr;
+        proxy_set_header X-Forwarded-Proto  $scheme;
+        proxy_redirect off;
+
+        more_set_headers -s &#39;301 302&#39; &#39;Location $location&#39;;
+        more_set_headers &#39;Set-Cookie: $resp_cookie&#39;;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="Nginx-以-HTTPS-的方式反向代理。"><a href="#Nginx-以-HTTPS-的方式反向代理。" class="headerlink" title="Nginx 以 HTTPS 的方式反向代理。"></a>Nginx 以 HTTPS 的方式反向代理。</h3><p>如果 nginx 是以 HTTPS 协议向外提供反向代理，那么无论使用七层代理还是四层代理配置起来都很简单，如下：</p>
+<h4 id="3）四层反向代理。"><a href="#3）四层反向代理。" class="headerlink" title="3）四层反向代理。"></a>3）四层反向代理。</h4><pre><code>stream &#123;
+    upstream databoardServer &#123;
+        hash $remote_addr consistent;
+        server 10.115.6.165:19026 weight=5;
+    &#125;
+
+    server &#123;
+        listen 9082;
+        proxy_connect_timeout 1s;
+        proxy_timeout 3s;
+        proxy_pass databoardServer;
+    &#125;
+&#125;
+</code></pre>
+<h4 id="4）七层反向代理。"><a href="#4）七层反向代理。" class="headerlink" title="4）七层反向代理。"></a>4）七层反向代理。</h4><pre><code>server &#123;
+    listen       443 ssl;
+    server_name  10.115.6.165;
+    ssl_certificate D:\\tmp\\opensslCrt\\demoAppChain.crt;
+    ssl_certificate_key D:\\tmp\\opensslCrt\\demoApp.key;
+
+    location / &#123;
+        proxy_pass https://10.115.6.165:19026;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Referer https://10.115.6.165;
+    &#125;
+&#125;
+</code></pre>
+<h3 id="关于-Spring-Session-Cookie-Secure-配置"><a href="#关于-Spring-Session-Cookie-Secure-配置" class="headerlink" title="关于 Spring Session Cookie Secure 配置"></a>关于 Spring Session Cookie Secure 配置</h3><p>当时想直接配置 Spring Web 应用不让 Cookie 带上 Secure 属性，这样就不用在 Nginx 上处理 Cookie 了。于是直接修改配置 application.properties 如下，但是返回给 nginx 的 Cookie 还是带 Secure 属性。</p>
+<pre><code>server.session.cookie.secure=true
+</code></pre>
+<p>通过跟踪 Spring 源码发现，只要应用是运行在 HTTPS 协议下的，那么就会让生成的 Cookie 是 Secure 的。<br><img src="/2021/04/07/micro_service/http_nginx_to_https_upstream/secureOverride.png"></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>, <a href="/tags/Security/">Security</a>, <a href="/tags/Nginx/">Nginx</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2021/04/08/micro_service/http_nginx_to_https_upstream/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

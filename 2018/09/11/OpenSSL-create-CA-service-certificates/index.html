@@ -1,0 +1,253 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>使用OpenSSL创建CA、Service证书的步骤 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。
+
+
+准备目录mkdir root-ca
+cd root-ca
+mkdir certs db private
+chmod 700 private
+touch db/index
+openssl r">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="使用OpenSSL创建CA、Service证书的步骤"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-OpenSSL-create-CA-service-certificates" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2018-09-10T13:24:47.000Z"><a href="/2018/09/11/OpenSSL-create-CA-service-certificates/">2018-09-11</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">使用OpenSSL创建CA、Service证书的步骤</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <blockquote><p>OpenSSL是SSL、TLS协议的一个实现、开源工具集。OpenSSL可用于密钥、证书管理以及相关测试。</p>
+</blockquote>
+
+<h3 id="准备目录"><a href="#准备目录" class="headerlink" title="准备目录"></a>准备目录</h3><pre><code>mkdir root-ca
+cd root-ca
+mkdir certs db private
+chmod 700 private
+touch db/index
+openssl rand -hex 16 &gt; db/serial
+echo 1001 &gt; db/crlnumber
+</code></pre>
+<h3 id="创建RootCA"><a href="#创建RootCA" class="headerlink" title="创建RootCA"></a>创建RootCA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/root-ca.conf" title="root-ca.conf">root-ca.conf</a>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Create CA Private Key</span></span><br><span class="line">openssl req -new  -config root-ca.conf -out root-	ca.csr -keyout private/root-ca.key</span><br><span class="line">    </span><br><span class="line"><span class="comment"># CA self-sign</span></span><br><span class="line">openssl ca -selfsign -config root-ca.conf -<span class="keyword">in</span> root-ca.csr -out root-ca.crt -extensions ca_ext</span><br></pre></td></tr></table></figure>
+
+<h3 id="二级CA"><a href="#二级CA" class="headerlink" title="二级CA"></a>二级CA</h3><a href="/2018/09/10/OpenSSL-create-CA-service-certificates/sub-ca.conf" title="sub-ca.conf">sub-ca.conf</a>
+
+<pre><code># 这一步同时生产私钥和csr
+openssl req -config sub-ca.conf -new -out sub-ca.csr -keyout private/sub-ca.key
+
+# 用root ca签署sub ca
+openssl ca -config root-ca.conf -in sub-ca.csr -out sub-ca.crt -extensions sub_ca_ext    
+</code></pre>
+<h3 id="Service-Certificate"><a href="#Service-Certificate" class="headerlink" title="Service Certificate"></a>Service Certificate</h3><pre><code>openssl genrsa -aes128 -out server.key 2048
+openssl req -new -key server.key -out server.csr
+openssl ca -config sub-ca.conf -in server.csr -out server.crt -extensions server_ext
+</code></pre>
+<p><em>Reference</em>:</p>
+<p><a target="_blank" rel="noopener" href="http://www.ituring.com.cn/book/download/338e1e55-fd94-4ac3-9e21-e0bf04984b3f">《OpenSSL攻略》</a> 这篇文档详细介绍了OpenSSL的使用。</p>
+<p>更多背景知识可参考：<a target="_blank" rel="noopener" href="http://www.ituring.com.cn/book/1734">《HTTPS权威指南》</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2018/09/11/OpenSSL-create-CA-service-certificates/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>

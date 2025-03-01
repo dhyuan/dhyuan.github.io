@@ -1,0 +1,264 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Apereo CAS 之 在本地运行 | 浅流</title>
+  <meta name="author" content="Dahui">
+  
+  <meta name="description" content="Apereo CAS，是CAS协议official reference implementation，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。当前版本是6.5，https://github.com/apereo/cas-overlay-template/tree/6.5。
+本以为按照">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="Apereo CAS 之 在本地运行"/>
+  <meta property="og:site_name" content="浅流"/>
+
+  
+    <meta property="og:image" content=""/>
+  
+
+  <link rel="shortcut icon" href="/favicon.png">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  <!--[if lt IE 9]><script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+
+<body>
+  <header id="header" class="inner"><div class="alignleft">
+  <h1><a href="/">浅流</a></h1>
+  <h2><a href="/"></a></h2>
+</div>
+<nav id="main-nav" class="alignright">
+  <ul>
+    
+      <li><a href="/null">Home</a></li>
+    
+      <li><a href="/archives">Archives</a></li>
+    
+  </ul>
+  <div class="clearfix"></div>
+</nav>
+<div class="clearfix"></div>
+</header>
+  <div id="content" class="inner">
+    <div id="main-col" class="alignleft"><div id="wrapper"><article id="post-notes/cas/Run-up-Apereo-CAS-locally" class="h-entry post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+  <div class="post-content">
+    <header>
+      
+        <div class="icon"></div>
+        <time class="dt-published" datetime="2025-01-25T12:22:54.276Z"><a href="/2025/01/26/notes/cas/Run-up-Apereo-CAS-locally/">2025-01-26</a></time>
+      
+      
+  
+    <h1 class="p-name title" itemprop="headline name">Apereo CAS 之 在本地运行</h1>
+  
+
+    </header>
+    <div class="e-content entry" itemprop="articleBody">
+      
+        <p>Apereo CAS，是CAS协议<code>official reference implementation</code>，也差不多是当前开源的SSO解决方案最好、最成熟的一个了。<br>当前版本是6.5，<a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5%E3%80%82">https://github.com/apereo/cas-overlay-template/tree/6.5。</a></p>
+<p>本以为按照<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/installation/WAR-Overlay-Installation.html">Apereo CAS的官方安装指南</a>能够很容易把cas server在本地跑起来，但最后发现这个文档实操性略差。这里略过基础概念，直接记录一下本地运行的步骤。</p>
+<p>没必要下载源码修改代码、配置然后build出自己的安装包，按照官方文档推荐直接使用“WAR Overlay Installation”的方式安装。</p>
+<h3 id="1）下载overlay框架代码，使用6-5分支代码。"><a href="#1）下载overlay框架代码，使用6-5分支代码。" class="headerlink" title="1）下载overlay框架代码，使用6.5分支代码。"></a>1）下载overlay框架代码，使用6.5分支代码。</h3><pre><code>git clone https://github.com/apereo/cas-overlay-template.git cas-server
+git checkout -b 6.5 origin/6.5
+</code></pre>
+<p>Overlays这个方式是通过maven-war-plugin实现的： <a target="_blank" rel="noopener" href="https://maven.apache.org/plugins/maven-war-plugin/overlays.html%EF%BC%8C">https://maven.apache.org/plugins/maven-war-plugin/overlays.html，</a><br>gradle的实现：<a target="_blank" rel="noopener" href="https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay">https://docs.freefair.io/gradle-plugins/current/reference/#_io_freefair_war_overlay</a><br>在这个cas项目里可参看 ./gradle/springboot.gradle 里bootWar部分。</p>
+<h3 id="2）gradle-perperties"><a href="#2）gradle-perperties" class="headerlink" title="2）gradle.perperties"></a>2）gradle.perperties</h3><p>这利用这个overlays项目运行CAS之前，可浏览一下gradle.properties文件定义的各个属性。其中，<br><strong>appServer</strong> 用于定义Apereo CAS server使用哪个内置server（Tomcat、Jetty…），如果只生成war部署到外部已存在的servlet contaier则无需定义此项。<br><strong>certDir、serverKeyStore、exportedServerCert、storeType</strong> 这些选项用于定义https所用的证书。</p>
+<h3 id="3）gradle-tasks-gradle"><a href="#3）gradle-tasks-gradle" class="headerlink" title="3）gradle/tasks.gradle"></a>3）gradle/tasks.gradle</h3><p><code>./gradlew tasks</code> 运行会显示可执行的tasks，其中一部分task被定义于 gradle/tasks.gradle 文件中。</p>
+<pre><code>CAS tasks
+---------
+casVersion - Display the current CAS version
+copyCasConfiguration - Copy the CAS configuration from this project to /etc/cas/config
+createKeystore - Create CAS keystore
+createTheme - Create theme directory structure in the overlay
+... ...
+</code></pre>
+<p>其中 createKeystore 用于生成https所用的证书。<br><code>sudo ./gradlew createKeystore</code></p>
+<p>如果需要修改keystore的密码，可以执行：<br><code>keytool -storepasswd -keystore /etc/cas/thekeystore</code></p>
+<p>生成https需要的PK和证书后，需要把CA导入到JDK的的ca根证书库中。</p>
+<pre><code>cd /etc/cas
+sudo keytool -import -alias cas_cert -storepass changeit -file cas.crt -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts
+</code></pre>
+<p>查看ca keystore<br><code>sudo keytools -list -storepass changeit  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts</code></p>
+<p>从ca keystore中删除cascert<br><code>sudo keytool -delete  -alias cas_cert  -keystore  /Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/lib/security/cacerts  -storepass changeit</code></p>
+<h3 id="4）cas的配置文件"><a href="#4）cas的配置文件" class="headerlink" title="4）cas的配置文件"></a>4）cas的配置文件</h3><p>把项目中的 etc/cas/config 目录下的默认配置内容copy到 /etc/cas/config 中。可以手工copy文件，也可以通过gradle task, <code>./gradlew copyCasConfiguration</code></p>
+<p>默认的内置的用户名密码是 casuser/Mellon，可以通过修改/etc/cas/config/cas.properties <code>cas.authn.accept.users=casuser::password</code> 进行定义。</p>
+<p>配置登录用户在Apereo里属于<a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/authentication/Configuring-Authentication-Components.html">CAS Authentication 的范畴</a>。</p>
+<h3 id="5）Build-and-Run"><a href="#5）Build-and-Run" class="headerlink" title="5）Build and Run"></a>5）Build and Run</h3><pre><code>./gradlew clean build
+java -jar ./build/libs/cas.war
+</code></pre>
+<p>在浏览器中访问 <a target="_blank" rel="noopener" href="https://localhost:8443/cas">https://localhost:8443/cas</a> 进入CAS系统。</p>
+<h3 id="6"><a href="#6" class="headerlink" title="6)"></a>6)</h3><p>如果在日志里发现提示<code>The generated key MUST be added to CAS settings</code>， 则可按照提示把cas.tgc.crypto.encryption.key，cas.tgc.crypto.signing.key 加入到etc/cas/config/cas.properties 文件。</p>
+<pre><code>    2022-08-29 23:29:34,160 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for encryption is not defined for [Ticket-granting Cookie]; CAS will attempt to auto-generate the encryption key&gt;
+    2022-08-29 23:29:34,168 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated encryption key [rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I] of size [256] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
+
+            cas.tgc.crypto.encryption.key=rAHG_XeYnE-DbLtE77fngWAMtbB5lpIXYKbI_nSiD8I
+
+    &gt;
+    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Secret key for signing is not defined for [Ticket-granting Cookie]. CAS will attempt to auto-generate the signing key&gt;
+    2022-08-29 23:29:34,170 WARN [org.apereo.cas.util.cipher.BaseStringCipherExecutor] - &lt;Generated signing key [cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg] of size [512] for [Ticket-granting Cookie]. The generated key MUST be added to CAS settings:
+
+            cas.tgc.crypto.signing.key=cOlc7xQB5UJTwYrVmA30aQehEkxbSkcyHmE8vRkPHboRZkTn2rBJ8pUUPZfTJt7H8e3ecpitvuH2prrLxfIVxg
+</code></pre>
+<br/>
+
+<hr>
+<p><em>Reference:</em><br>[1]: <a target="_blank" rel="noopener" href="https://apereo.github.io/cas/6.5.x/index.html">https://apereo.github.io/cas/6.5.x/index.html</a><br>[2]: <a target="_blank" rel="noopener" href="https://github.com/apereo/cas-overlay-template/tree/6.5">https://github.com/apereo/cas-overlay-template/tree/6.5</a><br>[3]: <a target="_blank" rel="noopener" href="https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52">https://medium.com/swlh/install-cas-server-with-db-authentication-8ff52234f52</a></p>
+
+      
+    </div>
+    <footer>
+      
+        
+        
+  
+  <div class="tags">
+    <a href="/tags/DevOps/">DevOps</a>, <a href="/tags/Security/">Security</a>, <a href="/tags/CAS/">CAS</a>
+  </div>
+
+      
+      <div class="clearfix"></div>
+    </footer>
+  </div>
+</article>
+
+
+<section id="comment">
+  <h1 class="title">留言</h1>
+
+  
+      <div id="fb-root"></div>
+<script>
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=";
+    fjs.parentNode.insertBefore(js, fjs);
+  }(document, 'script', 'facebook-jssdk'));
+</script>
+
+<div class="fb-comments" data-href="https://dhyuan.github.io/2025/01/26/notes/cas/Run-up-Apereo-CAS-locally/index.html" data-num-posts="5" data-width="840" data-colorscheme="light"></div>
+      
+  
+</section>
+
+</div></div>
+    <aside id="sidebar" class="alignright">
+  <div class="search">
+  <form action="//google.com/search" method="get" accept-charset="utf-8">
+    <input type="search" name="q" results="0" placeholder="搜索">
+    <input type="hidden" name="as_sitesearch" value="dhyuan.github.io">
+  </form>
+</div>
+
+
+  
+
+  
+<div class="widget tag">
+  <h3 class="title">标签</h3>
+  <ul class="entry">
+  
+    <li><a href="/tags/AWS/">AWS</a><small>2</small></li>
+  
+    <li><a href="/tags/CAS/">CAS</a><small>5</small></li>
+  
+    <li><a href="/tags/Concurrency/">Concurrency</a><small>6</small></li>
+  
+    <li><a href="/tags/DevOps/">DevOps</a><small>31</small></li>
+  
+    <li><a href="/tags/FP/">FP</a><small>2</small></li>
+  
+    <li><a href="/tags/Git/">Git</a><small>1</small></li>
+  
+    <li><a href="/tags/Ingerss/">Ingerss</a><small>1</small></li>
+  
+    <li><a href="/tags/Java/">Java</a><small>10</small></li>
+  
+    <li><a href="/tags/Kubernetes/">Kubernetes</a><small>3</small></li>
+  
+    <li><a href="/tags/Maven/">Maven</a><small>2</small></li>
+  
+    <li><a href="/tags/MicroService/">MicroService</a><small>3</small></li>
+  
+    <li><a href="/tags/MongoDB/">MongoDB</a><small>6</small></li>
+  
+    <li><a href="/tags/Nginx/">Nginx</a><small>2</small></li>
+  
+    <li><a href="/tags/Reactive/">Reactive</a><small>8</small></li>
+  
+    <li><a href="/tags/SAGA/">SAGA</a><small>1</small></li>
+  
+    <li><a href="/tags/Scala/">Scala</a><small>7</small></li>
+  
+    <li><a href="/tags/Security/">Security</a><small>12</small></li>
+  
+    <li><a href="/tags/Spring/">Spring</a><small>14</small></li>
+  
+    <li><a href="/tags/android/">android</a><small>1</small></li>
+  
+    <li><a href="/tags/network/">network</a><small>2</small></li>
+  
+    <li><a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/">性能测试</a><small>1</small></li>
+  
+    <li><a href="/tags/%E7%AC%94%E8%AE%B0/">笔记</a><small>13</small></li>
+  
+    <li><a href="/tags/%E7%BD%91%E4%B8%8A%E5%A5%BD%E6%96%87/">网上好文</a><small>1</small></li>
+  
+  </ul>
+</div>
+
+
+  
+  <div class="widget widget-archives">
+    <h3 class="title">归档</h3>
+    <div class="entry">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/01/">一月 2025</a><span class="archive-list-count">16</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/06/">六月 2024</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">二月 2023</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/11/">十一月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/09/">九月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/08/">八月 2022</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/10/">十月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">七月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/05/">五月 2021</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/04/">四月 2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">三月 2021</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/02/">二月 2021</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">十二月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/11/">十一月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/10/">十月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/09/">九月 2020</a><span class="archive-list-count">11</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/03/">三月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/02/">二月 2020</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/09/">九月 2016</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+</aside>
+    <div class="clearfix"></div>
+  </div>
+  <footer id="footer" class="inner"><div class="alignleft">
+  
+  &copy; 2025 Dahui
+  
+</div>
+<div class="clearfix"></div></footer>
+  
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+
+
+<script src="/js/gallery.js"></script>
+
+
+
+
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+
+
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+<script>
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+</body>
+</html>
